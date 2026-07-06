@@ -1,0 +1,7 @@
+# Normalize line endings — keep LF in the repo on all platforms.
+* text=auto eol=lf
+
+# Binary assets (if you add SVG/PNG source later) should not be normalized.
+*.png binary
+*.jpg binary
+*.ico binary

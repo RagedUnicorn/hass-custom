@@ -1,0 +1,6 @@
+{
+  "name": "RagedUnicorn Custom Frontend",
+  "filename": "hass-custom.js",
+  "render_readme": true,
+  "homeassistant": "2023.1.0"
+}
