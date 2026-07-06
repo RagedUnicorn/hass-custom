@@ -7,6 +7,12 @@ Right now it ships **custom icon sets** so you can use icons that Home Assistant
 does not include in its bundled [Material Design Icons](https://pictogrammers.com/library/mdi/)
 — for example brand logos such as **Matter** and **Zigbee**.
 
+<p>
+  <img src="assets/matter.svg" alt="ru:matter icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/zigbee2mqtt.svg" alt="ru:zigbee2mqtt icon" width="64" height="64">
+</p>
+
 Because HACS treats a repository as a single category, everything here is
 frontend JavaScript. Additional frontend customizations (more icon sets, custom
 Lovelace cards, small UI tweaks) can be added to the same
