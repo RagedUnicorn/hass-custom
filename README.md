@@ -44,7 +44,7 @@ icon: ru:matter
 ```
 
 Or set it as an entity's icon under **Settings → Devices & services → Entities →
-(entity) → Settings → Icon** by typing `ru:zigbee`.
+(entity) → Settings → Icon** by typing `ru:zigbee2mqtt`.
 
 > Custom icons render everywhere `<ha-icon>` is used, but they do **not** appear
 > in the icon-picker dropdown — you type the full `prefix:name` yourself.
@@ -58,7 +58,7 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
    const ICON_SETS = {
      ru: {
        matter: { path: "…" },
-       zigbee: { path: "…" },
+       zigbee2mqtt: { path: "…" },
        thread: { path: "…" }, // new icon → ru:thread
      },
    };
@@ -67,10 +67,10 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
 
 ## Included icons
 
-| Icon        | Source            | Notes                                     |
-| ----------- | ----------------- | ----------------------------------------- |
-| `ru:matter` | Matter logo       | rendered monochrome (theme `currentColor`) |
-| `ru:zigbee` | Zigbee2MQTT logo  | brand mark of the zigbee2mqtt project      |
+| Icon             | Source           | Notes                                      |
+| ---------------- | ---------------- | ------------------------------------------ |
+| `ru:matter`      | Matter logo      | rendered monochrome (theme `currentColor`) |
+| `ru:zigbee2mqtt` | Zigbee2MQTT logo | brand mark of the zigbee2mqtt project      |
 
 ## License
 
