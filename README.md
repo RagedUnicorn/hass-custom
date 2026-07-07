@@ -10,7 +10,7 @@ does not include in its bundled [Material Design Icons](https://pictogrammers.co
 <p>
   <img src="assets/matter.svg" alt="ru:matter icon" width="64" height="64">
   &nbsp;&nbsp;
-  <img src="assets/zigbee2mqtt.svg" alt="ru:zigbee2mqtt icon" width="64" height="64">
+  <img src="assets/zigbee.svg" alt="ru:zigbee icon" width="64" height="64">
 </p>
 
 Because HACS treats a repository as a single category, everything here is
@@ -38,6 +38,31 @@ HACS adds `hass-custom.js` as a Lovelace resource automatically.
    - Type: **JavaScript Module**
 3. Reload the frontend.
 
+### Make the icons available outside dashboards (recommended)
+
+A Lovelace **resource** — which is what both installs above register — only loads
+inside a **dashboard**. Config pages such as **Settings → Areas → Labels**,
+**Areas**, or an entity's **Icon** field live outside Lovelace, so the `ru:` icon
+set is often not registered there yet and `ru:matter` / `ru:zigbee` render
+blank (they only resolve if you happened to open a dashboard first in the same
+browser session).
+
+To load the icons on **every** frontend page, register the file as a global
+module in `configuration.yaml` instead of (or in addition to) the Lovelace
+resource:
+
+```yaml
+frontend:
+  extra_module_url:
+    # HACS install — served from /hacsfiles/<repo>/<filename>
+    - /hacsfiles/hass-custom/hass-custom.js
+    # Manual install instead? use: /local/hass-custom.js
+```
+
+Restart Home Assistant and hard-refresh the browser (Ctrl/Cmd + Shift + R).
+The custom icons now resolve in labels, areas, entity settings — everywhere
+`<ha-icon>` is used.
+
 ## Usage
 
 Reference an icon anywhere Home Assistant accepts one, as `<prefix>:<name>`:
@@ -50,10 +75,14 @@ icon: ru:matter
 ```
 
 Or set it as an entity's icon under **Settings → Devices & services → Entities →
-(entity) → Settings → Icon** by typing `ru:zigbee2mqtt`.
+(entity) → Settings → Icon** by typing `ru:zigbee`.
 
 > Custom icons render everywhere `<ha-icon>` is used, but they do **not** appear
 > in the icon-picker dropdown — you type the full `prefix:name` yourself.
+>
+> Setting the icon on a **label**, **area**, or **entity** happens on a config
+> page *outside* Lovelace, so it only renders once the file is loaded globally —
+> see [Make the icons available outside dashboards](#make-the-icons-available-outside-dashboards-recommended).
 
 ## Adding an icon
 
@@ -64,7 +93,7 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
    const ICON_SETS = {
      ru: {
        matter: { path: "…" },
-       zigbee2mqtt: { path: "…" },
+       zigbee: { path: "…" },
        thread: { path: "…" }, // new icon → ru:thread
      },
    };
@@ -76,7 +105,7 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
 | Icon             | Source           | Notes                                      |
 | ---------------- | ---------------- | ------------------------------------------ |
 | `ru:matter`      | Matter logo      | rendered monochrome (theme `currentColor`) |
-| `ru:zigbee2mqtt` | Zigbee2MQTT logo | brand mark of the zigbee2mqtt project      |
+| `ru:zigbee`      | Zigbee logo      | official Zigbee brand mark                 |
 
 ## License
 
