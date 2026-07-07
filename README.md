@@ -13,6 +13,10 @@ does not include in its bundled [Material Design Icons](https://pictogrammers.co
   <img src="assets/zigbee.svg" alt="ru:zigbee icon" width="64" height="64">
   &nbsp;&nbsp;
   <img src="assets/philips-hue.svg" alt="ru:philips-hue icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/shelly.svg" alt="ru:shelly icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/ubiquiti-unifi.svg" alt="ru:ubiquiti-unifi icon" width="64" height="64">
 </p>
 
 Because HACS treats a repository as a single category, everything here is
@@ -109,6 +113,8 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
 | `ru:matter`      | Matter logo      | rendered monochrome (theme `currentColor`) |
 | `ru:zigbee`      | Zigbee logo      | official Zigbee brand mark                 |
 | `ru:philips-hue` | Philips Hue logo | official Philips Hue wordmark              |
+| `ru:shelly`      | Shelly logo      | official Shelly brand mark                 |
+| `ru:ubiquiti-unifi` | Ubiquiti UniFi logo | official UniFi brand mark            |
 
 ## License
 
