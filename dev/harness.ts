@@ -134,7 +134,32 @@ const mock = new MockHass(
   [
     { entity: "sensor.bedroom_purifier_pm_2_5", name: "PM 2.5", value: 8 },
     { entity: "sensor.bedroom_purifier_pm_10", name: "PM 10", value: 12 },
-  ]
+  ],
+  [
+    {
+      // androidtv_remote-like: power/app/volume-step, no volume level.
+      // PAUSE|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|PLAY_MEDIA|VOLUME_STEP|STOP|PLAY
+      entity: "media_player.tv_android",
+      name: "Living Room TV",
+      state: "on",
+      features: 22457,
+      appId: "com.netflix.ninja",
+    },
+    {
+      // cast-like: now-playing detail, seek, volume level.
+      // PAUSE|SEEK|VOLUME_SET|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|PLAY_MEDIA|STOP|PLAY
+      entity: "media_player.tv_cast",
+      name: "Living Room TV Cast",
+      state: "playing",
+      features: 21439,
+      appName: "Netflix",
+      title: "Stranger Things · S4 E7",
+      duration: 3120,
+      position: 754,
+      volume: 0.35,
+    },
+  ],
+  [{ entity: "remote.tv_livingroom", name: "Living Room TV Remote" }]
 );
 
 const card = document.createElement("ru-shutters-card") as LovelaceCard;
@@ -234,15 +259,47 @@ purifierCard.setConfig({
   pm10_entity: "sensor.bedroom_purifier_pm_10",
 });
 
+const tvCard = document.createElement("ru-tv-card") as LovelaceCard;
+tvCard.setConfig({
+  type: "custom:ru-tv-card",
+  title: "Media",
+  entity: "media_player.tv_android",
+  name: "Living Room TV",
+  media_entity: "media_player.tv_cast",
+  remote_entity: "remote.tv_livingroom",
+  apps: [
+    {
+      name: "Netflix",
+      color: "#E50914",
+      activity: "https://www.netflix.com/title",
+      app_id: "com.netflix.ninja",
+    },
+    {
+      name: "YouTube",
+      color: "#FF0000",
+      activity: "https://www.youtube.com",
+      app_id: "com.google.android.youtube.tv",
+    },
+    {
+      name: "Spotify",
+      color: "#1DB954",
+      activity: "com.spotify.tv.android",
+      app_id: "com.spotify.tv.android",
+    },
+  ],
+});
+
 mock.onChange((hass) => {
   card.hass = hass;
   lightsCard.hass = hass;
   purifierCard.hass = hass;
+  tvCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
 document.getElementById("card-lights")!.appendChild(lightsCard);
 document.getElementById("card-purifier")!.appendChild(purifierCard);
+document.getElementById("card-tv")!.appendChild(tvCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -278,6 +335,16 @@ export interface Harness {
   ): void;
   setSwitch(entity: string, on: boolean): void;
   setSensor(entity: string, value: number): void;
+  setMediaPlayer(
+    entity: string,
+    patch: {
+      state?: "off" | "on" | "idle" | "playing" | "paused";
+      position?: number;
+      volume?: number | null;
+      muted?: boolean;
+      available?: boolean;
+    }
+  ): void;
   setTravelMs(ms: number): void;
   reset(): void;
 }
@@ -299,6 +366,7 @@ window.__harness = {
   setFan: (entity, patch) => mock.setFan(entity, patch),
   setSwitch: (entity, on) => mock.setSwitch(entity, on),
   setSensor: (entity, value) => mock.setSensor(entity, value),
+  setMediaPlayer: (entity, patch) => mock.setMediaPlayer(entity, patch),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   reset: () => mock.reset(),
 };

@@ -13,6 +13,7 @@ import { iconSetNames, registerIconSets } from "./icons";
 import "./cards/ru-shutters-card/ru-shutters-card";
 import "./cards/ru-lights-card/ru-lights-card";
 import "./cards/ru-purifier-card/ru-purifier-card";
+import "./cards/ru-tv-card/ru-tv-card";
 
 registerIconSets();
 
@@ -22,5 +23,5 @@ console.info(
   "color:#6f42c1;background:#efe7ff;font-weight:700;border-radius:0 3px 3px 0;padding:2px 6px;",
   `— icon sets: ${iconSetNames()
     .map((s) => `${s}:*`)
-    .join(", ")} — cards: ru-shutters-card, ru-lights-card, ru-purifier-card`
+    .join(", ")} — cards: ru-shutters-card, ru-lights-card, ru-purifier-card, ru-tv-card`
 );

@@ -15,6 +15,9 @@
  * `percentage` 0…100 in `percentage_step` steps; fan.set_percentage clears
  * the preset (manual), fan.set_preset_mode re-enters it. Switches flip
  * on/off; sensors hold a numeric reading settable via setSensor.
+ * Media player semantics follow src/cards/ru-tv-card/tv-state.ts: playback
+ * position is reported with media_position_updated_at and extrapolated by
+ * the card; volume_level is 0…1. Remotes only log their service calls.
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
@@ -93,6 +96,34 @@ export interface MockSensorSpec {
   unit?: string;
 }
 
+export interface MockMediaPlayerSpec {
+  entity: string;
+  name: string;
+  /** Initial state. Default "off". */
+  state?: "off" | "on" | "idle" | "playing" | "paused";
+  /** Raw supported_features bitmask, mirroring HA. */
+  features: number;
+  appId?: string;
+  appName?: string;
+  title?: string;
+  /** Track length in seconds. */
+  duration?: number;
+  /** Initial position in seconds. */
+  position?: number;
+  /** Volume, 0…1. Omit for players without a volume level (androidtv). */
+  volume?: number;
+  muted?: boolean;
+  /** Render as an unavailable entity. Default true (available). */
+  available?: boolean;
+}
+
+export interface MockRemoteSpec {
+  entity: string;
+  name: string;
+  /** Initial on state. Default true. */
+  on?: boolean;
+}
+
 export interface ServiceCall {
   domain: string;
   service: string;
@@ -137,6 +168,23 @@ interface SwitchState {
   on: boolean;
 }
 
+interface MediaPlayerState {
+  spec: MockMediaPlayerSpec;
+  state: "off" | "on" | "idle" | "playing" | "paused";
+  /** Position in seconds, valid at positionStamp. */
+  position: number;
+  /** ISO timestamp backing media_position_updated_at. */
+  positionStamp: string;
+  volume: number | null;
+  muted: boolean;
+  available: boolean;
+}
+
+interface RemoteState {
+  spec: MockRemoteSpec;
+  on: boolean;
+}
+
 interface SensorState {
   spec: MockSensorSpec;
   value: number;
@@ -158,6 +206,10 @@ export class MockHass {
 
   private sensors = new Map<string, SensorState>();
 
+  private mediaPlayers = new Map<string, MediaPlayerState>();
+
+  private remotes = new Map<string, RemoteState>();
+
   private darkMode = false;
 
   private travelMs = 600;
@@ -174,11 +226,14 @@ export class MockHass {
     private sceneSpecs: MockSceneSpec[] = [],
     private fanSpecs: MockFanSpec[] = [],
     private switchSpecs: MockSwitchSpec[] = [],
-    private sensorSpecs: MockSensorSpec[] = []
+    private sensorSpecs: MockSensorSpec[] = [],
+    private mediaPlayerSpecs: MockMediaPlayerSpec[] = [],
+    private remoteSpecs: MockRemoteSpec[] = []
   ) {
     this.resetCovers();
     this.resetLights();
     this.resetFans();
+    this.resetMedia();
     this.snapshot = this.buildSnapshot();
     setInterval(() => this.tick(), TICK_MS);
   }
@@ -261,12 +316,56 @@ export class MockHass {
     this.publish();
   }
 
+  /** Set a media player's state directly (no service call logged). */
+  setMediaPlayer(
+    entity: string,
+    patch: {
+      state?: "off" | "on" | "idle" | "playing" | "paused";
+      position?: number;
+      volume?: number | null;
+      muted?: boolean;
+      available?: boolean;
+    }
+  ): void {
+    const player = this.mediaPlayers.get(entity);
+    if (!player) return;
+    if (patch.state !== undefined) player.state = patch.state;
+    if (patch.position !== undefined) {
+      player.position = patch.position;
+      player.positionStamp = new Date().toISOString();
+    }
+    if (patch.volume !== undefined) player.volume = patch.volume;
+    if (patch.muted !== undefined) player.muted = patch.muted;
+    if (patch.available !== undefined) player.available = patch.available;
+    this.publish();
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.resetCovers();
     this.resetLights();
     this.resetFans();
+    this.resetMedia();
     this.publish();
+  }
+
+  private resetMedia(): void {
+    this.mediaPlayers.clear();
+    for (const spec of this.mediaPlayerSpecs) {
+      this.mediaPlayers.set(spec.entity, {
+        spec,
+        state: spec.state ?? "off",
+        position: spec.position ?? 0,
+        positionStamp: new Date().toISOString(),
+        volume: spec.volume ?? null,
+        muted: spec.muted ?? false,
+        available: spec.available ?? true,
+      });
+    }
+    this.remotes.clear();
+    for (const spec of this.remoteSpecs) {
+      this.remotes.set(spec.entity, { spec, on: spec.on ?? true });
+    }
   }
 
   private resetFans(): void {
@@ -430,6 +529,64 @@ export class MockHass {
       }
       this.publish();
     }
+    if (domain === "media_player") {
+      for (const entity of entities) {
+        const player = this.mediaPlayers.get(entity);
+        if (!player || !player.available) continue;
+        const stamp = () => {
+          player.positionStamp = new Date().toISOString();
+        };
+        switch (service) {
+          case "turn_on":
+            if (player.state === "off") player.state = "on";
+            break;
+          case "turn_off":
+            player.state = "off";
+            break;
+          case "media_play_pause":
+            if (player.state === "playing") {
+              // Freeze the extrapolated position the way HA does on pause.
+              player.position = Math.min(
+                player.spec.duration ?? 0,
+                player.position +
+                  (Date.now() - Date.parse(player.positionStamp)) / 1000
+              );
+              player.state = "paused";
+            } else {
+              player.state = "playing";
+            }
+            stamp();
+            break;
+          case "media_previous_track":
+          case "media_next_track":
+            player.position = 0;
+            player.state = "playing";
+            stamp();
+            break;
+          case "media_seek":
+            player.position = Number(data?.seek_position ?? player.position);
+            stamp();
+            break;
+          case "volume_set":
+            player.volume = Number(data?.volume_level ?? player.volume ?? 0);
+            break;
+          case "volume_up":
+            player.volume = Math.min(1, (player.volume ?? 0) + 0.05);
+            break;
+          case "volume_down":
+            player.volume = Math.max(0, (player.volume ?? 0) - 0.05);
+            break;
+          case "volume_mute":
+            player.muted = data?.is_volume_muted === true;
+            break;
+        }
+      }
+      this.publish();
+    }
+    if (domain === "remote") {
+      // Remotes only log — send_command/turn_on effects happen on a real TV.
+      this.publish();
+    }
     if (domain === "cover") {
       for (const entity of entities) {
         const cover = this.covers.get(entity);
@@ -479,6 +636,16 @@ export class MockHass {
         entity_id: sw.spec.entity,
         state: sw.on ? "on" : "off",
         attributes: { friendly_name: sw.spec.name },
+      };
+    }
+    for (const player of this.mediaPlayers.values()) {
+      states[player.spec.entity] = this.buildMediaPlayerEntity(player);
+    }
+    for (const remote of this.remotes.values()) {
+      states[remote.spec.entity] = {
+        entity_id: remote.spec.entity,
+        state: remote.on ? "on" : "off",
+        attributes: { friendly_name: remote.spec.name },
       };
     }
     for (const sensor of this.sensors.values()) {
@@ -553,6 +720,48 @@ export class MockHass {
         ...(fan.spec.supportsOscillation !== false
           ? { oscillating: fan.oscillating }
           : {}),
+      },
+    };
+  }
+
+  private buildMediaPlayerEntity(player: MediaPlayerState): HassEntity {
+    if (!player.available) {
+      return {
+        entity_id: player.spec.entity,
+        state: "unavailable",
+        attributes: { friendly_name: player.spec.name },
+      };
+    }
+    const off = player.state === "off";
+    return {
+      entity_id: player.spec.entity,
+      state: player.state,
+      attributes: {
+        friendly_name: player.spec.name,
+        supported_features: player.spec.features,
+        // HA drops app/media/volume attributes while the player is off.
+        ...(off
+          ? {}
+          : {
+              ...(player.spec.appId ? { app_id: player.spec.appId } : {}),
+              ...(player.spec.appName
+                ? { app_name: player.spec.appName }
+                : {}),
+              ...(player.spec.title && player.spec.duration
+                ? {
+                    media_title: player.spec.title,
+                    media_duration: player.spec.duration,
+                    media_position: player.position,
+                    media_position_updated_at: player.positionStamp,
+                  }
+                : {}),
+              ...(player.volume !== null
+                ? {
+                    volume_level: player.volume,
+                    is_volume_muted: player.muted,
+                  }
+                : {}),
+            }),
       },
     };
   }

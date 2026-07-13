@@ -10,8 +10,8 @@ It ships two things in a single bundle:
   brand logos such as **Matter**, **Zigbee** and **Philips Hue**.
 - **Custom Lovelace cards** — `ru-shutters-card`, a room-grouped shutter
   control card, `ru-lights-card`, a room-grouped light control card with
-  scenes, and `ru-purifier-card`, an air purifier control card with air
-  quality readout.
+  scenes, `ru-purifier-card`, an air purifier control card with air
+  quality readout, and `ru-tv-card`, an Android TV media + remote card.
 
 Everything ships under the `ru` namespace (**R**aged**U**nicorn): icon sets as
 `ru:*`, card elements as `ru-*`. All Lovelace cards share one global custom
@@ -290,6 +290,73 @@ Behavior notes:
   built-in palette for each; every color is exposed as a
   `--ru-purifier-*` CSS custom property (see
   [`src/cards/ru-purifier-card/styles.ts`](src/cards/ru-purifier-card/styles.ts))
+  and can be overridden by a theme or card-mod.
+
+Configuration is YAML-only for now — the card appears in the card picker with a
+starter config, but has no visual editor.
+
+### `ru-tv-card`
+
+An Android TV card: a media panel with power toggle, now-playing title, a
+drag-to-seek progress bar, transport buttons, a volume slider (or +/− steppers)
+and app launcher chips, plus an optional remote panel with a d-pad and
+Back / Home / Guide keys.
+
+Android TVs surface in HA as two media players — the Android TV Remote one
+(power, foreground app, volume steps) and the Google Cast one (track title,
+position, seek, volume level). The card spans both; every control is
+feature-detected from `supported_features`, so a config with only `entity`
+still renders a sensible card.
+
+```yaml
+type: custom:ru-tv-card
+title: Media
+entity: media_player.tv_livingroom          # androidtv_remote media player
+name: Living Room TV                        # optional, defaults to friendly_name
+media_entity: media_player.tv_livingroom_2  # optional, cast media player
+remote_entity: remote.tv_livingroom         # optional, androidtv_remote remote
+apps: # optional launcher chips
+  - name: Netflix
+    color: "#E50914"
+    activity: https://www.netflix.com/title
+    app_id: com.netflix.ninja
+  - name: YouTube
+    color: "#FF0000"
+    activity: https://www.youtube.com
+    app_id: com.google.android.youtube.tv
+```
+
+| Option          | Type   | Default       | Description                                                        |
+| --------------- | ------ | ------------- | ------------------------------------------------------------------ |
+| `title`         | string | `Media`       | Card title                                                         |
+| `entity`        | string | **required**  | The TV's `media_player.*` entity (power, app, volume steps)        |
+| `name`          | string | friendly name | Device name shown on the card                                      |
+| `media_entity`  | string | —             | Cast-style `media_player.*` → now-playing, seek, transport         |
+| `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
+| `apps`          | list   | —             | Launcher chips, each `name` + optional `color`/`activity`/`app_id` |
+
+Behavior notes:
+
+- The now-playing block (title, seek bar, transport) renders only when
+  `media_entity` reports a track with a duration; the playback position ticks
+  live between HA updates. Seek, play/pause and previous/next are each
+  feature-detected and dropped when unsupported.
+- The volume row prefers a live slider (`VOLUME_SET`, from whichever entity
+  supports it) and falls back to +/− steppers (`VOLUME_STEP`); the Vol label
+  toggles mute. Both fire once on release, so the TV isn't flooded with
+  commands mid-drag.
+- App chips launch via `remote.turn_on` with the app's `activity` (an Android
+  app link URL or package name), falling back to `media_player.play_media`
+  when no `remote_entity` is configured. A chip highlights when its `app_id`
+  matches the TV's foreground app (or its `name` matches the cast app name).
+- The remote panel sends `remote.send_command` key codes (`DPAD_*`, `BACK`,
+  `HOME`, `GUIDE`) and only renders when `remote_entity` is configured.
+- An unavailable TV renders grayed out with disabled controls; while the TV is
+  off the media/remote sections dim.
+- The card follows Home Assistant's light/dark mode automatically with a
+  built-in palette for each; every color is exposed as a
+  `--ru-tv-*` CSS custom property (see
+  [`src/cards/ru-tv-card/styles.ts`](src/cards/ru-tv-card/styles.ts))
   and can be overridden by a theme or card-mod.
 
 Configuration is YAML-only for now — the card appears in the card picker with a

@@ -25,6 +25,20 @@ export interface HassEntity {
     preset_mode?: string | null;
     oscillating?: boolean;
     unit_of_measurement?: string;
+    /** Media player: package/id of the foreground app (androidtv_remote). */
+    app_id?: string;
+    /** Media player: human app name (cast). */
+    app_name?: string;
+    media_title?: string;
+    /** Media length in seconds. */
+    media_duration?: number;
+    /** Playback position in seconds, valid at media_position_updated_at. */
+    media_position?: number;
+    /** ISO timestamp of the last media_position report. */
+    media_position_updated_at?: string;
+    /** Volume, 0…1 (HA convention). */
+    volume_level?: number;
+    is_volume_muted?: boolean;
     [key: string]: unknown;
   };
 }
@@ -114,6 +128,34 @@ export interface PurifierCardConfig {
   pm25_entity?: string;
   /** PM10 sensor (µg/m³) — enables the air quality panel. */
   pm10_entity?: string;
+}
+
+// --- ru-tv-card config ----------------------------------------------------------
+
+export interface TvAppConfig {
+  name: string;
+  /** Chip dot color (any CSS color). */
+  color?: string;
+  /** What launches the app: an Android app link URL or package name, passed
+   * as remote.turn_on's `activity` (falls back to media_player.play_media). */
+  activity?: string;
+  /** Matched against the TV's `app_id` attribute to highlight the chip. */
+  app_id?: string;
+}
+
+export interface TvCardConfig {
+  type: string;
+  title?: string;
+  /** The TV's media_player.* entity (androidtv_remote) — power, app, volume. */
+  entity: string;
+  name?: string;
+  /** Cast-style media_player.* with now-playing detail — enables the track
+   * title, seek bar and transport controls. */
+  media_entity?: string;
+  /** remote.* entity (androidtv_remote) — enables the remote panel. */
+  remote_entity?: string;
+  /** App launcher chips. */
+  apps?: TvAppConfig[];
 }
 
 // --- globals the HA frontend looks at ----------------------------------------
