@@ -11,6 +11,7 @@
 
 import { iconSetNames, registerIconSets } from "./icons";
 import "./cards/ru-shutters-card/ru-shutters-card";
+import "./cards/ru-lights-card/ru-lights-card";
 
 registerIconSets();
 
@@ -20,5 +21,5 @@ console.info(
   "color:#6f42c1;background:#efe7ff;font-weight:700;border-radius:0 3px 3px 0;padding:2px 6px;",
   `— icon sets: ${iconSetNames()
     .map((s) => `${s}:*`)
-    .join(", ")} — cards: ru-shutters-card`
+    .join(", ")} — cards: ru-shutters-card, ru-lights-card`
 );

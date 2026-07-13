@@ -3,9 +3,14 @@
  * and Playwright tests. Simulates cover travel: service calls set a target and
  * `current_position` steps toward it over `travelMs`, with opening/closing
  * states while moving — mirroring how the card sees a real Shelly 2PM cover.
+ * Lights and scenes apply instantly: light.turn_on/turn_off flip state and
+ * brightness, scene.turn_on applies the scene's state map and stamps the
+ * scene entity with a fresh activation timestamp (HA scene semantics).
  *
  * Cover semantics follow src/cards/ru-shutters-card/cover-state.ts:
  * positions 0 (closed) … 100 (open), SET_POSITION = feature bit 4.
+ * Light semantics follow src/cards/ru-lights-card/light-state.ts:
+ * `brightness` attribute 0…255, dimmability via supported_color_modes.
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
@@ -28,6 +33,29 @@ export interface MockCoverSpec {
   available?: boolean;
 }
 
+export interface MockLightSpec {
+  entity: string;
+  name: string;
+  /** Initial on state. Default false. */
+  on?: boolean;
+  /** Initial brightness in percent, 0…100. Default 100. */
+  brightness?: number;
+  /** Dimmable (color modes beyond onoff). Default true. */
+  supportsBrightness?: boolean;
+  effectList?: string[];
+  effect?: string;
+  rgbColor?: number[];
+  /** Render as an unavailable entity. Default true (available). */
+  available?: boolean;
+}
+
+export interface MockSceneSpec {
+  entity: string;
+  name: string;
+  /** Light states applied on scene.turn_on; missing entities are untouched. */
+  apply: Record<string, { on: boolean; brightness?: number }>;
+}
+
 export interface ServiceCall {
   domain: string;
   service: string;
@@ -41,22 +69,48 @@ interface CoverState {
   available: boolean;
 }
 
+interface LightState {
+  spec: MockLightSpec;
+  on: boolean;
+  /** Percent, 0…100. */
+  brightness: number;
+  effect?: string;
+  available: boolean;
+}
+
+interface SceneState {
+  spec: MockSceneSpec;
+  /** ISO timestamp of the last activation, or null when never activated. */
+  lastActivated: string | null;
+}
+
 export class MockHass {
   /** Every callService invocation, in order — assert on this in tests. */
   readonly calls: ServiceCall[] = [];
 
   private covers = new Map<string, CoverState>();
 
+  private lights = new Map<string, LightState>();
+
+  private scenes = new Map<string, SceneState>();
+
   private darkMode = false;
 
   private travelMs = 600;
+
+  private sceneStamp = 0;
 
   private listeners: Array<(hass: HomeAssistant) => void> = [];
 
   private snapshot: HomeAssistant;
 
-  constructor(private specs: MockCoverSpec[]) {
+  constructor(
+    private specs: MockCoverSpec[],
+    private lightSpecs: MockLightSpec[] = [],
+    private sceneSpecs: MockSceneSpec[] = []
+  ) {
     this.resetCovers();
+    this.resetLights();
     this.snapshot = this.buildSnapshot();
     setInterval(() => this.tick(), TICK_MS);
   }
@@ -90,10 +144,40 @@ export class MockHass {
     this.travelMs = Math.max(TICK_MS, ms);
   }
 
+  /** Set a light's state directly (no service call logged). */
+  setLight(
+    entity: string,
+    patch: { on?: boolean; brightness?: number }
+  ): void {
+    const light = this.lights.get(entity);
+    if (!light) return;
+    if (patch.on !== undefined) light.on = patch.on;
+    if (patch.brightness !== undefined) light.brightness = patch.brightness;
+    this.publish();
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.resetCovers();
+    this.resetLights();
     this.publish();
+  }
+
+  private resetLights(): void {
+    this.lights.clear();
+    for (const spec of this.lightSpecs) {
+      this.lights.set(spec.entity, {
+        spec,
+        on: spec.on ?? false,
+        brightness: spec.brightness ?? 100,
+        effect: spec.effect,
+        available: spec.available ?? true,
+      });
+    }
+    this.scenes.clear();
+    for (const spec of this.sceneSpecs) {
+      this.scenes.set(spec.entity, { spec, lastActivated: null });
+    }
   }
 
   private resetCovers(): void {
@@ -129,9 +213,49 @@ export class MockHass {
     data?: Record<string, unknown>
   ): Promise<unknown> => {
     this.calls.push({ domain, service, data });
+    const raw = data?.entity_id;
+    const entities = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
+    if (domain === "light") {
+      for (const entity of entities) {
+        const light = this.lights.get(entity);
+        if (!light || !light.available) continue;
+        switch (service) {
+          case "turn_on":
+            light.on = true;
+            if (
+              typeof data?.brightness_pct === "number" &&
+              light.spec.supportsBrightness !== false
+            ) {
+              light.brightness = data.brightness_pct;
+            }
+            if (typeof data?.effect === "string") {
+              light.effect = data.effect;
+            }
+            break;
+          case "turn_off":
+            light.on = false;
+            break;
+        }
+      }
+      this.publish();
+    }
+    if (domain === "scene" && service === "turn_on") {
+      for (const entity of entities) {
+        const scene = this.scenes.get(entity);
+        if (!scene) continue;
+        // Strictly monotonic so back-to-back activations still order correctly.
+        this.sceneStamp = Math.max(this.sceneStamp + 1, Date.now());
+        scene.lastActivated = new Date(this.sceneStamp).toISOString();
+        for (const [target, state] of Object.entries(scene.spec.apply)) {
+          const light = this.lights.get(target);
+          if (!light || !light.available) continue;
+          light.on = state.on;
+          if (state.brightness !== undefined) light.brightness = state.brightness;
+        }
+      }
+      this.publish();
+    }
     if (domain === "cover") {
-      const raw = data?.entity_id;
-      const entities = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
       for (const entity of entities) {
         const cover = this.covers.get(entity);
         if (!cover || !cover.available) continue;
@@ -162,10 +286,50 @@ export class MockHass {
     for (const cover of this.covers.values()) {
       states[cover.spec.entity] = this.buildEntity(cover);
     }
+    for (const light of this.lights.values()) {
+      states[light.spec.entity] = this.buildLightEntity(light);
+    }
+    for (const scene of this.scenes.values()) {
+      states[scene.spec.entity] = {
+        entity_id: scene.spec.entity,
+        state: scene.lastActivated ?? "unknown",
+        attributes: { friendly_name: scene.spec.name },
+      };
+    }
     return {
       states,
       themes: { darkMode: this.darkMode },
       callService: this.callService,
+    };
+  }
+
+  private buildLightEntity(light: LightState): HassEntity {
+    if (!light.available) {
+      return {
+        entity_id: light.spec.entity,
+        state: "unavailable",
+        attributes: { friendly_name: light.spec.name },
+      };
+    }
+    const dimmable = light.spec.supportsBrightness !== false;
+    return {
+      entity_id: light.spec.entity,
+      state: light.on ? "on" : "off",
+      attributes: {
+        friendly_name: light.spec.name,
+        supported_color_modes: dimmable
+          ? [light.spec.rgbColor ? "rgb" : "brightness"]
+          : ["onoff"],
+        // HA only reports these attributes while the light is on.
+        ...(light.on && dimmable
+          ? { brightness: Math.round((light.brightness / 100) * 255) }
+          : {}),
+        ...(light.spec.effectList ? { effect_list: light.spec.effectList } : {}),
+        ...(light.on && light.effect ? { effect: light.effect } : {}),
+        ...(light.on && light.spec.rgbColor
+          ? { rgb_color: light.spec.rgbColor }
+          : {}),
+      },
     };
   }
 

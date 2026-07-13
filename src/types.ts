@@ -11,6 +11,12 @@ export interface HassEntity {
     friendly_name?: string;
     current_position?: number;
     supported_features?: number;
+    /** Light brightness, 0…255 (HA convention). */
+    brightness?: number;
+    supported_color_modes?: string[];
+    effect_list?: string[];
+    effect?: string;
+    rgb_color?: number[];
     [key: string]: unknown;
   };
 }
@@ -58,6 +64,32 @@ export interface ShuttersCardConfig {
   show_percent?: boolean;
   rooms: RoomConfig[];
   presets?: PresetConfig[];
+}
+
+// --- ru-lights-card config ----------------------------------------------------
+
+export interface LightConfig {
+  entity: string;
+  name?: string;
+}
+
+export interface LightRoomConfig {
+  name: string;
+  lights: LightConfig[];
+}
+
+export interface SceneConfig {
+  entity: string;
+  name?: string;
+  /** CSS background for the scene swatch (any gradient/color). */
+  gradient?: string;
+}
+
+export interface LightsCardConfig {
+  type: string;
+  title?: string;
+  rooms: LightRoomConfig[];
+  scenes?: SceneConfig[];
 }
 
 // --- globals the HA frontend looks at ----------------------------------------
