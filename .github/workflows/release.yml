@@ -9,11 +9,21 @@ permissions:
 
 jobs:
   release:
-    name: Attach resource to release
+    name: Build and attach resource to release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
       - name: Upload hass-custom.js
         uses: softprops/action-gh-release@v2
         with:
-          files: hass-custom.js
+          files: dist/hass-custom.js

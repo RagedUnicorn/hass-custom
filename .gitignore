@@ -11,3 +11,10 @@ Thumbs.db
 node_modules/
 dist/
 *.log
+
+# Design mocks — local sync of the Claude Design project, not tracked
+design/
+
+# Playwright
+test-results/
+playwright-report/
