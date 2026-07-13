@@ -17,6 +17,14 @@ export interface HassEntity {
     effect_list?: string[];
     effect?: string;
     rgb_color?: number[];
+    /** Fan speed, 0…100 percent (HA convention). */
+    percentage?: number;
+    /** Percent per speed step, e.g. 10 for a 10-speed fan. */
+    percentage_step?: number;
+    preset_modes?: string[];
+    preset_mode?: string | null;
+    oscillating?: boolean;
+    unit_of_measurement?: string;
     [key: string]: unknown;
   };
 }
@@ -90,6 +98,22 @@ export interface LightsCardConfig {
   title?: string;
   rooms: LightRoomConfig[];
   scenes?: SceneConfig[];
+}
+
+// --- ru-purifier-card config --------------------------------------------------
+
+export interface PurifierCardConfig {
+  type: string;
+  title?: string;
+  /** The purifier's fan.* entity. */
+  entity: string;
+  name?: string;
+  /** switch.* toggling the device's night mode — enables the Night chip. */
+  night_mode_entity?: string;
+  /** PM2.5 sensor (µg/m³) — enables the air quality panel. */
+  pm25_entity?: string;
+  /** PM10 sensor (µg/m³) — enables the air quality panel. */
+  pm10_entity?: string;
 }
 
 // --- globals the HA frontend looks at ----------------------------------------

@@ -11,6 +11,10 @@
  * positions 0 (closed) … 100 (open), SET_POSITION = feature bit 4.
  * Light semantics follow src/cards/ru-lights-card/light-state.ts:
  * `brightness` attribute 0…255, dimmability via supported_color_modes.
+ * Fan semantics follow src/cards/ru-purifier-card/purifier-state.ts:
+ * `percentage` 0…100 in `percentage_step` steps; fan.set_percentage clears
+ * the preset (manual), fan.set_preset_mode re-enters it. Switches flip
+ * on/off; sensors hold a numeric reading settable via setSensor.
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
@@ -56,6 +60,39 @@ export interface MockSceneSpec {
   apply: Record<string, { on: boolean; brightness?: number }>;
 }
 
+export interface MockFanSpec {
+  entity: string;
+  name: string;
+  /** Initial on state. Default false. */
+  on?: boolean;
+  /** Initial speed in percent, 0…100. Default 40. */
+  percentage?: number;
+  /** Percent per speed step. Default 10 (a 10-speed fan). */
+  percentageStep?: number;
+  presetModes?: string[];
+  /** Initial preset, e.g. "Auto". Default none (manual). */
+  presetMode?: string;
+  /** Expose the `oscillating` attribute. Default true. */
+  supportsOscillation?: boolean;
+  oscillating?: boolean;
+  /** Render as an unavailable entity. Default true (available). */
+  available?: boolean;
+}
+
+export interface MockSwitchSpec {
+  entity: string;
+  name: string;
+  /** Initial on state. Default false. */
+  on?: boolean;
+}
+
+export interface MockSensorSpec {
+  entity: string;
+  name: string;
+  value: number;
+  unit?: string;
+}
+
 export interface ServiceCall {
   domain: string;
   service: string;
@@ -84,6 +121,27 @@ interface SceneState {
   lastActivated: string | null;
 }
 
+interface FanState {
+  spec: MockFanSpec;
+  on: boolean;
+  /** Percent, 0…100. */
+  percentage: number;
+  /** Active preset, or null when manual. */
+  presetMode: string | null;
+  oscillating: boolean;
+  available: boolean;
+}
+
+interface SwitchState {
+  spec: MockSwitchSpec;
+  on: boolean;
+}
+
+interface SensorState {
+  spec: MockSensorSpec;
+  value: number;
+}
+
 export class MockHass {
   /** Every callService invocation, in order — assert on this in tests. */
   readonly calls: ServiceCall[] = [];
@@ -93,6 +151,12 @@ export class MockHass {
   private lights = new Map<string, LightState>();
 
   private scenes = new Map<string, SceneState>();
+
+  private fans = new Map<string, FanState>();
+
+  private switches = new Map<string, SwitchState>();
+
+  private sensors = new Map<string, SensorState>();
 
   private darkMode = false;
 
@@ -107,10 +171,14 @@ export class MockHass {
   constructor(
     private specs: MockCoverSpec[],
     private lightSpecs: MockLightSpec[] = [],
-    private sceneSpecs: MockSceneSpec[] = []
+    private sceneSpecs: MockSceneSpec[] = [],
+    private fanSpecs: MockFanSpec[] = [],
+    private switchSpecs: MockSwitchSpec[] = [],
+    private sensorSpecs: MockSensorSpec[] = []
   ) {
     this.resetCovers();
     this.resetLights();
+    this.resetFans();
     this.snapshot = this.buildSnapshot();
     setInterval(() => this.tick(), TICK_MS);
   }
@@ -156,11 +224,71 @@ export class MockHass {
     this.publish();
   }
 
+  /** Set a fan's state directly (no service call logged). */
+  setFan(
+    entity: string,
+    patch: {
+      on?: boolean;
+      percentage?: number;
+      presetMode?: string | null;
+      oscillating?: boolean;
+      available?: boolean;
+    }
+  ): void {
+    const fan = this.fans.get(entity);
+    if (!fan) return;
+    if (patch.on !== undefined) fan.on = patch.on;
+    if (patch.percentage !== undefined) fan.percentage = patch.percentage;
+    if (patch.presetMode !== undefined) fan.presetMode = patch.presetMode;
+    if (patch.oscillating !== undefined) fan.oscillating = patch.oscillating;
+    if (patch.available !== undefined) fan.available = patch.available;
+    this.publish();
+  }
+
+  /** Set a switch directly (no service call logged). */
+  setSwitch(entity: string, on: boolean): void {
+    const sw = this.switches.get(entity);
+    if (!sw) return;
+    sw.on = on;
+    this.publish();
+  }
+
+  /** Set a sensor reading directly. */
+  setSensor(entity: string, value: number): void {
+    const sensor = this.sensors.get(entity);
+    if (!sensor) return;
+    sensor.value = value;
+    this.publish();
+  }
+
   reset(): void {
     this.calls.length = 0;
     this.resetCovers();
     this.resetLights();
+    this.resetFans();
     this.publish();
+  }
+
+  private resetFans(): void {
+    this.fans.clear();
+    for (const spec of this.fanSpecs) {
+      this.fans.set(spec.entity, {
+        spec,
+        on: spec.on ?? false,
+        percentage: spec.percentage ?? 40,
+        presetMode: spec.presetMode ?? null,
+        oscillating: spec.oscillating ?? false,
+        available: spec.available ?? true,
+      });
+    }
+    this.switches.clear();
+    for (const spec of this.switchSpecs) {
+      this.switches.set(spec.entity, { spec, on: spec.on ?? false });
+    }
+    this.sensors.clear();
+    for (const spec of this.sensorSpecs) {
+      this.sensors.set(spec.entity, { spec, value: spec.value });
+    }
   }
 
   private resetLights(): void {
@@ -255,6 +383,53 @@ export class MockHass {
       }
       this.publish();
     }
+    if (domain === "fan") {
+      for (const entity of entities) {
+        const fan = this.fans.get(entity);
+        if (!fan || !fan.available) continue;
+        switch (service) {
+          case "turn_on":
+            fan.on = true;
+            break;
+          case "turn_off":
+            fan.on = false;
+            break;
+          case "set_percentage": {
+            const pct = Number(data?.percentage ?? fan.percentage);
+            fan.percentage = pct;
+            fan.presetMode = null; // a set percentage means manual
+            fan.on = pct > 0;
+            break;
+          }
+          case "set_preset_mode":
+            fan.presetMode = String(data?.preset_mode ?? "");
+            fan.on = true;
+            break;
+          case "oscillate":
+            fan.oscillating = data?.oscillating === true;
+            break;
+        }
+      }
+      this.publish();
+    }
+    if (domain === "switch") {
+      for (const entity of entities) {
+        const sw = this.switches.get(entity);
+        if (!sw) continue;
+        switch (service) {
+          case "turn_on":
+            sw.on = true;
+            break;
+          case "turn_off":
+            sw.on = false;
+            break;
+          case "toggle":
+            sw.on = !sw.on;
+            break;
+        }
+      }
+      this.publish();
+    }
     if (domain === "cover") {
       for (const entity of entities) {
         const cover = this.covers.get(entity);
@@ -296,6 +471,26 @@ export class MockHass {
         attributes: { friendly_name: scene.spec.name },
       };
     }
+    for (const fan of this.fans.values()) {
+      states[fan.spec.entity] = this.buildFanEntity(fan);
+    }
+    for (const sw of this.switches.values()) {
+      states[sw.spec.entity] = {
+        entity_id: sw.spec.entity,
+        state: sw.on ? "on" : "off",
+        attributes: { friendly_name: sw.spec.name },
+      };
+    }
+    for (const sensor of this.sensors.values()) {
+      states[sensor.spec.entity] = {
+        entity_id: sensor.spec.entity,
+        state: String(sensor.value),
+        attributes: {
+          friendly_name: sensor.spec.name,
+          unit_of_measurement: sensor.spec.unit ?? "µg/m³",
+        },
+      };
+    }
     return {
       states,
       themes: { darkMode: this.darkMode },
@@ -328,6 +523,35 @@ export class MockHass {
         ...(light.on && light.effect ? { effect: light.effect } : {}),
         ...(light.on && light.spec.rgbColor
           ? { rgb_color: light.spec.rgbColor }
+          : {}),
+      },
+    };
+  }
+
+  private buildFanEntity(fan: FanState): HassEntity {
+    if (!fan.available) {
+      return {
+        entity_id: fan.spec.entity,
+        state: "unavailable",
+        attributes: { friendly_name: fan.spec.name },
+      };
+    }
+    return {
+      entity_id: fan.spec.entity,
+      state: fan.on ? "on" : "off",
+      attributes: {
+        friendly_name: fan.spec.name,
+        // HA reports percentage 0 and no preset while the fan is off.
+        percentage: fan.on ? fan.percentage : 0,
+        percentage_step: fan.spec.percentageStep ?? 10,
+        ...(fan.spec.presetModes
+          ? {
+              preset_modes: fan.spec.presetModes,
+              preset_mode: fan.on ? fan.presetMode : null,
+            }
+          : {}),
+        ...(fan.spec.supportsOscillation !== false
+          ? { oscillating: fan.oscillating }
           : {}),
       },
     };

@@ -117,6 +117,23 @@ const mock = new MockHass(
         "light.livingroom_strip": { on: true, brightness: 100 },
       },
     },
+  ],
+  [
+    {
+      entity: "fan.bedroom_dyson_purifier",
+      name: "Bedroom Purifier",
+      on: true,
+      percentage: 40,
+      percentageStep: 10,
+      presetModes: ["Auto"],
+      presetMode: "Auto",
+      oscillating: true,
+    },
+  ],
+  [{ entity: "switch.bedroom_purifier_night_mode", name: "Night mode" }],
+  [
+    { entity: "sensor.bedroom_purifier_pm_2_5", name: "PM 2.5", value: 8 },
+    { entity: "sensor.bedroom_purifier_pm_10", name: "PM 10", value: 12 },
   ]
 );
 
@@ -204,13 +221,28 @@ lightsCard.setConfig({
   ],
 });
 
+const purifierCard = document.createElement(
+  "ru-purifier-card"
+) as LovelaceCard;
+purifierCard.setConfig({
+  type: "custom:ru-purifier-card",
+  title: "Air",
+  entity: "fan.bedroom_dyson_purifier",
+  name: "Bedroom Purifier",
+  night_mode_entity: "switch.bedroom_purifier_night_mode",
+  pm25_entity: "sensor.bedroom_purifier_pm_2_5",
+  pm10_entity: "sensor.bedroom_purifier_pm_10",
+});
+
 mock.onChange((hass) => {
   card.hass = hass;
   lightsCard.hass = hass;
+  purifierCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
 document.getElementById("card-lights")!.appendChild(lightsCard);
+document.getElementById("card-purifier")!.appendChild(purifierCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -234,6 +266,18 @@ export interface Harness {
   setDarkMode(dark: boolean): void;
   setPosition(entity: string, position: number): void;
   setLight(entity: string, patch: { on?: boolean; brightness?: number }): void;
+  setFan(
+    entity: string,
+    patch: {
+      on?: boolean;
+      percentage?: number;
+      presetMode?: string | null;
+      oscillating?: boolean;
+      available?: boolean;
+    }
+  ): void;
+  setSwitch(entity: string, on: boolean): void;
+  setSensor(entity: string, value: number): void;
   setTravelMs(ms: number): void;
   reset(): void;
 }
@@ -252,6 +296,9 @@ window.__harness = {
   },
   setPosition: (entity, position) => mock.setPosition(entity, position),
   setLight: (entity, patch) => mock.setLight(entity, patch),
+  setFan: (entity, patch) => mock.setFan(entity, patch),
+  setSwitch: (entity, on) => mock.setSwitch(entity, on),
+  setSensor: (entity, value) => mock.setSensor(entity, value),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   reset: () => mock.reset(),
 };
