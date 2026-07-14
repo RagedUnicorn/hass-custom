@@ -22,6 +22,9 @@ const FEATURE_PLAY = 16384;
 export interface TvAppView {
   name: string;
   color: string;
+  /** Chip icon: an image URL or an `mdi:*`/`ru:*` ref (dark-mode variant
+   * already resolved), or null → color dot. */
+  icon: string | null;
   activity: string | null;
   active: boolean;
 }
@@ -88,6 +91,18 @@ function isAvailable(stateObj: HassEntity | undefined): boolean {
   );
 }
 
+/** The TV counts as on in any available, non-off state (idle/playing/…). */
+export function isTvOn(stateObj: HassEntity | undefined): boolean {
+  return isAvailable(stateObj) && !OFF_STATES.has(stateObj!.state);
+}
+
+/** True when an app `icon` is an icon reference (`mdi:youtube`, `ru:shelly`)
+ * rather than an image URL — refs have a set-prefix colon and no slashes,
+ * while URLs (`/local/…`, `https://…`, `data:image/…`) always contain one. */
+export function isIconRef(icon: string): boolean {
+  return icon.includes(":") && !icon.includes("/");
+}
+
 /** m:ss below an hour, h:mm:ss above — mirrors the design mock. */
 export function formatTime(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds));
@@ -149,25 +164,44 @@ function buildMediaView(
 }
 
 /** Prefer a live volume slider (VOLUME_SET) from either entity, then step
- * buttons; mute rides whatever entity was picked. */
+ * buttons; mute rides whatever entity was picked. An explicit `volume_entity`
+ * (e.g. braviatv, whose REST API sets absolute volume) wins over both while
+ * available. `volume_mode: steppers` skips the slider — needed on Android 12+
+ * TVs whose cast entity claims VOLUME_SET but only ever moves one step per
+ * call — and `slider` skips the stepper fallback. The % readout reads
+ * volume_level from any candidate, so steppers driving the androidtv entity
+ * still show the cast entity's level. */
 function buildVolumeView(
   primary: HassEntity | undefined,
-  media: HassEntity | undefined
+  media: HassEntity | undefined,
+  volume: HassEntity | undefined,
+  mode: "auto" | "slider" | "steppers"
 ): TvVolumeView {
-  const candidates = [media, primary].filter(
-    (stateObj): stateObj is HassEntity => !!stateObj
-  );
-  const bySet = candidates.find(
-    (stateObj) => (features(stateObj) & FEATURE_VOLUME_SET) !== 0
-  );
-  const byStep = candidates.find(
-    (stateObj) => (features(stateObj) & FEATURE_VOLUME_STEP) !== 0
-  );
+  const candidates = [
+    isAvailable(volume) ? volume : undefined,
+    media,
+    primary,
+  ].filter((stateObj): stateObj is HassEntity => !!stateObj);
+  const bySet =
+    mode === "steppers"
+      ? undefined
+      : candidates.find(
+          (stateObj) => (features(stateObj) & FEATURE_VOLUME_SET) !== 0
+        );
+  const byStep =
+    mode === "slider"
+      ? undefined
+      : candidates.find(
+          (stateObj) => (features(stateObj) & FEATURE_VOLUME_STEP) !== 0
+        );
   const picked = bySet ?? byStep;
   if (!picked) {
     return { kind: "none", entity: null, pct: null, muted: false, supportsMute: false };
   }
-  const level = picked.attributes.volume_level;
+  const withLevel = [picked, ...candidates].find(
+    (stateObj) => typeof stateObj.attributes.volume_level === "number"
+  );
+  const level = withLevel?.attributes.volume_level;
   return {
     kind: bySet ? "slider" : "steppers",
     entity: picked.entity_id,
@@ -180,14 +214,17 @@ function buildVolumeView(
 export function buildTvView(
   hass: HomeAssistant,
   config: TvCardConfig,
-  nowMs: number
+  nowMs: number,
+  /** Optimistic power target while a turn_on/off is in flight, else null —
+   * overrides the status/summary text with "Turning on…"/"Turning off…". */
+  pendingPower: boolean | null = null
 ): TvView {
   const stateObj = hass.states[config.entity];
   const mediaObj = config.media_entity
     ? hass.states[config.media_entity]
     : undefined;
   const available = isAvailable(stateObj);
-  const on = available && !OFF_STATES.has(stateObj!.state);
+  const on = isTvOn(stateObj);
 
   const media = config.media_entity
     ? buildMediaView(hass, config.media_entity, nowMs)
@@ -202,9 +239,11 @@ export function buildTvView(
     )
   );
   const mediaAppName = mediaObj?.attributes.app_name?.toLowerCase() ?? "";
+  const darkMode = hass.themes?.darkMode ?? false;
   const apps: TvAppView[] = (config.apps ?? []).map((app) => ({
     name: app.name,
     color: app.color ?? "#8a90a0",
+    icon: (darkMode ? (app.icon_dark ?? app.icon) : app.icon) ?? null,
     activity: app.activity ?? null,
     active:
       on &&
@@ -220,22 +259,28 @@ export function buildTvView(
       ? "Playing"
       : "Paused"
     : null;
+  const pending = available && pendingPower !== null && pendingPower !== on;
+  const pendingText = pendingPower ? "Turning on…" : "Turning off…";
   const statusText = !available
     ? "Unavailable"
-    : !on
-      ? "Off"
-      : playState
-        ? `${playState}${appName ? ` · ${appName}` : ""}`
-        : appName
-          ? `On · ${appName}`
-          : "On";
+    : pending
+      ? pendingText
+      : !on
+        ? "Off"
+        : playState
+          ? `${playState}${appName ? ` · ${appName}` : ""}`
+          : appName
+            ? `On · ${appName}`
+            : "On";
   const summaryText = !available
     ? "Unavailable"
-    : !on
-      ? "Off"
-      : playState === "Playing"
-        ? `Playing${appName ? ` · ${appName}` : ""}`
-        : (playState ?? "On");
+    : pending
+      ? pendingText
+      : !on
+        ? "Off"
+        : playState === "Playing"
+          ? `Playing${appName ? ` · ${appName}` : ""}`
+          : (playState ?? "On");
 
   return {
     entity: config.entity,
@@ -245,7 +290,12 @@ export function buildTvView(
     statusText,
     summaryText,
     media,
-    volume: buildVolumeView(stateObj, mediaObj),
+    volume: buildVolumeView(
+      stateObj,
+      mediaObj,
+      config.volume_entity ? hass.states[config.volume_entity] : undefined,
+      config.volume_mode ?? "auto"
+    ),
     apps,
     activeColor,
     hasRemote: !!config.remote_entity,

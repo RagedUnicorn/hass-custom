@@ -214,6 +214,9 @@ export class MockHass {
 
   private travelMs = 600;
 
+  /** Simulated TV reaction lag for power/seek; 0 = instant. */
+  private reactionMs = 0;
+
   private sceneStamp = 0;
 
   private listeners: Array<(hass: HomeAssistant) => void> = [];
@@ -265,6 +268,12 @@ export class MockHass {
   /** Full-travel duration; lower = faster tests, higher = observable motion. */
   setTravelMs(ms: number): void {
     this.travelMs = Math.max(TICK_MS, ms);
+  }
+
+  /** Delay before media_player turn_on/turn_off/media_seek take effect —
+   * simulates a slow-reacting TV so optimistic card states are observable. */
+  setReactionMs(ms: number): void {
+    this.reactionMs = Math.max(0, ms);
   }
 
   /** Set a light's state directly (no service call logged). */
@@ -342,6 +351,7 @@ export class MockHass {
 
   reset(): void {
     this.calls.length = 0;
+    this.reactionMs = 0;
     this.resetCovers();
     this.resetLights();
     this.resetFans();
@@ -533,52 +543,21 @@ export class MockHass {
       for (const entity of entities) {
         const player = this.mediaPlayers.get(entity);
         if (!player || !player.available) continue;
-        const stamp = () => {
-          player.positionStamp = new Date().toISOString();
-        };
-        switch (service) {
-          case "turn_on":
-            if (player.state === "off") player.state = "on";
-            break;
-          case "turn_off":
-            player.state = "off";
-            break;
-          case "media_play_pause":
-            if (player.state === "playing") {
-              // Freeze the extrapolated position the way HA does on pause.
-              player.position = Math.min(
-                player.spec.duration ?? 0,
-                player.position +
-                  (Date.now() - Date.parse(player.positionStamp)) / 1000
-              );
-              player.state = "paused";
-            } else {
-              player.state = "playing";
-            }
-            stamp();
-            break;
-          case "media_previous_track":
-          case "media_next_track":
-            player.position = 0;
-            player.state = "playing";
-            stamp();
-            break;
-          case "media_seek":
-            player.position = Number(data?.seek_position ?? player.position);
-            stamp();
-            break;
-          case "volume_set":
-            player.volume = Number(data?.volume_level ?? player.volume ?? 0);
-            break;
-          case "volume_up":
-            player.volume = Math.min(1, (player.volume ?? 0) + 0.05);
-            break;
-          case "volume_down":
-            player.volume = Math.max(0, (player.volume ?? 0) - 0.05);
-            break;
-          case "volume_mute":
-            player.muted = data?.is_volume_muted === true;
-            break;
+        // Power and seek honor the simulated TV reaction lag — a real
+        // Android TV takes seconds to act on them while volume/transport
+        // feel instant. Lets tests observe the card's optimistic states.
+        const lagged =
+          this.reactionMs > 0 &&
+          (service === "turn_on" ||
+            service === "turn_off" ||
+            service === "media_seek");
+        if (lagged) {
+          setTimeout(() => {
+            this.applyMediaService(player, service, data);
+            this.publish();
+          }, this.reactionMs);
+        } else {
+          this.applyMediaService(player, service, data);
         }
       }
       this.publish();
@@ -612,6 +591,60 @@ export class MockHass {
     }
     return Promise.resolve();
   };
+
+  private applyMediaService(
+    player: MediaPlayerState,
+    service: string,
+    data?: Record<string, unknown>
+  ): void {
+    const stamp = () => {
+      player.positionStamp = new Date().toISOString();
+    };
+    switch (service) {
+      case "turn_on":
+        if (player.state === "off") player.state = "on";
+        break;
+      case "turn_off":
+        player.state = "off";
+        break;
+      case "media_play_pause":
+        if (player.state === "playing") {
+          // Freeze the extrapolated position the way HA does on pause.
+          player.position = Math.min(
+            player.spec.duration ?? 0,
+            player.position +
+              (Date.now() - Date.parse(player.positionStamp)) / 1000
+          );
+          player.state = "paused";
+        } else {
+          player.state = "playing";
+        }
+        stamp();
+        break;
+      case "media_previous_track":
+      case "media_next_track":
+        player.position = 0;
+        player.state = "playing";
+        stamp();
+        break;
+      case "media_seek":
+        player.position = Number(data?.seek_position ?? player.position);
+        stamp();
+        break;
+      case "volume_set":
+        player.volume = Number(data?.volume_level ?? player.volume ?? 0);
+        break;
+      case "volume_up":
+        player.volume = Math.min(1, (player.volume ?? 0) + 0.05);
+        break;
+      case "volume_down":
+        player.volume = Math.max(0, (player.volume ?? 0) - 0.05);
+        break;
+      case "volume_mute":
+        player.muted = data?.is_volume_muted === true;
+        break;
+    }
+  }
 
   private buildSnapshot(): HomeAssistant {
     const states: Record<string, HassEntity> = {};

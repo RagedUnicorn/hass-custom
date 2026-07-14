@@ -22,6 +22,8 @@ export const cardStyles = css`
     --ru-tv-toggle-off: #e3e5ec;
     --ru-tv-volume-gradient: linear-gradient(90deg, #7c90ff, #3d5afe);
     --ru-tv-mute: #f54436;
+    --ru-tv-mute-bg: rgba(245, 68, 54, 0.12);
+    --ru-tv-ok-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     --ru-tv-panel-radius: 20px;
     --ru-tv-font: -apple-system, "SF Pro Text", "Segoe UI", system-ui,
       sans-serif;
@@ -45,6 +47,8 @@ export const cardStyles = css`
     --ru-tv-track: rgba(255, 255, 255, 0.07);
     --ru-tv-toggle-off: rgba(255, 255, 255, 0.14);
     --ru-tv-mute: #ff6b5e;
+    --ru-tv-mute-bg: rgba(255, 107, 94, 0.16);
+    --ru-tv-ok-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   }
 
   * {
@@ -209,6 +213,22 @@ export const cardStyles = css`
     transform: translateX(21px);
   }
 
+  /* A turn_on/off is in flight — the knob sits at its target and pulses
+     until HA confirms the new state (real TVs react seconds later). */
+  .toggle.pending .knob {
+    animation: ru-tv-knob-pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes ru-tv-knob-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
+
   /* --- now playing ----------------------------------------------------------- */
 
   .controls {
@@ -243,8 +263,20 @@ export const cardStyles = css`
     border-radius: 4px;
     background: var(--ru-tv-track);
     overflow: hidden;
+  }
+
+  /* Seekable bars show a grab thumb (so overflow stays visible) and extend
+     their pointer hit area well past the 8px visual height. */
+  .progress.seekable {
+    overflow: visible;
     cursor: ew-resize;
     touch-action: none;
+  }
+
+  .progress.seekable::before {
+    content: "";
+    position: absolute;
+    inset: -10px 0;
   }
 
   .progress-fill {
@@ -254,6 +286,19 @@ export const cardStyles = css`
     left: 0;
     background: var(--ru-tv-accent);
     border-radius: 4px;
+  }
+
+  .progress-thumb {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: #fff;
+    border: 2px solid var(--ru-tv-accent);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
   }
 
   .times {
@@ -293,6 +338,25 @@ export const cardStyles = css`
     color: var(--ru-tv-accent-contrast);
   }
 
+  /* Skip back/forward — transport-button look with a readable seconds label. */
+  .t-skip {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: var(--ru-tv-track);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ru-tv-label);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .t-skip:active {
+    background: var(--ru-tv-accent);
+    color: var(--ru-tv-accent-contrast);
+  }
+
   .t-play {
     width: 52px;
     height: 52px;
@@ -316,17 +380,29 @@ export const cardStyles = css`
     margin-top: 2px;
   }
 
-  .vol-label {
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--ru-tv-label);
+  .vol-mute {
     width: 34px;
+    height: 26px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ru-tv-label);
     flex: none;
-    text-align: left;
   }
 
-  .vol-label.muted {
+  .vol-mute svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .vol-mute:active {
+    color: var(--ru-tv-accent);
+  }
+
+  .vol-mute.muted {
     color: var(--ru-tv-mute);
+    background: var(--ru-tv-mute-bg);
   }
 
   .vol-track {
@@ -370,6 +446,18 @@ export const cardStyles = css`
     font-size: 13px;
     font-weight: 700;
     flex: none;
+    touch-action: none;
+    user-select: none;
+  }
+
+  /* Stepper layout: − and + stretch across the row with the % in between. */
+  .vol-row.steppers .vol-step {
+    flex: 1;
+  }
+
+  .vol-value.mid {
+    width: 44px;
+    text-align: center;
   }
 
   .vol-step:active {
@@ -388,7 +476,7 @@ export const cardStyles = css`
   .app {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     padding: 7px 12px;
     border-radius: 9px;
     background: var(--ru-tv-track);
@@ -398,6 +486,31 @@ export const cardStyles = css`
     background: var(--ru-tv-accent-bg);
   }
 
+  .app-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  /* mdi:/ru: icon refs render through ha-icon, tinted the app's color. */
+  .app-glyph {
+    --mdc-icon-size: 16px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-icon.dim,
+  .app-glyph.dim {
+    opacity: 0.5;
+  }
+
+  /* Fallback for apps configured without an icon. */
   .app-dot-sm {
     width: 8px;
     height: 8px;
@@ -416,67 +529,127 @@ export const cardStyles = css`
 
   /* --- remote panel --------------------------------------------------------------------- */
 
+  .remote-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
   .remote-title {
     font-size: 13px;
     font-weight: 700;
     color: var(--ru-tv-text);
   }
 
-  .remote-body {
+  /* Echo of the last press ("▲ Up") — the min-height keeps the panel from
+     jumping while the echo is empty. */
+  .pad-feedback {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ru-tv-accent);
+    min-height: 16px;
+  }
+
+  .ring-wrap {
     display: flex;
-    gap: 14px;
-    align-items: center;
     justify-content: center;
   }
 
-  .dpad {
-    display: grid;
-    grid-template-columns: repeat(3, 48px);
-    grid-template-rows: repeat(3, 48px);
-    gap: 4px;
-  }
-
-  .pad {
-    border-radius: 12px;
+  /* Ring d-pad: one big circle like a physical remote — the rim quadrants
+     are the directions (clip-path pie slices), the center circle is OK. */
+  .ring {
+    position: relative;
+    width: 230px;
+    height: 230px;
+    border-radius: 50%;
     background: var(--ru-tv-track);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--ru-tv-label);
-    font-size: 11px;
+    overflow: hidden;
   }
 
-  .pad:active {
+  .quad {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    color: var(--ru-tv-label);
+    font-size: 13px;
+  }
+
+  .quad.up {
+    clip-path: polygon(50% 50%, 0 0, 100% 0);
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18px;
+  }
+
+  .quad.down {
+    clip-path: polygon(50% 50%, 0 100%, 100% 100%);
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 18px;
+  }
+
+  .quad.left {
+    clip-path: polygon(50% 50%, 0 0, 0 100%);
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 18px;
+  }
+
+  .quad.right {
+    clip-path: polygon(50% 50%, 100% 0, 100% 100%);
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 18px;
+  }
+
+  .quad:active {
     background: var(--ru-tv-accent);
     color: var(--ru-tv-accent-contrast);
   }
 
-  .pad.ok {
-    border-radius: 24px;
-    background: var(--ru-tv-accent-bg);
+  .ok {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 92px;
+    height: 92px;
+    border-radius: 46px;
+    background: var(--ru-tv-panel-bg);
+    box-shadow: var(--ru-tv-ok-shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--ru-tv-accent);
+    font-size: 14px;
     font-weight: 700;
   }
 
-  .pad.ok:active {
+  .ok:active {
     background: var(--ru-tv-accent);
     color: var(--ru-tv-accent-contrast);
   }
 
   .keys {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    justify-content: center;
+    gap: 10px;
   }
 
   .key {
-    padding: 10px 18px;
-    border-radius: 12px;
+    width: 104px;
+    height: 52px;
+    border-radius: 16px;
     background: var(--ru-tv-track);
-    font-size: 12px;
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--ru-tv-label);
-    text-align: center;
+  }
+
+  .key svg {
+    width: 22px;
+    height: 22px;
   }
 
   .key:active {

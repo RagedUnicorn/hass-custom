@@ -1,12 +1,18 @@
 /**
  * ru-tv-card — Android TV card: a media panel (power toggle, now-playing
- * title with a drag-to-seek progress bar, transport buttons, volume and app
- * launcher chips) plus an optional remote panel (d-pad, Back/Home/Guide).
+ * title with a drag-to-seek progress bar, skip + transport buttons, volume
+ * and app launcher chips) plus an optional remote panel (ring d-pad with
+ * press feedback in its header, Back/Home icon keys).
  *
  * Spans the two media_player entities an Android TV exposes: `entity`
  * (androidtv_remote — power, foreground app, volume steps) and the optional
  * `media_entity` (cast — track title/position, seek, volume level). The
  * optional `remote_entity` drives the remote panel and app launches.
+ *
+ * A real TV reacts to power and seek commands seconds after the service
+ * call, so both render optimistically: the toggle pulses in its target state
+ * ("Turning on…") and the progress bar holds the seeked position until HA
+ * confirms or a timeout passes.
  *
  * YAML-only configuration; see README for the full schema.
  */
@@ -19,6 +25,8 @@ import type { HomeAssistant, TvAppConfig, TvCardConfig } from "../../types";
 import {
   buildTvView,
   formatTime,
+  isIconRef,
+  isTvOn,
   type TvMediaView,
   type TvView,
   type TvVolumeView,
@@ -27,8 +35,23 @@ import { cardStyles } from "./styles";
 
 const CARD_TYPE = "ru-tv-card";
 
-/** Androidtv_remote key names for the remote panel. */
-const REMOTE_KEYS = { back: "BACK", home: "HOME", guide: "GUIDE" } as const;
+/** How long a remote press echoes in the panel header ("▲ Up"). */
+const PAD_FEEDBACK_MS = 900;
+
+const VOLUME_MODES = ["auto", "slider", "steppers"] as const;
+
+/** Seek skip amounts in seconds, [back, forward]. */
+const DEFAULT_SKIP: [number, number] = [10, 30];
+
+/** How long the optimistic power state may outlive its service call. */
+const POWER_PENDING_MS = 20000;
+
+/** How long a seeked position holds without HA confirming it. */
+const SEEK_PENDING_MS = 10000;
+
+/** Volume stepper hold-to-repeat: initial delay, then one step per interval. */
+const HOLD_DELAY_MS = 400;
+const HOLD_REPEAT_MS = 250;
 
 export class RuTvCard extends LitElement {
   static styles = cardStyles;
@@ -37,6 +60,9 @@ export class RuTvCard extends LitElement {
     hass: { attribute: false },
     _config: { state: true },
     _drag: { state: true },
+    _pendingPower: { state: true },
+    _pendingSeek: { state: true },
+    _padFeedback: { state: true },
   };
 
   hass?: HomeAssistant;
@@ -46,8 +72,31 @@ export class RuTvCard extends LitElement {
   /** Live values (drag key → 0..100) of seek/volume drags in progress. */
   private _drag: Record<string, number> = {};
 
+  /** Optimistic power target while turn_on/turn_off is in flight. */
+  private _pendingPower?: { target: boolean; at: number };
+
+  /** Last remote press, echoed in the panel header ("▲ Up") — the tapped
+   * quadrant itself gives no lasting visual confirmation. */
+  private _padFeedback = "";
+
+  private _fbTimer?: ReturnType<typeof setTimeout>;
+
+  /** Optimistic playback position (seconds) while a media_seek is in flight;
+   * `stamp` is media_position_updated_at when the seek was issued — a changed
+   * stamp means HA re-reported the position and the hold can end. */
+  private _pendingSeek?: { seconds: number; at: number; stamp?: string };
+
   /** Ticks the playback position while a track plays. */
   private _clock?: ReturnType<typeof setInterval>;
+
+  /** Hold-to-repeat timers of a pressed volume stepper. */
+  private _holdDelay?: ReturnType<typeof setTimeout>;
+
+  private _holdRepeat?: ReturnType<typeof setInterval>;
+
+  /** True when a pointer press already fired the step — swallows the
+   * trailing click so only keyboard activation goes through @click. */
+  private _stepPointerFired = false;
 
   setConfig(config: TvCardConfig): void {
     if (!config?.entity || !config.entity.startsWith("media_player.")) {
@@ -68,6 +117,34 @@ export class RuTvCard extends LitElement {
         `${CARD_TYPE}: "remote_entity" must be a remote.* entity id`
       );
     }
+    if (
+      config.volume_entity &&
+      !config.volume_entity.startsWith("media_player.")
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "volume_entity" must be a media_player.* entity id`
+      );
+    }
+    if (
+      config.volume_mode !== undefined &&
+      !VOLUME_MODES.includes(config.volume_mode)
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "volume_mode" must be one of ${VOLUME_MODES.join(", ")}`
+      );
+    }
+    if (config.skip_seconds !== undefined) {
+      const skip = config.skip_seconds;
+      if (
+        !Array.isArray(skip) ||
+        skip.length !== 2 ||
+        skip.some((s) => typeof s !== "number" || !Number.isFinite(s) || s <= 0)
+      ) {
+        throw new Error(
+          `${CARD_TYPE}: "skip_seconds" must be two positive numbers, [back, forward]`
+        );
+      }
+    }
     for (const app of config.apps ?? []) {
       if (!app.name) {
         throw new Error(`${CARD_TYPE}: every app needs a "name"`);
@@ -75,6 +152,8 @@ export class RuTvCard extends LitElement {
     }
     this._config = config;
     this._drag = {};
+    this._pendingPower = undefined;
+    this._pendingSeek = undefined;
   }
 
   getCardSize(): number {
@@ -100,6 +179,8 @@ export class RuTvCard extends LitElement {
 
   disconnectedCallback(): void {
     clearInterval(this._clock);
+    clearTimeout(this._fbTimer);
+    this._holdStop();
     super.disconnectedCallback();
   }
 
@@ -107,13 +188,41 @@ export class RuTvCard extends LitElement {
   // CSS (:host([dark]) in styles.ts) and stays overridable per property.
   protected willUpdate(): void {
     this.toggleAttribute("dark", this.hass?.themes?.darkMode ?? false);
+    this._prunePending(Date.now());
+  }
+
+  /** Ends optimistic power/seek holds once HA confirms them (or they take
+   * so long that showing live state again beats showing a stale promise). */
+  private _prunePending(nowMs: number): void {
+    if (!this._config || !this.hass) return;
+    const power = this._pendingPower;
+    if (power) {
+      const on = isTvOn(this.hass.states[this._config.entity]);
+      if (on === power.target || nowMs - power.at > POWER_PENDING_MS) {
+        this._pendingPower = undefined;
+      }
+    }
+    const seek = this._pendingSeek;
+    if (seek && this._config.media_entity) {
+      const stamp =
+        this.hass.states[this._config.media_entity]?.attributes
+          .media_position_updated_at;
+      if (stamp !== seek.stamp || nowMs - seek.at > SEEK_PENDING_MS) {
+        this._pendingSeek = undefined;
+      }
+    }
   }
 
   render(): TemplateResult | typeof nothing {
     if (!this._config || !this.hass) return nothing;
 
     const config = this._config;
-    const view = buildTvView(this.hass, config, Date.now());
+    const view = buildTvView(
+      this.hass,
+      config,
+      Date.now(),
+      this._pendingPower?.target ?? null
+    );
 
     return html`
       <div class="card">
@@ -147,6 +256,10 @@ export class RuTvCard extends LitElement {
   }
 
   private _renderDeviceRow(view: TvView): TemplateResult {
+    // The toggle sits in its target position while a turn_on/off is in
+    // flight (the TV takes seconds to react) and pulses until HA confirms.
+    const pending = view.available ? this._pendingPower : undefined;
+    const knobOn = pending?.target ?? view.on;
     return html`
       <div class="device-row">
         <div class="icon-circle ${view.on ? "" : "off"}">
@@ -171,7 +284,7 @@ export class RuTvCard extends LitElement {
           </div>
         </div>
         <button
-          class="toggle ${view.on ? "on" : ""}"
+          class="toggle ${knobOn ? "on" : ""} ${pending ? "pending" : ""}"
           aria-label="Power"
           ?disabled=${!view.available}
           @click=${() => this._togglePower(view)}
@@ -185,12 +298,15 @@ export class RuTvCard extends LitElement {
   private _renderNowPlaying(media: TvMediaView): TemplateResult | typeof nothing {
     if (!media.hasTrack) return nothing;
 
+    const position = this._displayPosition(media, Date.now());
+    const positionPct =
+      media.duration > 0 ? (position / media.duration) * 100 : 0;
     const seekPct = this._drag["seek"];
-    const fill = seekPct ?? media.progressPct;
-    const posText =
-      seekPct !== undefined
-        ? formatTime((seekPct / 100) * media.duration)
-        : media.posText;
+    const fill = seekPct ?? positionPct;
+    const posText = formatTime(
+      seekPct !== undefined ? (seekPct / 100) * media.duration : position
+    );
+    const [skipBack, skipForward] = this._config?.skip_seconds ?? DEFAULT_SKIP;
 
     return html`
       <div class="track">
@@ -202,16 +318,19 @@ export class RuTvCard extends LitElement {
       ${media.supportsSeek
         ? html`
             <div
-              class="progress"
+              class="progress seekable"
               @pointerdown=${(e: PointerEvent) => this._dragStart(e, "seek")}
               @pointermove=${(e: PointerEvent) => this._dragMove(e, "seek")}
               @pointerup=${() => {
                 const pct = this._dragEnd("seek");
-                if (pct !== undefined) this._seek(media, pct);
+                if (pct !== undefined) {
+                  this._seekTo(media, (pct / 100) * media.duration);
+                }
               }}
               @pointercancel=${() => this._dragCancel("seek")}
             >
               <div class="progress-fill" style="width: ${fill}%"></div>
+              <div class="progress-thumb" style="left: ${fill}%"></div>
             </div>
           `
         : html`
@@ -223,9 +342,20 @@ export class RuTvCard extends LitElement {
         <div class="time">${posText}</div>
         <div class="time">${media.durText}</div>
       </div>
-      ${media.supportsPlayPause || media.supportsPrevNext
+      ${media.supportsPlayPause || media.supportsPrevNext || media.supportsSeek
         ? html`
             <div class="transport">
+              ${media.supportsSeek
+                ? html`
+                    <button
+                      class="t-skip"
+                      aria-label="Skip back ${skipBack} seconds"
+                      @click=${() => this._skip(media, -skipBack)}
+                    >
+                      ↺${skipBack}
+                    </button>
+                  `
+                : nothing}
               ${media.supportsPrevNext
                 ? html`
                     <button
@@ -259,44 +389,101 @@ export class RuTvCard extends LitElement {
                     </button>
                   `
                 : nothing}
+              ${media.supportsSeek
+                ? html`
+                    <button
+                      class="t-skip"
+                      aria-label="Skip forward ${skipForward} seconds"
+                      @click=${() => this._skip(media, skipForward)}
+                    >
+                      ${skipForward}↻
+                    </button>
+                  `
+                : nothing}
             </div>
           `
         : nothing}
     `;
   }
 
+  /** Playback position for display: the optimistic seek target while one is
+   * in flight (advancing in real time if playing), else the live position. */
+  private _displayPosition(media: TvMediaView, nowMs: number): number {
+    const seek = this._pendingSeek;
+    if (seek === undefined) return media.position;
+    const advance = media.playing ? (nowMs - seek.at) / 1000 : 0;
+    return Math.min(media.duration, seek.seconds + advance);
+  }
+
   private _renderVolume(view: TvView): TemplateResult | typeof nothing {
     const volume = view.volume;
     if (volume.kind === "none") return nothing;
 
+    // Speaker body + waves; muted swaps the waves for an X and goes red.
     const label = html`
       <button
-        class="vol-label ${volume.muted ? "muted" : ""}"
+        class="vol-mute ${volume.muted ? "muted" : ""}"
+        aria-label=${volume.muted ? "Unmute" : "Mute"}
         ?disabled=${!volume.supportsMute}
         @click=${() => this._toggleMute(volume)}
       >
-        ${volume.muted ? "Muted" : "Vol"}
+        ${volume.muted
+          ? html`
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M11 5 L6 9 H3 V15 H6 L11 19 Z" />
+                <line x1="16" y1="9" x2="22" y2="15" />
+                <line x1="22" y1="9" x2="16" y2="15" />
+              </svg>
+            `
+          : html`
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M11 5 L6 9 H3 V15 H6 L11 19 Z" />
+                <path d="M15 9 a4 4 0 0 1 0 6" />
+                <path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11" />
+              </svg>
+            `}
       </button>
     `;
 
     if (volume.kind === "steppers") {
+      const stepper = (glyph: string, service: string, ariaLabel: string) => html`
+        <button
+          class="vol-step"
+          aria-label=${ariaLabel}
+          @pointerdown=${() => this._stepPress(volume, service)}
+          @pointerup=${() => this._holdStop()}
+          @pointerleave=${() => this._stepLeave()}
+          @pointercancel=${() => this._stepLeave()}
+          @click=${() => this._stepClick(volume, service)}
+        >
+          ${glyph}
+        </button>
+      `;
       return html`
-        <div class="vol-row">
-          ${label}
-          <button
-            class="vol-step"
-            aria-label="Volume down"
-            @click=${() => this._volumeStep(volume, "volume_down")}
-          >
-            −
-          </button>
-          <button
-            class="vol-step"
-            aria-label="Volume up"
-            @click=${() => this._volumeStep(volume, "volume_up")}
-          >
-            +
-          </button>
+        <div class="vol-row steppers">
+          ${label} ${stepper("−", "volume_down", "Volume down")}
+          ${volume.pct !== null
+            ? html`
+                <div class="vol-value mid">
+                  ${volume.muted ? "—" : `${volume.pct}%`}
+                </div>
+              `
+            : nothing}
+          ${stepper("+", "volume_up", "Volume up")}
         </div>
       `;
     }
@@ -340,10 +527,29 @@ export class RuTvCard extends LitElement {
               ?disabled=${!view.available || !app.activity}
               @click=${() => this._launchApp(this._config!.apps![index])}
             >
-              <div
-                class="app-dot-sm"
-                style=${styleMap({ background: app.color })}
-              ></div>
+              ${app.icon
+                ? isIconRef(app.icon)
+                  ? html`
+                      <ha-icon
+                        class="app-glyph ${view.on ? "" : "dim"}"
+                        .icon=${app.icon}
+                        style=${styleMap({ color: app.color })}
+                      ></ha-icon>
+                    `
+                  : html`
+                      <div
+                        class="app-icon ${view.on ? "" : "dim"}"
+                        style=${styleMap({
+                          backgroundImage: `url('${app.icon}')`,
+                        })}
+                      ></div>
+                    `
+                : html`
+                    <div
+                      class="app-dot-sm"
+                      style=${styleMap({ background: app.color })}
+                    ></div>
+                  `}
               <div class="app-name">${app.name}</div>
             </button>
           `
@@ -352,50 +558,76 @@ export class RuTvCard extends LitElement {
     `;
   }
 
+  /** Ring d-pad (one big circle, rim = directions, center = OK — findable by
+   * feel) with Back/Home icon keys below; every press echoes in the header. */
   private _renderRemote(view: TvView): TemplateResult {
-    const pad = (label: string, command: string) => html`
+    const quad = (glyph: string, label: string) => html`
       <button
-        class="pad"
-        aria-label=${command}
+        class="quad ${label.toLowerCase()}"
+        aria-label=${label}
         ?disabled=${!view.available}
-        @click=${() => this._remoteCommand(command)}
+        @click=${() =>
+          this._padPress(`DPAD_${label.toUpperCase()}`, glyph, label)}
       >
-        ${label}
+        ${glyph}
       </button>
     `;
     return html`
       <div class="panel ${view.on && view.available ? "" : "dimmed"}">
-        <div class="remote-title">Remote</div>
-        <div class="remote-body">
-          <div class="dpad">
-            <div></div>
-            ${pad("▲", "DPAD_UP")}
-            <div></div>
-            ${pad("◀", "DPAD_LEFT")}
+        <div class="remote-head">
+          <div class="remote-title">Remote</div>
+          <div class="pad-feedback">${this._padFeedback}</div>
+        </div>
+        <div class="ring-wrap">
+          <div class="ring">
+            ${quad("▲", "Up")} ${quad("▼", "Down")} ${quad("◀", "Left")}
+            ${quad("▶", "Right")}
             <button
-              class="pad ok"
-              aria-label="DPAD_CENTER"
+              class="ok"
+              aria-label="OK"
               ?disabled=${!view.available}
-              @click=${() => this._remoteCommand("DPAD_CENTER")}
+              @click=${() => this._padPress("DPAD_CENTER", "●", "OK")}
             >
               OK
             </button>
-            ${pad("▶", "DPAD_RIGHT")}
-            <div></div>
-            ${pad("▼", "DPAD_DOWN")}
-            <div></div>
           </div>
-          <div class="keys">
-            <button class="key" @click=${() => this._remoteCommand(REMOTE_KEYS.back)}>
-              Back
-            </button>
-            <button class="key" @click=${() => this._remoteCommand(REMOTE_KEYS.home)}>
-              Home
-            </button>
-            <button class="key" @click=${() => this._remoteCommand(REMOTE_KEYS.guide)}>
-              Guide
-            </button>
-          </div>
+        </div>
+        <div class="keys">
+          <button
+            class="key"
+            aria-label="Back"
+            ?disabled=${!view.available}
+            @click=${() => this._padPress("BACK", "‹", "Back")}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M15 5 L8 12 L15 19" />
+            </svg>
+          </button>
+          <button
+            class="key"
+            aria-label="Home"
+            ?disabled=${!view.available}
+            @click=${() => this._padPress("HOME", "⌂", "Home")}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 11 L12 3 L21 11" />
+              <path d="M5 10 V20 H19 V10" />
+            </svg>
+          </button>
         </div>
       </div>
     `;
@@ -449,18 +681,40 @@ export class RuTvCard extends LitElement {
     });
   }
 
+  /** Clicking while a toggle is already pending reverses the target, so a
+   * mis-tap can be corrected without waiting out the TV's reaction time. */
   private _togglePower(view: TvView): void {
-    this._player(view.entity, view.on ? "turn_off" : "turn_on");
+    const target = !(this._pendingPower?.target ?? view.on);
+    this._pendingPower = { target, at: Date.now() };
+    this._player(view.entity, target ? "turn_on" : "turn_off");
   }
 
   private _media(media: TvMediaView, service: string): void {
     this._player(media.entity, service);
   }
 
-  private _seek(media: TvMediaView, pct: number): void {
+  /** Seeks to an absolute position and holds it optimistically — the cast
+   * entity re-reports its position seconds later, and rendering the stale
+   * value in between looks like the seek failed. */
+  private _seekTo(media: TvMediaView, seconds: number): void {
+    const clamped = Math.min(media.duration, Math.max(0, seconds));
+    this._pendingSeek = {
+      seconds: clamped,
+      at: Date.now(),
+      stamp:
+        this.hass?.states[media.entity]?.attributes
+          .media_position_updated_at,
+    };
     this._player(media.entity, "media_seek", {
-      seek_position: Math.round((pct / 100) * media.duration),
+      seek_position: Math.round(clamped),
     });
+  }
+
+  private _skip(media: TvMediaView, deltaSeconds: number): void {
+    // Base on the displayed (possibly still pending) position so quick
+    // repeated skips stack instead of resetting to the stale HA position.
+    const base = this._displayPosition(media, Date.now());
+    this._seekTo(media, base + deltaSeconds);
   }
 
   private _setVolume(volume: TvVolumeView, pct: number): void {
@@ -474,6 +728,44 @@ export class RuTvCard extends LitElement {
   private _volumeStep(volume: TvVolumeView, service: string): void {
     if (!volume.entity) return;
     this._player(volume.entity, service);
+  }
+
+  // --- volume stepper hold-to-repeat -------------------------------------------
+  // Press fires one step immediately, holding repeats it; the trailing click
+  // a pointer press always produces is swallowed via _stepPointerFired so
+  // @click only acts on keyboard activation (Enter/Space).
+
+  private _stepPress(volume: TvVolumeView, service: string): void {
+    this._stepPointerFired = true;
+    this._volumeStep(volume, service);
+    this._holdStop();
+    this._holdDelay = setTimeout(() => {
+      this._holdRepeat = setInterval(
+        () => this._volumeStep(volume, service),
+        HOLD_REPEAT_MS
+      );
+    }, HOLD_DELAY_MS);
+  }
+
+  private _stepClick(volume: TvVolumeView, service: string): void {
+    if (this._stepPointerFired) {
+      this._stepPointerFired = false;
+      return;
+    }
+    this._volumeStep(volume, service);
+  }
+
+  /** Pointer left the button — no click will follow, so also drop the flag. */
+  private _stepLeave(): void {
+    this._holdStop();
+    this._stepPointerFired = false;
+  }
+
+  private _holdStop(): void {
+    clearTimeout(this._holdDelay);
+    clearInterval(this._holdRepeat);
+    this._holdDelay = undefined;
+    this._holdRepeat = undefined;
   }
 
   private _toggleMute(volume: TvVolumeView): void {
@@ -506,6 +798,16 @@ export class RuTvCard extends LitElement {
       entity_id: this._config.remote_entity,
       command,
     });
+  }
+
+  /** Sends a remote key and echoes it in the panel header for a moment. */
+  private _padPress(command: string, glyph: string, label: string): void {
+    this._remoteCommand(command);
+    clearTimeout(this._fbTimer);
+    this._padFeedback = `${glyph} ${label}`;
+    this._fbTimer = setTimeout(() => {
+      this._padFeedback = "";
+    }, PAD_FEEDBACK_MS);
   }
 }
 

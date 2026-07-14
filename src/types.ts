@@ -134,7 +134,15 @@ export interface PurifierCardConfig {
 
 export interface TvAppConfig {
   name: string;
-  /** Chip dot color (any CSS color). */
+  /** Chip icon: an image URL (e.g. /local/icons/netflix.svg) or an icon ref
+   * (`mdi:youtube`, `ru:shelly`) rendered monochrome and tinted with `color`.
+   * The chip falls back to a `color` dot without one. */
+  icon?: string;
+  /** Icon used instead of `icon` in dark mode — for image URLs whose logo
+   * vanishes on a dark panel (icon refs tint automatically). */
+  icon_dark?: string;
+  /** Color of the header dot while the app is active, and of the chip's
+   * fallback dot when no `icon` is set (any CSS color). */
   color?: string;
   /** What launches the app: an Android app link URL or package name, passed
    * as remote.turn_on's `activity` (falls back to media_player.play_media). */
@@ -154,6 +162,16 @@ export interface TvCardConfig {
   media_entity?: string;
   /** remote.* entity (androidtv_remote) — enables the remote panel. */
   remote_entity?: string;
+  /** media_player.* whose volume services the volume row targets — e.g. the
+   * braviatv entity, whose REST API supports absolute volume_set while the
+   * androidtv_remote/cast entities only step. */
+  volume_entity?: string;
+  /** Volume UI: auto picks slider when VOLUME_SET exists (legacy behavior);
+   * steppers forces +/− key-press buttons — the right choice for Android 12+
+   * TVs where absolute volume_set only moves one step. */
+  volume_mode?: "auto" | "slider" | "steppers";
+  /** Seek skip amounts in seconds, [back, forward]. Default [10, 30]. */
+  skip_seconds?: [number, number];
   /** App launcher chips. */
   apps?: TvAppConfig[];
 }

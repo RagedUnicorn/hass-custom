@@ -104,6 +104,25 @@ test("stop freezes a moving cover", async ({ page }) => {
   await expect(room(page, "Bedroom").locator(".room-status")).toHaveText(
     "Moving…"
   );
+  // Let it travel far enough that stopping can't round back to fully open.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const card = document.querySelector("ru-shutters-card") as {
+          hass?: {
+            states: Record<
+              string,
+              { attributes: { current_position?: number } }
+            >;
+          };
+        } | null;
+        return (
+          card?.hass?.states["cover.bedroom_medium"].attributes
+            .current_position ?? 100
+        );
+      })
+    )
+    .toBeLessThan(90);
   await room(page, "Bedroom").locator(".room-buttons button.stop").click();
   await expect(room(page, "Bedroom").locator(".room-status")).toHaveText(
     "Partly open"

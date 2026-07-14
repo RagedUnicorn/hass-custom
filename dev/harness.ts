@@ -137,13 +137,15 @@ const mock = new MockHass(
   ],
   [
     {
-      // androidtv_remote-like: power/app/volume-step, no volume level.
+      // androidtv_remote-like: power/app/volume-step; reports a volume level
+      // (the real integration does) but can only change it in key-press steps.
       // PAUSE|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|PLAY_MEDIA|VOLUME_STEP|STOP|PLAY
       entity: "media_player.tv_android",
       name: "Living Room TV",
       state: "on",
       features: 22457,
       appId: "com.netflix.ninja",
+      volume: 0.35,
     },
     {
       // cast-like: now-playing detail, seek, volume level.
@@ -156,6 +158,15 @@ const mock = new MockHass(
       title: "Stranger Things · S4 E7",
       duration: 3120,
       position: 754,
+      volume: 0.35,
+    },
+    {
+      // braviatv-like: absolute volume via Sony's REST API, no track/seek.
+      // PAUSE|VOLUME_SET|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|PLAY_MEDIA|VOLUME_STEP|STOP|PLAY
+      entity: "media_player.tv_bravia",
+      name: "Living Room TV Bravia",
+      state: "on",
+      features: 22461,
       volume: 0.35,
     },
   ],
@@ -259,6 +270,58 @@ purifierCard.setConfig({
   pm10_entity: "sensor.bedroom_purifier_pm_10",
 });
 
+/** Stand-in app icon: a rounded square in the brand color with the app's
+ * initial, as a data URI — keeps the harness free of network fetches. */
+function appIcon(color: string, initial: string): string {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">` +
+    `<rect width="24" height="24" rx="5" fill="${color}"/>` +
+    `<text x="12" y="16.5" text-anchor="middle" font-family="sans-serif"` +
+    ` font-size="13" font-weight="700" fill="#fff">${initial}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+// Spotify uses an mdi: icon ref (rendered via ha-icon, tinted with color)
+// and Twitch stays icon-less — together they exercise all three chip looks:
+// image URL, icon ref, and the color-dot fallback.
+const TV_APPS = [
+  {
+    name: "Netflix",
+    color: "#E50914",
+    icon: appIcon("#E50914", "N"),
+    activity: "com.netflix.ninja",
+    app_id: "com.netflix.ninja",
+  },
+  {
+    name: "YouTube",
+    color: "#FF0000",
+    icon: appIcon("#FF0000", "Y"),
+    activity: "com.google.android.youtube.tv",
+    app_id: "com.google.android.youtube.tv",
+  },
+  {
+    name: "Spotify",
+    color: "#1DB954",
+    icon: "mdi:spotify",
+    activity: "com.spotify.tv.android",
+    app_id: "com.spotify.tv.android",
+  },
+  {
+    name: "Plex",
+    color: "#E5A00D",
+    icon: appIcon("#E5A00D", "P"),
+    icon_dark: appIcon("#F5C542", "P"),
+    activity: "com.plexapp.android",
+    app_id: "com.plexapp.android",
+  },
+  {
+    name: "Twitch",
+    color: "#9146FF",
+    activity: "tv.twitch.android.app",
+    app_id: "tv.twitch.android.app",
+  },
+];
+
 const tvCard = document.createElement("ru-tv-card") as LovelaceCard;
 tvCard.setConfig({
   type: "custom:ru-tv-card",
@@ -267,26 +330,33 @@ tvCard.setConfig({
   name: "Living Room TV",
   media_entity: "media_player.tv_cast",
   remote_entity: "remote.tv_livingroom",
-  apps: [
-    {
-      name: "Netflix",
-      color: "#E50914",
-      activity: "https://www.netflix.com/title",
-      app_id: "com.netflix.ninja",
-    },
-    {
-      name: "YouTube",
-      color: "#FF0000",
-      activity: "https://www.youtube.com",
-      app_id: "com.google.android.youtube.tv",
-    },
-    {
-      name: "Spotify",
-      color: "#1DB954",
-      activity: "com.spotify.tv.android",
-      app_id: "com.spotify.tv.android",
-    },
-  ],
+  apps: TV_APPS,
+});
+
+// Same TV, volume forced to steppers — the Android-12+ setup where the cast
+// entity claims VOLUME_SET but only ever moves one step per call.
+const tvSteppersCard = document.createElement("ru-tv-card") as LovelaceCard;
+tvSteppersCard.setConfig({
+  type: "custom:ru-tv-card",
+  title: "Media (steppers)",
+  entity: "media_player.tv_android",
+  name: "Living Room TV",
+  media_entity: "media_player.tv_cast",
+  volume_mode: "steppers",
+  apps: TV_APPS,
+});
+
+// Same TV with the braviatv entity as volume_entity — the Sony Bravia setup
+// where absolute volume_set works through the native REST integration.
+const tvBraviaCard = document.createElement("ru-tv-card") as LovelaceCard;
+tvBraviaCard.setConfig({
+  type: "custom:ru-tv-card",
+  title: "Media (bravia volume)",
+  entity: "media_player.tv_android",
+  name: "Living Room TV",
+  media_entity: "media_player.tv_cast",
+  volume_entity: "media_player.tv_bravia",
+  apps: TV_APPS,
 });
 
 mock.onChange((hass) => {
@@ -294,12 +364,16 @@ mock.onChange((hass) => {
   lightsCard.hass = hass;
   purifierCard.hass = hass;
   tvCard.hass = hass;
+  tvSteppersCard.hass = hass;
+  tvBraviaCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
 document.getElementById("card-lights")!.appendChild(lightsCard);
 document.getElementById("card-purifier")!.appendChild(purifierCard);
 document.getElementById("card-tv")!.appendChild(tvCard);
+document.getElementById("card-tv-steppers")!.appendChild(tvSteppersCard);
+document.getElementById("card-tv-bravia")!.appendChild(tvBraviaCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -346,6 +420,7 @@ export interface Harness {
     }
   ): void;
   setTravelMs(ms: number): void;
+  setReactionMs(ms: number): void;
   reset(): void;
 }
 
@@ -368,5 +443,6 @@ window.__harness = {
   setSensor: (entity, value) => mock.setSensor(entity, value),
   setMediaPlayer: (entity, patch) => mock.setMediaPlayer(entity, patch),
   setTravelMs: (ms) => mock.setTravelMs(ms),
+  setReactionMs: (ms) => mock.setReactionMs(ms),
   reset: () => mock.reset(),
 };

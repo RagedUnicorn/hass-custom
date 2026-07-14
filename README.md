@@ -298,9 +298,11 @@ starter config, but has no visual editor.
 ### `ru-tv-card`
 
 An Android TV card: a media panel with power toggle, now-playing title, a
-drag-to-seek progress bar, transport buttons, a volume slider (or +/− steppers)
-and app launcher chips, plus an optional remote panel with a d-pad and
-Back / Home / Guide keys.
+drag-to-seek progress bar with skip back/forward buttons, transport buttons,
+a volume slider (or +/− steppers) and app launcher chips, plus an optional
+remote panel — a ring d-pad (rim = directions, center = OK, like a physical
+remote) with Back / Home keys below and every press echoed in the panel
+header.
 
 Android TVs surface in HA as two media players — the Android TV Remote one
 (power, foreground app, volume steps) and the Google Cast one (track title,
@@ -315,15 +317,31 @@ entity: media_player.tv_livingroom          # androidtv_remote media player
 name: Living Room TV                        # optional, defaults to friendly_name
 media_entity: media_player.tv_livingroom_2  # optional, cast media player
 remote_entity: remote.tv_livingroom         # optional, androidtv_remote remote
+volume_entity: media_player.tv_bravia       # optional, e.g. braviatv → real volume slider
+volume_mode: steppers                       # optional: auto (default) | slider | steppers
+skip_seconds: [10, 30]                      # optional seek jumps, [back, forward]
 apps: # optional launcher chips
   - name: Netflix
-    color: "#E50914"
-    activity: https://www.netflix.com/title
+    icon: mdi:netflix # optional: mdi:/ru: icon ref or an image URL
+    color: "#E50914" # tints the icon ref, header dot + chip fallback
+    activity: com.netflix.ninja
     app_id: com.netflix.ninja
   - name: YouTube
     color: "#FF0000"
-    activity: https://www.youtube.com
+    activity: com.google.android.youtube.tv
     app_id: com.google.android.youtube.tv
+  - name: Spotify
+    color: "#1DB954"
+    activity: com.spotify.tv.android
+    app_id: com.spotify.tv.android
+  - name: Plex
+    color: "#E5A00D"
+    activity: com.plexapp.android
+    app_id: com.plexapp.android
+  - name: Twitch
+    color: "#9146FF"
+    activity: tv.twitch.android.app
+    app_id: tv.twitch.android.app
 ```
 
 | Option          | Type   | Default       | Description                                                        |
@@ -333,7 +351,10 @@ apps: # optional launcher chips
 | `name`          | string | friendly name | Device name shown on the card                                      |
 | `media_entity`  | string | —             | Cast-style `media_player.*` → now-playing, seek, transport         |
 | `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
-| `apps`          | list   | —             | Launcher chips, each `name` + optional `color`/`activity`/`app_id` |
+| `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)            |
+| `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)              |
+| `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                    |
+| `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id` |
 
 Behavior notes:
 
@@ -341,16 +362,56 @@ Behavior notes:
   `media_entity` reports a track with a duration; the playback position ticks
   live between HA updates. Seek, play/pause and previous/next are each
   feature-detected and dropped when unsupported.
+- Seeking: drag the bar for coarse scrubbing or use the skip buttons
+  (`skip_seconds`) for precise jumps; quick repeated skips stack. After a
+  seek the bar holds the target position until the TV confirms it — a cast
+  device re-reports its position seconds later, and snapping back to the
+  stale value in between would look like the seek failed.
 - The volume row prefers a live slider (`VOLUME_SET`, from whichever entity
-  supports it) and falls back to +/− steppers (`VOLUME_STEP`); the Vol label
-  toggles mute. Both fire once on release, so the TV isn't flooded with
-  commands mid-drag.
-- App chips launch via `remote.turn_on` with the app's `activity` (an Android
-  app link URL or package name), falling back to `media_player.play_media`
-  when no `remote_entity` is configured. A chip highlights when its `app_id`
-  matches the TV's foreground app (or its `name` matches the cast app name).
+  supports it) and falls back to +/− steppers (`VOLUME_STEP`); the speaker
+  button toggles mute (red slashed icon while muted). Set
+  `volume_mode: steppers` when the slider only ever moves
+  the volume one notch: Android 12+ restricts absolute volume-set for cast
+  devices, so stepped key presses are all such TVs support. Steppers show
+  the current level between the buttons and repeat while held.
+- Sony Bravia (Android/Google TV): the native
+  [Sony Bravia TV](https://www.home-assistant.io/integrations/braviatv/)
+  integration talks to Sony's REST API, where absolute volume-set genuinely
+  works. Enable IP control on the TV (Settings → Network → Home Network
+  Setup → IP Control, PSK auth recommended), add the integration, and point
+  `volume_entity` at its media player — the card gets a real slider and mute
+  without `volume_mode: steppers`. Keep `media_entity` (cast) for the
+  now-playing block: the Bravia API has no seek. If `volume_entity` is
+  unavailable the volume row falls back to the other entities.
+- Sound system attached (soundbar/AVR over HDMI ARC): the Bravia API can only
+  set the TV-speaker target, which is mute/unused in that setup — the volume
+  OSD moves but the audible volume doesn't. Point `volume_entity` at the sound
+  system's own media player instead (e.g. a Sonos `media_player.*`) — that
+  device's volume is the real one, and integrations like Sonos support
+  absolute volume_set reliably.
+- The power toggle reacts optimistically: a real TV takes seconds to turn
+  on or off, so the knob flips immediately, pulses, and the status shows
+  "Turning on…" / "Turning off…" until HA confirms (or ~20 s pass). Tapping
+  again mid-flight reverses the command.
+- App chips launch via `remote.turn_on` with the app's `activity`, falling
+  back to `media_player.play_media` when no `remote_entity` is configured.
+  Since HA 2024.6 a plain Android package name (e.g. `com.plexapp.android`)
+  is the most reliable `activity`; deep links (`plex://`, `spotify://`,
+  `twitch://home`, `https://www.youtube.com`) also work. A chip highlights
+  when its `app_id` matches the TV's foreground app (or its `name` matches
+  the cast app name) — verify a package name by opening the app on the TV
+  and reading the entity's `app_id` attribute in Developer Tools → States.
+- A chip's `icon` is either an icon ref (`mdi:youtube`, `ru:shelly`, or any
+  installed icon set) rendered monochrome and tinted with the app's `color`,
+  or an image URL (put files in HA's `www/` folder and reference them as
+  `/local/...`; `icon_dark` swaps in a dark-mode variant for image logos
+  that vanish on a dark panel — refs tint automatically). Without an `icon`
+  the chip falls back to a small `color` dot.
 - The remote panel sends `remote.send_command` key codes (`DPAD_*`, `BACK`,
-  `HOME`, `GUIDE`) and only renders when `remote_entity` is configured.
+  `HOME`) and only renders when `remote_entity` is configured. The ring
+  d-pad is built for eyes-free use — big targets findable by feel — so each
+  press briefly echoes as e.g. "▲ Up" in the panel header instead of relying
+  on you watching the button.
 - An unavailable TV renders grayed out with disabled controls; while the TV is
   off the media/remote sections dim.
 - The card follows Home Assistant's light/dark mode automatically with a
