@@ -26,6 +26,8 @@ export interface TvAppView {
    * already resolved), or null → color dot. */
   icon: string | null;
   activity: string | null;
+  /** TV input the chip selects instead of launching an app, or null. */
+  source: string | null;
   active: boolean;
 }
 
@@ -239,16 +241,25 @@ export function buildTvView(
     )
   );
   const mediaAppName = mediaObj?.attributes.app_name?.toLowerCase() ?? "";
+  const sourceObj = config.source_entity
+    ? hass.states[config.source_entity]
+    : undefined;
+  const currentSource =
+    (sourceObj ?? stateObj)?.attributes.source?.toLowerCase() ?? "";
   const darkMode = hass.themes?.darkMode ?? false;
   const apps: TvAppView[] = (config.apps ?? []).map((app) => ({
     name: app.name,
     color: app.color ?? "#8a90a0",
     icon: (darkMode ? (app.icon_dark ?? app.icon) : app.icon) ?? null,
     activity: app.activity ?? null,
+    source: app.source ?? null,
     active:
       on &&
       ((app.app_id !== undefined && appIds.has(app.app_id)) ||
-        (mediaAppName !== "" && app.name.toLowerCase() === mediaAppName)),
+        (mediaAppName !== "" && app.name.toLowerCase() === mediaAppName) ||
+        (app.source !== undefined &&
+          currentSource !== "" &&
+          app.source.toLowerCase() === currentSource)),
   }));
   const activeColor = apps.find((app) => app.active)?.color ?? null;
 

@@ -319,6 +319,7 @@ media_entity: media_player.tv_livingroom_2  # optional, cast media player
 remote_entity: remote.tv_livingroom         # optional, androidtv_remote remote
 volume_entity: media_player.tv_bravia       # optional, e.g. braviatv → real volume slider
 volume_mode: steppers                       # optional: auto (default) | slider | steppers
+source_entity: media_player.tv_bravia       # optional, e.g. braviatv → input-switch chips
 skip_seconds: [10, 30]                      # optional seek jumps, [back, forward]
 apps: # optional launcher chips
   - name: Netflix
@@ -342,6 +343,10 @@ apps: # optional launcher chips
     color: "#9146FF"
     activity: tv.twitch.android.app
     app_id: tv.twitch.android.app
+  - name: PlayStation
+    icon: mdi:sony-playstation
+    color: "#0070D1"
+    source: "HDMI 3" # input chip: switches source_entity instead of launching an app
 ```
 
 | Option          | Type   | Default       | Description                                                        |
@@ -353,8 +358,9 @@ apps: # optional launcher chips
 | `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
 | `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)            |
 | `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)              |
+| `source_entity` | string | —             | `media_player.*` the input chips target (e.g. braviatv)            |
 | `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                    |
-| `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id` |
+| `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id`/`source` |
 
 Behavior notes:
 
@@ -401,6 +407,15 @@ Behavior notes:
   when its `app_id` matches the TV's foreground app (or its `name` matches
   the cast app name) — verify a package name by opening the app on the TV
   and reading the entity's `app_id` attribute in Developer Tools → States.
+- A chip with a `source` switches TV input instead of launching an app:
+  it calls `media_player.select_source` on `source_entity` (falling back to
+  `entity`) — the way to put an HDMI device like a game console on the app
+  row. The braviatv integration exposes the TV's inputs; find the exact
+  string in Developer Tools → States → the braviatv entity's `source_list`
+  (e.g. `HDMI 3`). The chip highlights while that input is the entity's
+  current `source`. `source` wins when a chip also has an `activity`. CEC
+  nicety: a PS5 with "Enable Turning On PS5 Through HDMI" on wakes up when
+  the TV switches to its input.
 - A chip's `icon` is either an icon ref (`mdi:youtube`, `ru:shelly`, or any
   installed icon set) rendered monochrome and tinted with the app's `color`,
   or an image URL (put files in HA's `www/` folder and reference them as

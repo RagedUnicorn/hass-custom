@@ -126,6 +126,14 @@ export class RuTvCard extends LitElement {
       );
     }
     if (
+      config.source_entity &&
+      !config.source_entity.startsWith("media_player.")
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "source_entity" must be a media_player.* entity id`
+      );
+    }
+    if (
       config.volume_mode !== undefined &&
       !VOLUME_MODES.includes(config.volume_mode)
     ) {
@@ -524,7 +532,7 @@ export class RuTvCard extends LitElement {
           (app, index) => html`
             <button
               class="app ${app.active ? "active" : ""}"
-              ?disabled=${!view.available || !app.activity}
+              ?disabled=${!view.available || (!app.activity && !app.source)}
               @click=${() => this._launchApp(this._config!.apps![index])}
             >
               ${app.icon
@@ -775,9 +783,18 @@ export class RuTvCard extends LitElement {
     });
   }
 
-  /** remote.turn_on's `activity` launches apps on androidtv_remote; without
-   * a remote entity fall back to play_media on the main media player. */
+  /** A `source` chip switches TV input via select_source (braviatv exposes
+   * HDMI inputs); otherwise remote.turn_on's `activity` launches apps on
+   * androidtv_remote, falling back to play_media on the main media player. */
   private _launchApp(app: TvAppConfig): void {
+    if (app.source) {
+      this._player(
+        this._config?.source_entity ?? this._config!.entity,
+        "select_source",
+        { source: app.source }
+      );
+      return;
+    }
     if (!app.activity) return;
     if (this._config?.remote_entity) {
       void this.hass?.callService("remote", "turn_on", {

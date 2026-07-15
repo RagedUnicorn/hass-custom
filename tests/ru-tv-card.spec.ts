@@ -12,8 +12,9 @@
  * Three card instances share those entities: #card-tv (volume_mode auto →
  * slider on the cast entity), #card-tv-steppers (volume_mode steppers →
  * key-press steps on the androidtv entity) and #card-tv-bravia
- * (volume_entity media_player.tv_bravia, a braviatv-like player at 35% whose
- * volume_set is absolute). Selectors stay scoped to one.
+ * (volume_entity + source_entity media_player.tv_bravia, a braviatv-like
+ * player at 35% whose volume_set is absolute, on HDMI 1 of HDMI 1…4; adds
+ * a PlayStation chip with source "HDMI 3"). Selectors stay scoped to one.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -383,6 +384,31 @@ test("app chips launch via remote.turn_on with the app's activity", async ({
         },
       },
     ]);
+});
+
+test("a source chip switches the TV input via select_source and highlights", async ({
+  page,
+}) => {
+  const chip = page.locator(`${BRAVIA_CARD} .app`, {
+    hasText: "PlayStation",
+  });
+  // A source-only chip (no activity) must still be clickable.
+  await chip.scrollIntoViewIfNeeded();
+  await expect(chip).toBeEnabled();
+  await expect(chip).not.toHaveClass(/active/);
+
+  await chip.click();
+  await expect
+    .poll(() => calls(page))
+    .toEqual([
+      {
+        domain: "media_player",
+        service: "select_source",
+        data: { entity_id: BRAVIA, source: "HDMI 3" },
+      },
+    ]);
+  // The mock flips the bravia entity's source attribute → chip highlights.
+  await expect(chip).toHaveClass(/active/);
 });
 
 test("ring d-pad and keys send remote commands and echo the press", async ({

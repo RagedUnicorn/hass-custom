@@ -161,13 +161,16 @@ const mock = new MockHass(
       volume: 0.35,
     },
     {
-      // braviatv-like: absolute volume via Sony's REST API, no track/seek.
-      // PAUSE|VOLUME_SET|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|PLAY_MEDIA|VOLUME_STEP|STOP|PLAY
+      // braviatv-like: absolute volume via Sony's REST API, HDMI input
+      // selection, no track/seek.
+      // PAUSE|VOLUME_SET|MUTE|PREV|NEXT|TURN_ON|TURN_OFF|SELECT_SOURCE|PLAY_MEDIA|VOLUME_STEP|STOP|PLAY
       entity: "media_player.tv_bravia",
       name: "Living Room TV Bravia",
       state: "on",
-      features: 22461,
+      features: 24509,
       volume: 0.35,
+      sourceList: ["HDMI 1", "HDMI 2", "HDMI 3", "HDMI 4"],
+      source: "HDMI 1",
     },
   ],
   [{ entity: "remote.tv_livingroom", name: "Living Room TV Remote" }]
@@ -347,7 +350,8 @@ tvSteppersCard.setConfig({
 });
 
 // Same TV with the braviatv entity as volume_entity — the Sony Bravia setup
-// where absolute volume_set works through the native REST integration.
+// where absolute volume_set works through the native REST integration — and
+// as source_entity, with a PlayStation chip switching to its HDMI input.
 const tvBraviaCard = document.createElement("ru-tv-card") as LovelaceCard;
 tvBraviaCard.setConfig({
   type: "custom:ru-tv-card",
@@ -356,7 +360,16 @@ tvBraviaCard.setConfig({
   name: "Living Room TV",
   media_entity: "media_player.tv_cast",
   volume_entity: "media_player.tv_bravia",
-  apps: TV_APPS,
+  source_entity: "media_player.tv_bravia",
+  apps: [
+    ...TV_APPS,
+    {
+      name: "PlayStation",
+      color: "#0070D1",
+      icon: "mdi:sony-playstation",
+      source: "HDMI 3",
+    },
+  ],
 });
 
 mock.onChange((hass) => {

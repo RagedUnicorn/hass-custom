@@ -39,6 +39,10 @@ export interface HassEntity {
     /** Volume, 0…1 (HA convention). */
     volume_level?: number;
     is_volume_muted?: boolean;
+    /** Media player: current input source (braviatv). */
+    source?: string;
+    /** Media player: selectable input sources (braviatv). */
+    source_list?: string[];
     [key: string]: unknown;
   };
 }
@@ -149,6 +153,11 @@ export interface TvAppConfig {
   activity?: string;
   /** Matched against the TV's `app_id` attribute to highlight the chip. */
   app_id?: string;
+  /** TV input to switch to instead of launching an app — passed to
+   * media_player.select_source on `source_entity` (must match an entry in
+   * that entity's source_list, e.g. "HDMI 3"). Wins over `activity`; the
+   * chip highlights while it matches the entity's `source` attribute. */
+  source?: string;
 }
 
 export interface TvCardConfig {
@@ -170,6 +179,10 @@ export interface TvCardConfig {
    * steppers forces +/− key-press buttons — the right choice for Android 12+
    * TVs where absolute volume_set only moves one step. */
   volume_mode?: "auto" | "slider" | "steppers";
+  /** media_player.* whose select_source the input chips target and whose
+   * `source` attribute highlights them — e.g. the braviatv entity, which
+   * exposes HDMI inputs; the androidtv_remote/cast entities don't. */
+  source_entity?: string;
   /** Seek skip amounts in seconds, [back, forward]. Default [10, 30]. */
   skip_seconds?: [number, number];
   /** App launcher chips. */

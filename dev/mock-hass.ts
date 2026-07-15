@@ -113,6 +113,10 @@ export interface MockMediaPlayerSpec {
   /** Volume, 0…1. Omit for players without a volume level (androidtv). */
   volume?: number;
   muted?: boolean;
+  /** Selectable input sources (braviatv); implies the current `source`. */
+  sourceList?: string[];
+  /** Initial input source. */
+  source?: string;
   /** Render as an unavailable entity. Default true (available). */
   available?: boolean;
 }
@@ -177,6 +181,8 @@ interface MediaPlayerState {
   positionStamp: string;
   volume: number | null;
   muted: boolean;
+  /** Current input source, or null for players without inputs. */
+  source: string | null;
   available: boolean;
 }
 
@@ -369,6 +375,7 @@ export class MockHass {
         positionStamp: new Date().toISOString(),
         volume: spec.volume ?? null,
         muted: spec.muted ?? false,
+        source: spec.source ?? null,
         available: spec.available ?? true,
       });
     }
@@ -643,6 +650,9 @@ export class MockHass {
       case "volume_mute":
         player.muted = data?.is_volume_muted === true;
         break;
+      case "select_source":
+        if (typeof data?.source === "string") player.source = data.source;
+        break;
     }
   }
 
@@ -792,6 +802,12 @@ export class MockHass {
                 ? {
                     volume_level: player.volume,
                     is_volume_muted: player.muted,
+                  }
+                : {}),
+              ...(player.spec.sourceList
+                ? {
+                    source_list: player.spec.sourceList,
+                    ...(player.source ? { source: player.source } : {}),
                   }
                 : {}),
             }),
