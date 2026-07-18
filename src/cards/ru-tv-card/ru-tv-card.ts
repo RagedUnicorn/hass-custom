@@ -432,7 +432,7 @@ export class RuTvCard extends LitElement {
       <button
         class="vol-mute ${volume.muted ? "muted" : ""}"
         aria-label=${volume.muted ? "Unmute" : "Mute"}
-        ?disabled=${!volume.supportsMute}
+        ?disabled=${!volume.supportsMute || !volume.available}
         @click=${() => this._toggleMute(volume)}
       >
         ${volume.muted
@@ -472,6 +472,7 @@ export class RuTvCard extends LitElement {
         <button
           class="vol-step"
           aria-label=${ariaLabel}
+          ?disabled=${!volume.available}
           @pointerdown=${() => this._stepPress(volume, service)}
           @pointerup=${() => this._holdStop()}
           @pointerleave=${() => this._stepLeave()}
@@ -482,7 +483,7 @@ export class RuTvCard extends LitElement {
         </button>
       `;
       return html`
-        <div class="vol-row steppers">
+        <div class="vol-row steppers ${volume.available ? "" : "unavailable"}">
           ${label} ${stepper("−", "volume_down", "Volume down")}
           ${volume.pct !== null
             ? html`
@@ -498,15 +499,16 @@ export class RuTvCard extends LitElement {
 
     const dragPct = this._drag["vol"];
     const fill = dragPct ?? volume.pct ?? 0;
-    const valueText = volume.muted
-      ? "—"
-      : `${Math.round(dragPct ?? volume.pct ?? 0)}%`;
+    const valueText =
+      volume.muted || (dragPct === undefined && volume.pct === null)
+        ? "—"
+        : `${Math.round(dragPct ?? volume.pct ?? 0)}%`;
 
     return html`
-      <div class="vol-row">
+      <div class="vol-row ${volume.available ? "" : "unavailable"}">
         ${label}
         <div
-          class="vol-track"
+          class="vol-track ${volume.available ? "" : "disabled"}"
           @pointerdown=${(e: PointerEvent) => this._dragStart(e, "vol")}
           @pointermove=${(e: PointerEvent) => this._dragMove(e, "vol")}
           @pointerup=${() => {
@@ -694,6 +696,18 @@ export class RuTvCard extends LitElement {
   private _togglePower(view: TvView): void {
     const target = !(this._pendingPower?.target ?? view.on);
     this._pendingPower = { target, at: Date.now() };
+    // Powering off also quits the app on the cast entity: a live cast
+    // session (e.g. YouTube left open) wakes an Android TV right back up
+    // moments after turn_off, endlessly ("wake on cast").
+    const mediaEntity = this._config?.media_entity;
+    if (
+      !target &&
+      mediaEntity &&
+      mediaEntity !== view.entity &&
+      isTvOn(this.hass?.states[mediaEntity])
+    ) {
+      this._player(mediaEntity, "turn_off");
+    }
     this._player(view.entity, target ? "turn_on" : "turn_off");
   }
 
@@ -726,7 +740,7 @@ export class RuTvCard extends LitElement {
   }
 
   private _setVolume(volume: TvVolumeView, pct: number): void {
-    if (!volume.entity) return;
+    if (!volume.entity || !volume.available) return;
     this._player(volume.entity, "volume_set", {
       volume_level: Math.round(pct) / 100,
     });
@@ -734,7 +748,7 @@ export class RuTvCard extends LitElement {
   }
 
   private _volumeStep(volume: TvVolumeView, service: string): void {
-    if (!volume.entity) return;
+    if (!volume.entity || !volume.available) return;
     this._player(volume.entity, service);
   }
 
@@ -777,7 +791,7 @@ export class RuTvCard extends LitElement {
   }
 
   private _toggleMute(volume: TvVolumeView): void {
-    if (!volume.entity) return;
+    if (!volume.entity || !volume.available) return;
     this._player(volume.entity, "volume_mute", {
       is_volume_muted: !volume.muted,
     });

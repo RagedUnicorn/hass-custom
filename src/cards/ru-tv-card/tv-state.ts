@@ -40,6 +40,9 @@ export interface TvVolumeView {
   pct: number | null;
   muted: boolean;
   supportsMute: boolean;
+  /** False while a configured volume_entity is unavailable — the row
+   * renders disabled instead of retargeting another entity. */
+  available: boolean;
 }
 
 export interface TvMediaView {
@@ -166,24 +169,55 @@ function buildMediaView(
 }
 
 /** Prefer a live volume slider (VOLUME_SET) from either entity, then step
- * buttons; mute rides whatever entity was picked. An explicit `volume_entity`
- * (e.g. braviatv, whose REST API sets absolute volume) wins over both while
- * available. `volume_mode: steppers` skips the slider — needed on Android 12+
- * TVs whose cast entity claims VOLUME_SET but only ever moves one step per
- * call — and `slider` skips the stepper fallback. The % readout reads
- * volume_level from any candidate, so steppers driving the androidtv entity
- * still show the cast entity's level. */
+ * buttons; mute rides whatever entity was picked. `volume_mode: steppers`
+ * skips the slider — needed on Android 12+ TVs whose cast entity claims
+ * VOLUME_SET but only ever moves one step per call — and `slider` skips the
+ * stepper fallback. The % readout reads volume_level from any candidate, so
+ * steppers driving the androidtv entity still show the cast entity's level.
+ *
+ * An explicit `volume_entity` is authoritative: it exists because it's the
+ * only entity whose services really move the room's audio (e.g. a Sonos
+ * soundbar on ARC, or braviatv's absolute REST volume). While it's
+ * unavailable the row renders disabled rather than silently retargeting the
+ * cast/androidtv entity — an Android 12+ cast entity ignores absolute
+ * volume_set until an external app changes the volume once, so a silent
+ * fallback reads as "the card's volume is broken". */
 function buildVolumeView(
   primary: HassEntity | undefined,
   media: HassEntity | undefined,
   volume: HassEntity | undefined,
+  volumeEntityId: string | undefined,
   mode: "auto" | "slider" | "steppers"
 ): TvVolumeView {
-  const candidates = [
-    isAvailable(volume) ? volume : undefined,
-    media,
-    primary,
-  ].filter((stateObj): stateObj is HassEntity => !!stateObj);
+  if (volumeEntityId) {
+    const available = isAvailable(volume);
+    const supported = features(volume);
+    const kind: TvVolumeView["kind"] =
+      mode === "steppers" ||
+      (mode === "auto" &&
+        available &&
+        (supported & FEATURE_VOLUME_SET) === 0 &&
+        (supported & FEATURE_VOLUME_STEP) !== 0)
+        ? "steppers"
+        : "slider";
+    const level = available
+      ? [volume, media, primary].find(
+          (stateObj) => typeof stateObj?.attributes.volume_level === "number"
+        )?.attributes.volume_level
+      : undefined;
+    return {
+      kind,
+      entity: volumeEntityId,
+      pct: typeof level === "number" ? Math.round(level * 100) : null,
+      muted: volume?.attributes.is_volume_muted === true,
+      supportsMute: available && (supported & FEATURE_VOLUME_MUTE) !== 0,
+      available,
+    };
+  }
+
+  const candidates = [media, primary].filter(
+    (stateObj): stateObj is HassEntity => !!stateObj
+  );
   const bySet =
     mode === "steppers"
       ? undefined
@@ -198,7 +232,14 @@ function buildVolumeView(
         );
   const picked = bySet ?? byStep;
   if (!picked) {
-    return { kind: "none", entity: null, pct: null, muted: false, supportsMute: false };
+    return {
+      kind: "none",
+      entity: null,
+      pct: null,
+      muted: false,
+      supportsMute: false,
+      available: false,
+    };
   }
   const withLevel = [picked, ...candidates].find(
     (stateObj) => typeof stateObj.attributes.volume_level === "number"
@@ -210,6 +251,7 @@ function buildVolumeView(
     pct: typeof level === "number" ? Math.round(level * 100) : null,
     muted: picked.attributes.is_volume_muted === true,
     supportsMute: (features(picked) & FEATURE_VOLUME_MUTE) !== 0,
+    available: true,
   };
 }
 
@@ -305,6 +347,7 @@ export function buildTvView(
       stateObj,
       mediaObj,
       config.volume_entity ? hass.states[config.volume_entity] : undefined,
+      config.volume_entity,
       config.volume_mode ?? "auto"
     ),
     apps,

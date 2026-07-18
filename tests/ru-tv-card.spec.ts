@@ -90,13 +90,22 @@ test("renders title, summary, device state, now playing, apps and remote", async
   await expect(page.locator(`${CARD} .key`)).toHaveCount(2);
 });
 
-test("power toggle turns the TV off and on", async ({ page }) => {
+test("power toggle turns the TV off and on, quitting the active cast session", async ({
+  page,
+}) => {
   const power = page.locator(`${CARD} .device-row .toggle`);
 
+  // The cast entity has a live session (Netflix playing) — powering off must
+  // quit it too, or the session wakes a real TV right back up (wake on cast).
   await power.click();
   await expect
     .poll(() => calls(page))
     .toEqual([
+      {
+        domain: "media_player",
+        service: "turn_off",
+        data: { entity_id: CAST },
+      },
       {
         domain: "media_player",
         service: "turn_off",
@@ -115,9 +124,28 @@ test("power toggle turns the TV off and on", async ({ page }) => {
       service: "turn_on",
       data: { entity_id: TV },
     });
+  // The quit ended the cast session, so the TV comes back without a track.
   await expect(page.locator(`${CARD} .device-status`)).toHaveText(
-    "Playing · Netflix"
+    "On · Netflix"
   );
+});
+
+test("power off sends no cast quit when no app session is active", async ({
+  page,
+}) => {
+  await page.evaluate(() =>
+    window.__harness.setMediaPlayer("media_player.tv_cast", { state: "off" })
+  );
+  await page.locator(`${CARD} .device-row .toggle`).click();
+  await expect
+    .poll(() => calls(page))
+    .toEqual([
+      {
+        domain: "media_player",
+        service: "turn_off",
+        data: { entity_id: TV },
+      },
+    ]);
 });
 
 test("power toggle shows a pending state while a slow TV reacts", async ({
@@ -141,7 +169,8 @@ test("power toggle shows a pending state while a slow TV reacts", async ({
   await toggle.click();
   await expect(status).toHaveText("Turning on…");
   await expect(toggle).toHaveClass(/\bon\b/);
-  await expect(status).toHaveText("Playing · Netflix");
+  // The off click also quit the cast session, so no track resumes.
+  await expect(status).toHaveText("On · Netflix");
 });
 
 test("transport buttons drive the cast media player", async ({ page }) => {
@@ -303,7 +332,7 @@ test("volume_entity routes the slider to the braviatv player", async ({
     });
 });
 
-test("an unavailable volume_entity falls back to the cast slider", async ({
+test("an unavailable volume_entity disables the row instead of retargeting", async ({
   page,
 }) => {
   await page.evaluate(() =>
@@ -311,13 +340,31 @@ test("an unavailable volume_entity falls back to the cast slider", async ({
       available: false,
     })
   );
-  const track = page.locator(`${BRAVIA_CARD} .vol-track`);
-  const box = (await track.boundingBox())!;
-  await track.click({ position: { x: box.width * 0.6, y: box.height / 2 } });
+  // The row stays in place but goes inert — silently rerouting volume_set to
+  // the cast entity would send commands a real Android TV ignores.
+  const row = page.locator(`${BRAVIA_CARD} .vol-row`);
+  await expect(row).toHaveClass(/unavailable/);
+  await expect(page.locator(`${BRAVIA_CARD} .vol-value`)).toHaveText("—");
+  await expect(page.locator(`${BRAVIA_CARD} .vol-mute`)).toBeDisabled();
 
-  const log = await calls(page);
-  expect(log[0].service).toBe("volume_set");
-  expect(log[0].data?.entity_id).toBe(CAST);
+  const track = page.locator(`${BRAVIA_CARD} .vol-track`);
+  await expect(track).toHaveClass(/disabled/);
+  const box = (await track.boundingBox())!;
+  await track.click({
+    position: { x: box.width * 0.6, y: box.height / 2 },
+    force: true,
+  });
+  await page.waitForTimeout(150);
+  expect(await calls(page)).toEqual([]);
+
+  // The entity coming back re-enables the row with its live level.
+  await page.evaluate(() =>
+    window.__harness.setMediaPlayer("media_player.tv_bravia", {
+      available: true,
+    })
+  );
+  await expect(row).not.toHaveClass(/unavailable/);
+  await expect(page.locator(`${BRAVIA_CARD} .vol-value`)).toHaveText("35%");
 });
 
 test("volume_mode steppers steps the androidtv entity and shows the level", async ({

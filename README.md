@@ -387,8 +387,10 @@ Behavior notes:
   Setup → IP Control, PSK auth recommended), add the integration, and point
   `volume_entity` at its media player — the card gets a real slider and mute
   without `volume_mode: steppers`. Keep `media_entity` (cast) for the
-  now-playing block: the Bravia API has no seek. If `volume_entity` is
-  unavailable the volume row falls back to the other entities.
+  now-playing block: the Bravia API has no seek. A configured `volume_entity`
+  is authoritative: while it's unavailable the volume row renders disabled
+  instead of silently rerouting commands to the cast/androidtv entities
+  (whose volume-set an Android 12+ TV ignores).
 - Sound system attached (soundbar/AVR over HDMI ARC): the Bravia API can only
   set the TV-speaker target, which is mute/unused in that setup — the volume
   OSD moves but the audible volume doesn't. Point `volume_entity` at the sound
@@ -399,6 +401,10 @@ Behavior notes:
   on or off, so the knob flips immediately, pulses, and the status shows
   "Turning on…" / "Turning off…" until HA confirms (or ~20 s pass). Tapping
   again mid-flight reverses the command.
+- Powering off also quits the app running on `media_entity` (cast) when one
+  is active: an app left open — YouTube especially — keeps its cast session
+  alive, and that session wakes an Android TV right back up moments after
+  turn-off, over and over ("wake on cast").
 - App chips launch via `remote.turn_on` with the app's `activity`, falling
   back to `media_player.play_media` when no `remote_entity` is configured.
   Since HA 2024.6 a plain Android package name (e.g. `com.plexapp.android`)

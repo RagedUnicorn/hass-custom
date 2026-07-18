@@ -172,8 +172,9 @@ export interface TvCardConfig {
   /** remote.* entity (androidtv_remote) — enables the remote panel. */
   remote_entity?: string;
   /** media_player.* whose volume services the volume row targets — e.g. the
-   * braviatv entity, whose REST API supports absolute volume_set while the
-   * androidtv_remote/cast entities only step. */
+   * braviatv entity (absolute REST volume_set) or a Sonos soundbar on ARC.
+   * Authoritative: while it's unavailable the volume row renders disabled
+   * instead of falling back to the cast/androidtv entities. */
   volume_entity?: string;
   /** Volume UI: auto picks slider when VOLUME_SET exists (legacy behavior);
    * steppers forces +/− key-press buttons — the right choice for Android 12+

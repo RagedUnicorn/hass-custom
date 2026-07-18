@@ -405,6 +405,17 @@ export const cardStyles = css`
     background: var(--ru-tv-mute-bg);
   }
 
+  /* A configured volume_entity that's currently unavailable — the row stays
+     in place but nothing in it reacts (no silent retarget to another entity). */
+  .vol-row.unavailable {
+    opacity: 0.45;
+  }
+
+  .vol-track.disabled {
+    pointer-events: none;
+    cursor: default;
+  }
+
   .vol-track {
     position: relative;
     flex: 1;
