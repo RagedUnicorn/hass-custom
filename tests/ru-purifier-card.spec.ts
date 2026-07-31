@@ -4,15 +4,16 @@
  * log (window.__harness.calls); nothing here touches a real Home Assistant.
  *
  * Harness fixture: fan.bedroom_dyson_purifier ON in Auto at 40% (step 10 →
- * 10 ticks, speed 4), oscillating; switch.bedroom_purifier_night_mode OFF;
- * PM2.5 = 8 µg/m³, PM10 = 12 µg/m³ (air quality "Good").
+ * 10 ticks, speed 4), oscillating; switch.bedroom_dyson_purifier_night_mode
+ * OFF; PM2.5 = 8 µg/m³, PM10 = 12 µg/m³ (air quality "Good").
  */
 
 import { test, expect, type Page } from "@playwright/test";
 
 const CARD = "ru-purifier-card";
 const FAN = "fan.bedroom_dyson_purifier";
-const NIGHT = "switch.bedroom_purifier_night_mode";
+const NIGHT = "switch.bedroom_dyson_purifier_night_mode";
+const PM25 = "sensor.bedroom_dyson_purifier_pm2_5";
 
 async function openHarness(page: Page): Promise<void> {
   await page.goto("/dev/harness.html");
@@ -176,15 +177,11 @@ test("oscillation toggle calls fan.oscillate with the inverse", async ({
 });
 
 test("air quality rating follows the PM2.5 sensor", async ({ page }) => {
-  await page.evaluate(() =>
-    window.__harness.setSensor("sensor.bedroom_purifier_pm_2_5", 25)
-  );
+  await page.evaluate((pm25) => window.__harness.setSensor(pm25, 25), PM25);
   await expect(page.locator(`${CARD} .aq-word`)).toHaveText("Fair");
   await expect(page.locator(`${CARD} .summary`)).toHaveText("Auto · Fair");
 
-  await page.evaluate(() =>
-    window.__harness.setSensor("sensor.bedroom_purifier_pm_2_5", 40)
-  );
+  await page.evaluate((pm25) => window.__harness.setSensor(pm25, 40), PM25);
   await expect(page.locator(`${CARD} .aq-word`)).toHaveText("Poor");
   await expect(page.locator(`${CARD} .aq-value`).nth(0)).toHaveText(
     "40 µg/m³"

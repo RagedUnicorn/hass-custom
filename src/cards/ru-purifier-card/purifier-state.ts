@@ -31,6 +31,12 @@ export interface SensorView {
   configured: boolean;
   /** Numeric reading, or null when missing/unavailable/non-numeric. */
   value: number | null;
+  /**
+   * Why `value` is null. "missing" means the configured entity id resolved to
+   * nothing — a config error worth reporting; "unavailable" is ordinary runtime
+   * state (the device stopped publishing) and stays quiet.
+   */
+  status: "ok" | "missing" | "unavailable";
   text: string;
   /** Bar width, 0…100. */
   fillPct: number;
@@ -86,18 +92,40 @@ function readSensor(
   barFull: number
 ): SensorView {
   if (!entity) {
-    return { configured: false, value: null, text: "", fillPct: 0 };
+    return {
+      configured: false,
+      value: null,
+      status: "ok",
+      text: "",
+      fillPct: 0,
+    };
   }
   const stateObj = hass.states[entity];
-  const value = Number(stateObj?.state);
-  if (!stateObj || !Number.isFinite(value)) {
-    return { configured: true, value: null, text: "—", fillPct: 0 };
+  if (!stateObj) {
+    return {
+      configured: true,
+      value: null,
+      status: "missing",
+      text: "—",
+      fillPct: 0,
+    };
+  }
+  const value = Number(stateObj.state);
+  if (!Number.isFinite(value)) {
+    return {
+      configured: true,
+      value: null,
+      status: "unavailable",
+      text: "—",
+      fillPct: 0,
+    };
   }
   const rounded = Math.round(value);
   const unit = stateObj.attributes.unit_of_measurement ?? "µg/m³";
   return {
     configured: true,
     value,
+    status: "ok",
     text: `${rounded} ${unit}`,
     fillPct: Math.min(100, Math.max(0, (rounded / barFull) * 100)),
   };

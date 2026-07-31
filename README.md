@@ -256,9 +256,9 @@ type: custom:ru-purifier-card
 title: Air
 entity: fan.bedroom_dyson_purifier
 name: Bedroom Purifier              # optional, defaults to friendly_name
-night_mode_entity: switch.bedroom_purifier_night_mode   # optional
-pm25_entity: sensor.bedroom_purifier_pm_2_5             # optional
-pm10_entity: sensor.bedroom_purifier_pm_10              # optional
+night_mode_entity: switch.bedroom_dyson_purifier_night_mode  # optional
+pm25_entity: sensor.bedroom_dyson_purifier_pm2_5             # optional
+pm10_entity: sensor.bedroom_dyson_purifier_pm10              # optional
 ```
 
 | Option              | Type   | Default        | Description                                            |
@@ -284,8 +284,12 @@ Behavior notes:
 - The air quality rating uses the PM2.5 reading (Good ≤ 12, Fair ≤ 35,
   Poor above — µg/m³), falling back to PM10 (Good ≤ 20, Fair ≤ 50) when no
   PM2.5 sensor is configured. The panel is hidden when neither sensor is set.
-- An unavailable fan renders grayed out with disabled controls; a missing
-  sensor reading shows `—` with an empty bar.
+- An unavailable fan renders grayed out with disabled controls. A PM sensor
+  with no usable reading shows `—` with an empty bar — either because the
+  sensor is `unavailable`/`unknown` (normal when the device stops publishing
+  particulates), or because the configured entity id doesn't exist. The latter
+  is a config error, so the card reports it once in the browser console naming
+  the offending id; copy the exact id from Developer Tools → States.
 - The card follows Home Assistant's light/dark mode automatically with a
   built-in palette for each; every color is exposed as a
   `--ru-purifier-*` CSS custom property (see

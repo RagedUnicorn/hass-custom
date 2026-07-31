@@ -41,6 +41,10 @@ export class RuPurifierCard extends LitElement {
 
   private _config?: PurifierCardConfig;
 
+  /** Entity ids already reported as unresolvable — render() runs on every
+   *  hass update, so an unguarded warning would repeat forever. */
+  private _warned = new Set<string>();
+
   setConfig(config: PurifierCardConfig): void {
     if (!config?.entity || !config.entity.startsWith("fan.")) {
       throw new Error(
@@ -55,12 +59,18 @@ export class RuPurifierCard extends LitElement {
         `${CARD_TYPE}: "night_mode_entity" must be a switch.* entity id`
       );
     }
+    // Trim before validating: a stray trailing space in YAML passes the
+    // startsWith check but then never resolves in hass.states.
+    const trimmed = { ...config };
     for (const key of ["pm25_entity", "pm10_entity"] as const) {
-      if (config[key] && !config[key].startsWith("sensor.")) {
+      const entity = trimmed[key]?.trim();
+      if (entity && !entity.startsWith("sensor.")) {
         throw new Error(`${CARD_TYPE}: "${key}" must be a sensor.* entity id`);
       }
+      trimmed[key] = entity;
     }
-    this._config = config;
+    this._config = trimmed;
+    this._warned.clear();
   }
 
   getCardSize(): number {
@@ -91,6 +101,8 @@ export class RuPurifierCard extends LitElement {
     const config = this._config;
     const view = buildPurifierView(this.hass, config);
     const showAq = view.pm25.configured || view.pm10.configured;
+    this._warnMissing("pm25_entity", config.pm25_entity, view.pm25);
+    this._warnMissing("pm10_entity", config.pm10_entity, view.pm10);
 
     return html`
       <div class="card">
@@ -109,6 +121,27 @@ export class RuPurifierCard extends LitElement {
         ${showAq ? this._renderAirQuality(view) : nothing}
       </div>
     `;
+  }
+
+  /**
+   * A configured PM entity that isn't in hass.states is a config error — a
+   * typo'd or renamed entity id — and would otherwise render as a silent "—",
+   * indistinguishable from a sensor that simply stopped publishing. Report it
+   * once. An `unavailable` sensor is ordinary runtime state and stays quiet.
+   */
+  private _warnMissing(
+    key: string,
+    entity: string | undefined,
+    sensor: SensorView
+  ): void {
+    if (sensor.status !== "missing" || !entity || this._warned.has(entity)) {
+      return;
+    }
+    this._warned.add(entity);
+    console.warn(
+      `${CARD_TYPE}: "${key}" is set to "${entity}", which does not exist in ` +
+        `Home Assistant — the row will show "—". Check the entity id.`
+    );
   }
 
   private _renderDeviceRow(view: PurifierView): TemplateResult {

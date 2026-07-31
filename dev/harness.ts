@@ -130,10 +130,10 @@ const mock = new MockHass(
       oscillating: true,
     },
   ],
-  [{ entity: "switch.bedroom_purifier_night_mode", name: "Night mode" }],
+  [{ entity: "switch.bedroom_dyson_purifier_night_mode", name: "Night mode" }],
   [
-    { entity: "sensor.bedroom_purifier_pm_2_5", name: "PM 2.5", value: 8 },
-    { entity: "sensor.bedroom_purifier_pm_10", name: "PM 10", value: 12 },
+    { entity: "sensor.bedroom_dyson_purifier_pm2_5", name: "PM 2.5", value: 8 },
+    { entity: "sensor.bedroom_dyson_purifier_pm10", name: "PM 10", value: 12 },
   ],
   [
     {
@@ -268,9 +268,9 @@ purifierCard.setConfig({
   title: "Air",
   entity: "fan.bedroom_dyson_purifier",
   name: "Bedroom Purifier",
-  night_mode_entity: "switch.bedroom_purifier_night_mode",
-  pm25_entity: "sensor.bedroom_purifier_pm_2_5",
-  pm10_entity: "sensor.bedroom_purifier_pm_10",
+  night_mode_entity: "switch.bedroom_dyson_purifier_night_mode",
+  pm25_entity: "sensor.bedroom_dyson_purifier_pm2_5",
+  pm10_entity: "sensor.bedroom_dyson_purifier_pm10",
 });
 
 /** Stand-in app icon: a rounded square in the brand color with the app's
