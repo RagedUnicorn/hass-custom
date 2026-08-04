@@ -146,6 +146,7 @@ const mock = new MockHass(
       features: 22457,
       appId: "com.netflix.ninja",
       volume: 0.35,
+      powerKey: true,
     },
     {
       // cast-like: now-playing detail, seek, volume level.
@@ -173,7 +174,13 @@ const mock = new MockHass(
       source: "HDMI 1",
     },
   ],
-  [{ entity: "remote.tv_livingroom", name: "Living Room TV Remote" }]
+  [
+    {
+      entity: "remote.tv_livingroom",
+      name: "Living Room TV Remote",
+      player: "media_player.tv_android",
+    },
+  ]
 );
 
 const card = document.createElement("ru-shutters-card") as LovelaceCard;

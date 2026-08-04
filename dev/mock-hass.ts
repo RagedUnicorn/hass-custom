@@ -119,6 +119,12 @@ export interface MockMediaPlayerSpec {
   source?: string;
   /** Render as an unavailable entity. Default true (available). */
   available?: boolean;
+  /** Power the androidtv_remote way: turn_on/turn_off send a POWER key only
+   * when the *reported* state disagrees with the intent, and the key toggles
+   * the TV whatever the report said. With a reaction lag that makes two
+   * presses inside the lag window cancel out — the real race the card's
+   * launch queue exists for. Default false (absolute on/off). */
+  powerKey?: boolean;
 }
 
 export interface MockRemoteSpec {
@@ -126,6 +132,10 @@ export interface MockRemoteSpec {
   name: string;
   /** Initial on state. Default true. */
   on?: boolean;
+  /** media_player this remote shares a device with (androidtv_remote exposes
+   * both). Its state then mirrors that player's — and remote.turn_on sends
+   * the same POWER key media_player.turn_on does. */
+  player?: string;
 }
 
 export interface ServiceCall {
@@ -550,6 +560,13 @@ export class MockHass {
       for (const entity of entities) {
         const player = this.mediaPlayers.get(entity);
         if (!player || !player.available) continue;
+        if (
+          player.spec.powerKey &&
+          (service === "turn_on" || service === "turn_off")
+        ) {
+          this.sendPowerKey(player, service === "turn_on");
+          continue;
+        }
         // Power and seek honor the simulated TV reaction lag — a real
         // Android TV takes seconds to act on them while volume/transport
         // feel instant. Lets tests observe the card's optimistic states.
@@ -570,7 +587,16 @@ export class MockHass {
       this.publish();
     }
     if (domain === "remote") {
-      // Remotes only log — send_command/turn_on effects happen on a real TV.
+      // send_command only logs — key effects happen on a real TV. turn_on is
+      // the exception: HA's androidtv_remote prefixes it with a POWER key
+      // whenever it believes the device is off, activity or not.
+      for (const entity of entities) {
+        const player = this.remotes.get(entity)?.spec.player;
+        const linked = player ? this.mediaPlayers.get(player) : undefined;
+        if (service === "turn_on" && linked?.available) {
+          this.sendPowerKey(linked, true);
+        }
+      }
       this.publish();
     }
     if (domain === "cover") {
@@ -598,6 +624,20 @@ export class MockHass {
     }
     return Promise.resolve();
   };
+
+  /** Models HA's POWER-key power handling: nothing is sent when the reported
+   * state already matches the intent, and what *is* sent is a toggle landing
+   * one reaction lag later. Two presses inside one lag window therefore leave
+   * the TV off — turn it on, launch an app too early, and it dies. */
+  private sendPowerKey(player: MediaPlayerState, on: boolean): void {
+    if (player.state !== "off" === on) return;
+    const flip = () => {
+      player.state = player.state === "off" ? "on" : "off";
+      this.publish();
+    };
+    if (this.reactionMs > 0) setTimeout(flip, this.reactionMs);
+    else flip();
+  }
 
   private applyMediaService(
     player: MediaPlayerState,
@@ -685,9 +725,22 @@ export class MockHass {
       states[player.spec.entity] = this.buildMediaPlayerEntity(player);
     }
     for (const remote of this.remotes.values()) {
+      // A linked remote reports its player's power — androidtv_remote backs
+      // both entities with one cached is_on, lag included.
+      const linked = remote.spec.player
+        ? this.mediaPlayers.get(remote.spec.player)
+        : undefined;
       states[remote.spec.entity] = {
         entity_id: remote.spec.entity,
-        state: remote.on ? "on" : "off",
+        state: linked
+          ? !linked.available
+            ? "unavailable"
+            : linked.state === "off"
+              ? "off"
+              : "on"
+          : remote.on
+            ? "on"
+            : "off",
         attributes: { friendly_name: remote.spec.name },
       };
     }

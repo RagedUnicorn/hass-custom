@@ -497,6 +497,12 @@ export const cardStyles = css`
     background: var(--ru-tv-accent-bg);
   }
 
+  /* Tapped while the TV was still waking — the launch is queued until it
+     reports on, so the chip pulses like the power knob does. */
+  .app.pending {
+    animation: ru-tv-knob-pulse 1s ease-in-out infinite;
+  }
+
   .app-icon {
     width: 16px;
     height: 16px;

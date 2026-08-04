@@ -6,8 +6,10 @@
  * Harness fixture: media_player.tv_android ON with app com.netflix.ninja
  * (androidtv-like — volume steps, level 35%); media_player.tv_cast PLAYING
  * "Stranger Things · S4 E7" on Netflix at 754/3120 s, volume 35% (cast-like —
- * seek + volume level); remote.tv_livingroom ON. Apps: Netflix (active),
- * YouTube, Spotify, Plex, Twitch.
+ * seek + volume level); remote.tv_livingroom mirroring tv_android's power,
+ * both powered the androidtv_remote way (turn_on/turn_off send a POWER key
+ * only when the reported state disagrees, and the key toggles). Apps:
+ * Netflix (active), YouTube, Spotify, Plex, Twitch.
  *
  * Three card instances share those entities: #card-tv (volume_mode auto →
  * slider on the cast entity), #card-tv-steppers (volume_mode steppers →
@@ -41,6 +43,14 @@ async function openHarness(page: Page): Promise<void> {
 
 function calls(page: Page) {
   return page.evaluate(() => window.__harness.calls);
+}
+
+/** Just the app-launch calls — the ones that carry a POWER key on a TV HA
+ * still believes is off. */
+async function remoteTurnOns(page: Page) {
+  return (await calls(page)).filter(
+    (call) => call.domain === "remote" && call.service === "turn_on"
+  );
 }
 
 test.beforeEach(async ({ page }) => {
@@ -431,6 +441,91 @@ test("app chips launch via remote.turn_on with the app's activity", async ({
         },
       },
     ]);
+});
+
+test("an app chip tapped while the TV wakes waits instead of powering it off", async ({
+  page,
+}) => {
+  // The bug this guards: remote.turn_on carries a POWER key whenever HA still
+  // believes the TV is off, and that belief lags the real TV by seconds — so a
+  // chip tapped right after power-on used to land a second POWER and kill it.
+  await page.evaluate(() => window.__harness.setReactionMs(1500));
+  const power = page.locator(`${CARD} .device-row .toggle`);
+  const status = page.locator(`${CARD} .device-status`);
+  const chip = page.locator(`${CARD} .app`, { hasText: "YouTube" });
+
+  await power.click();
+  await expect(status).toHaveText("Off");
+  await power.click();
+  await expect(status).toHaveText("Turning on…");
+
+  await chip.click();
+  // Nothing goes out yet — this is the press that used to kill the TV.
+  expect(await remoteTurnOns(page)).toEqual([]);
+  // Queued meanwhile: the chip pulses and the status names what's coming.
+  await expect(chip).toHaveClass(/pending/);
+  await expect(status).toHaveText("Turning on… · YouTube");
+
+  // The TV finishes waking and *stays* on — a second POWER would drop it —
+  // and only now does the launch go out, exactly once.
+  await expect(status).toHaveText("On · Netflix");
+  await expect(chip).not.toHaveClass(/pending/);
+  expect(await remoteTurnOns(page)).toEqual([
+    {
+      domain: "remote",
+      service: "turn_on",
+      data: { entity_id: REMOTE, activity: "com.google.android.youtube.tv" },
+    },
+  ]);
+});
+
+test("an app chip on an off TV powers it on first, then launches", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.__harness.setReactionMs(600);
+    window.__harness.setMediaPlayer("media_player.tv_android", {
+      state: "off",
+    });
+  });
+  await expect(page.locator(`${CARD} .device-status`)).toHaveText("Off");
+
+  await page.locator(`${CARD} .app`, { hasText: "Plex" }).click();
+  // Power first and alone — the launch waits out the TV's reaction.
+  await expect
+    .poll(() => calls(page))
+    .toEqual([
+      { domain: "media_player", service: "turn_on", data: { entity_id: TV } },
+    ]);
+  await expect
+    .poll(() => calls(page))
+    .toEqual([
+      { domain: "media_player", service: "turn_on", data: { entity_id: TV } },
+      {
+        domain: "remote",
+        service: "turn_on",
+        data: { entity_id: REMOTE, activity: "com.plexapp.android" },
+      },
+    ]);
+});
+
+test("powering off abandons a queued launch", async ({ page }) => {
+  await page.evaluate(() => {
+    window.__harness.setReactionMs(1500);
+    window.__harness.setMediaPlayer("media_player.tv_android", {
+      state: "off",
+    });
+  });
+  const chip = page.locator(`${CARD} .app`, { hasText: "Twitch" });
+
+  await chip.click();
+  await expect(chip).toHaveClass(/pending/);
+  await page.locator(`${CARD} .device-row .toggle`).click();
+  await expect(chip).not.toHaveClass(/pending/);
+
+  // Well past the reaction lag the launch must still never have gone out.
+  await page.waitForTimeout(2500);
+  expect(await remoteTurnOns(page)).toEqual([]);
 });
 
 test("a source chip switches the TV input via select_source and highlights", async ({

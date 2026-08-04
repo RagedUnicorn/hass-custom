@@ -417,6 +417,13 @@ Behavior notes:
   when its `app_id` matches the TV's foreground app (or its `name` matches
   the cast app name) — verify a package name by opening the app on the TV
   and reading the entity's `app_id` attribute in Developer Tools → States.
+- A chip tapped while the TV isn't on yet waits: it pulses, the status reads
+  "Turning on… · YouTube", and the launch goes out once HA reports the TV on
+  (dropped after ~20 s if it never does). Tapping a chip on an off TV turns
+  it on first. This is not just politeness — `remote.turn_on` prefixes a
+  POWER keypress whenever HA still believes the TV is off, and that belief
+  lags the real TV by seconds. Launching inside that window would land a
+  second POWER on an already-waking TV and switch it straight back off.
 - A chip with a `source` switches TV input instead of launching an app:
   it calls `media_player.select_source` on `source_entity` (falling back to
   `entity`) — the way to put an HDMI device like a game console on the app

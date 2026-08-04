@@ -46,6 +46,11 @@ const DEFAULT_SKIP: [number, number] = [10, 30];
 /** How long the optimistic power state may outlive its service call. */
 const POWER_PENDING_MS = 20000;
 
+/** How long a queued app launch waits for the TV to report on. Past it the
+ * launch is dropped, never sent late — a launch fired at a TV HA still
+ * believes is off carries a POWER keypress (see _sendLaunch). */
+const LAUNCH_PENDING_MS = 20000;
+
 /** How long a seeked position holds without HA confirming it. */
 const SEEK_PENDING_MS = 10000;
 
@@ -61,6 +66,7 @@ export class RuTvCard extends LitElement {
     _config: { state: true },
     _drag: { state: true },
     _pendingPower: { state: true },
+    _pendingLaunch: { state: true },
     _pendingSeek: { state: true },
     _padFeedback: { state: true },
   };
@@ -74,6 +80,10 @@ export class RuTvCard extends LitElement {
 
   /** Optimistic power target while turn_on/turn_off is in flight. */
   private _pendingPower?: { target: boolean; at: number };
+
+  /** App chip tapped while the TV wasn't confirmed on yet — held until it is
+   * (see _launchApp), then sent by _flushPendingLaunch. */
+  private _pendingLaunch?: { app: TvAppConfig; at: number };
 
   /** Last remote press, echoed in the panel header ("▲ Up") — the tapped
    * quadrant itself gives no lasting visual confirmation. */
@@ -161,6 +171,7 @@ export class RuTvCard extends LitElement {
     this._config = config;
     this._drag = {};
     this._pendingPower = undefined;
+    this._pendingLaunch = undefined;
     this._pendingSeek = undefined;
   }
 
@@ -196,7 +207,9 @@ export class RuTvCard extends LitElement {
   // CSS (:host([dark]) in styles.ts) and stays overridable per property.
   protected willUpdate(): void {
     this.toggleAttribute("dark", this.hass?.themes?.darkMode ?? false);
-    this._prunePending(Date.now());
+    const nowMs = Date.now();
+    this._prunePending(nowMs);
+    this._flushPendingLaunch(nowMs);
   }
 
   /** Ends optimistic power/seek holds once HA confirms them (or they take
@@ -221,6 +234,29 @@ export class RuTvCard extends LitElement {
     }
   }
 
+  /** Sends a queued launch once the TV reports on, or drops it if the TV
+   * never got there. Runs on every update, and the 1 s clock guarantees a
+   * tick even when no state arrives. */
+  private _flushPendingLaunch(nowMs: number): void {
+    const launch = this._pendingLaunch;
+    if (!launch) return;
+    if (this._launchTargetOn()) {
+      this._pendingLaunch = undefined;
+      this._sendLaunch(launch.app);
+    } else if (nowMs - launch.at > LAUNCH_PENDING_MS) {
+      this._pendingLaunch = undefined;
+    }
+  }
+
+  /** The on-state the launch services themselves consult: an androidtv_remote
+   * remote entity's own state *is* the `is_on` that remote.turn_on checks
+   * before sending a POWER key. Falls back to the primary entity when no
+   * remote is configured. */
+  private _launchTargetOn(): boolean {
+    const entity = this._config?.remote_entity ?? this._config?.entity;
+    return !!entity && isTvOn(this.hass?.states[entity]);
+  }
+
   render(): TemplateResult | typeof nothing {
     if (!this._config || !this.hass) return nothing;
 
@@ -229,7 +265,8 @@ export class RuTvCard extends LitElement {
       this.hass,
       config,
       Date.now(),
-      this._pendingPower?.target ?? null
+      this._pendingPower?.target ?? null,
+      this._pendingLaunch?.app.name ?? null
     );
 
     return html`
@@ -528,14 +565,21 @@ export class RuTvCard extends LitElement {
   }
 
   private _renderApps(view: TvView): TemplateResult {
+    // Config objects, not view rows: the queue holds the very object the
+    // chip's click handler passes on.
+    const configApps = this._config!.apps!;
+    const queued = this._pendingLaunch?.app;
     return html`
       <div class="apps">
         ${view.apps.map(
           (app, index) => html`
             <button
-              class="app ${app.active ? "active" : ""}"
+              class="app ${app.active ? "active" : ""} ${configApps[index] ===
+              queued
+                ? "pending"
+                : ""}"
               ?disabled=${!view.available || (!app.activity && !app.source)}
-              @click=${() => this._launchApp(this._config!.apps![index])}
+              @click=${() => this._launchApp(configApps[index])}
             >
               ${app.icon
                 ? isIconRef(app.icon)
@@ -696,6 +740,8 @@ export class RuTvCard extends LitElement {
   private _togglePower(view: TvView): void {
     const target = !(this._pendingPower?.target ?? view.on);
     this._pendingPower = { target, at: Date.now() };
+    // Powering off abandons any queued launch — the TV is on its way down.
+    if (!target) this._pendingLaunch = undefined;
     // Powering off also quits the app on the cast entity: a live cast
     // session (e.g. YouTube left open) wakes an Android TV right back up
     // moments after turn_off, endlessly ("wake on cast").
@@ -797,10 +843,36 @@ export class RuTvCard extends LitElement {
     });
   }
 
+  /** Launches an app — but never while the TV is still waking. `remote.turn_on`
+   * sends a POWER key whenever androidtv_remote's cached `is_on` says off, and
+   * that cache lags the real TV by seconds; a chip tapped right after power-on
+   * would land a second POWER on an already-waking TV and switch it back off.
+   * So the launch waits for the TV to report on (and starts the power-on
+   * itself when the TV is off), then goes out untouched. */
+  private _launchApp(app: TvAppConfig): void {
+    const nowMs = Date.now();
+    if (this._launchTargetOn() && this._pendingPower?.target !== true) {
+      this._sendLaunch(app);
+      return;
+    }
+    this._pendingLaunch = { app, at: nowMs };
+    // Tapping a chip on an off TV means "put this on" — wake it, unless a
+    // turn-on is already in flight. A turn-off in flight reverses, matching
+    // the power toggle's own "clicking while pending reverses" rule.
+    if (
+      this._pendingPower?.target !== true &&
+      !isTvOn(this.hass?.states[this._config!.entity])
+    ) {
+      this._pendingPower = { target: true, at: nowMs };
+      this._player(this._config!.entity, "turn_on");
+    }
+  }
+
   /** A `source` chip switches TV input via select_source (braviatv exposes
    * HDMI inputs); otherwise remote.turn_on's `activity` launches apps on
-   * androidtv_remote, falling back to play_media on the main media player. */
-  private _launchApp(app: TvAppConfig): void {
+   * androidtv_remote, falling back to play_media on the main media player.
+   * Only ever called with the TV confirmed on — see _launchApp. */
+  private _sendLaunch(app: TvAppConfig): void {
     if (app.source) {
       this._player(
         this._config?.source_entity ?? this._config!.entity,

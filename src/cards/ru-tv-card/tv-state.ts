@@ -261,7 +261,10 @@ export function buildTvView(
   nowMs: number,
   /** Optimistic power target while a turn_on/off is in flight, else null —
    * overrides the status/summary text with "Turning on…"/"Turning off…". */
-  pendingPower: boolean | null = null
+  pendingPower: boolean | null = null,
+  /** App whose launch is queued behind the power-on, named in that text
+   * ("Turning on… · YouTube"), else null. */
+  pendingLaunchName: string | null = null
 ): TvView {
   const stateObj = hass.states[config.entity];
   const mediaObj = config.media_entity
@@ -313,7 +316,9 @@ export function buildTvView(
       : "Paused"
     : null;
   const pending = available && pendingPower !== null && pendingPower !== on;
-  const pendingText = pendingPower ? "Turning on…" : "Turning off…";
+  const pendingText = pendingPower
+    ? `Turning on…${pendingLaunchName ? ` · ${pendingLaunchName}` : ""}`
+    : "Turning off…";
   const statusText = !available
     ? "Unavailable"
     : pending
