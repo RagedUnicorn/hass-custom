@@ -11,12 +11,14 @@
  * only when the reported state disagrees, and the key toggles). Apps:
  * Netflix (active), YouTube, Spotify, Plex, Twitch.
  *
- * Three card instances share those entities: #card-tv (volume_mode auto →
+ * Four card instances share those entities: #card-tv (volume_mode auto →
  * slider on the cast entity), #card-tv-steppers (volume_mode steppers →
- * key-press steps on the androidtv entity) and #card-tv-bravia
+ * key-press steps on the androidtv entity), #card-tv-bravia
  * (volume_entity + source_entity media_player.tv_bravia, a braviatv-like
  * player at 35% whose volume_set is absolute, on HDMI 1 of HDMI 1…4; adds
- * a PlayStation chip with source "HDMI 3"). Selectors stay scoped to one.
+ * a PlayStation chip with source "HDMI 3") and #card-tv-wide (identical
+ * config to #card-tv, but in a 900px mount so its container query trips and
+ * it renders the side-by-side layout). Selectors stay scoped to one.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -24,6 +26,7 @@ import { test, expect, type Page } from "@playwright/test";
 const CARD = "#card-tv ru-tv-card";
 const STEPPERS = "#card-tv-steppers ru-tv-card";
 const BRAVIA_CARD = "#card-tv-bravia ru-tv-card";
+const WIDE = "#card-tv-wide ru-tv-card";
 const TV = "media_player.tv_android";
 const CAST = "media_player.tv_cast";
 const BRAVIA = "media_player.tv_bravia";
@@ -645,5 +648,134 @@ test.describe("dark mode", () => {
 
     await page.evaluate(() => window.__harness.setDarkMode(false));
     await expect(card).not.toHaveAttribute("dark");
+  });
+});
+
+test.describe("wide layout", () => {
+  // Pinned so both Playwright projects run these identically — the layout is
+  // driven by the card's own width, so the viewport only has to be wide enough
+  // for the 900px mount to get its 900px.
+  test.use({ viewport: { width: 1100, height: 1000 } });
+
+  /** Geometry of a card's two panels, in page coordinates. */
+  async function panels(page: Page, card: string) {
+    const media = await page.locator(`${card} .panel.media`).boundingBox();
+    const remote = await page.locator(`${card} .panel.remote`).boundingBox();
+    if (!media || !remote) throw new Error(`${card}: panels not rendered`);
+    return { media, remote };
+  }
+
+  test("remote sits beside the media panel when the card is wide, below it when narrow", async ({
+    page,
+  }) => {
+    await openHarness(page);
+
+    // Both instances have identical configs and are on the same page at the
+    // same viewport — so any layout difference can only come from their own
+    // width. This is what a viewport media query could not do.
+    const wide = await panels(page, WIDE);
+    expect(wide.remote.x).toBeGreaterThanOrEqual(wide.media.x + wide.media.width);
+    expect(Math.abs(wide.remote.y - wide.media.y)).toBeLessThan(2);
+
+    const narrow = await panels(page, CARD);
+    expect(narrow.remote.y).toBeGreaterThanOrEqual(
+      narrow.media.y + narrow.media.height
+    );
+    expect(Math.abs(narrow.remote.x - narrow.media.x)).toBeLessThan(2);
+  });
+
+  test("re-stacks when the card is squeezed below the breakpoint", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    // Cheap "did the container rule match at all" signal; the geometry below
+    // is the assertion that actually matters.
+    expect(
+      await page
+        .locator(`${WIDE} .card`)
+        .evaluate((el) => getComputedStyle(el).display)
+    ).toBe("grid");
+
+    // The mount is width:100%/max-width:900px, so a narrow window shrinks the
+    // card itself past the 640px breakpoint.
+    await page.setViewportSize({ width: 500, height: 1000 });
+    await expect
+      .poll(async () => {
+        const { media, remote } = await panels(page, WIDE);
+        return remote.y >= media.y + media.height;
+      })
+      .toBe(true);
+
+    await page.setViewportSize({ width: 1100, height: 1000 });
+    await expect
+      .poll(async () => {
+        const { media, remote } = await panels(page, WIDE);
+        return remote.x >= media.x + media.width;
+      })
+      .toBe(true);
+  });
+
+  test("--ru-tv-max-width caps the card and the layout follows the cap", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    const card = page.locator(WIDE);
+    expect((await card.boundingBox())!.width).toBeGreaterThan(880);
+
+    // Capping below the breakpoint must re-stack: the cap is on :host, which
+    // is the query container, so it changes what the query measures too. A cap
+    // applied to .card instead would leave the card in the wide layout at a
+    // width that can no longer hold it.
+    await card.evaluate((el) =>
+      el.setAttribute("style", "--ru-tv-max-width: 500px")
+    );
+    await expect.poll(async () => (await card.boundingBox())!.width).toBe(500);
+    const capped = await panels(page, WIDE);
+    expect(capped.remote.y).toBeGreaterThanOrEqual(
+      capped.media.y + capped.media.height
+    );
+
+    // Above the breakpoint it stays wide, just narrower than its slot — and
+    // centered, since margin-inline: auto takes effect once the cap bites.
+    await card.evaluate((el) =>
+      el.setAttribute("style", "--ru-tv-max-width: 700px")
+    );
+    await expect.poll(async () => (await card.boundingBox())!.width).toBe(700);
+    const wide = await panels(page, WIDE);
+    expect(wide.remote.x).toBeGreaterThanOrEqual(wide.media.x + wide.media.width);
+
+    const slot = (await page.locator("#card-tv-wide").boundingBox())!;
+    const box = (await card.boundingBox())!;
+    const leftGap = box.x - slot.x;
+    const rightGap = slot.x + slot.width - (box.x + box.width);
+    expect(Math.abs(leftGap - rightGap)).toBeLessThan(2);
+  });
+
+  test("d-pad hit targets survive the grid re-arrangement", async ({ page }) => {
+    await openHarness(page);
+
+    await page.locator(`${WIDE} .ok`).click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "send_command",
+        data: { entity_id: REMOTE, command: "DPAD_CENTER" },
+      });
+
+    // Same pie-slice caveat as the compact test: the up quadrant's box covers
+    // the whole ring, so click near its top edge by raw coordinates. This is
+    // the assertion that matters here — the ring moved into a grid column and
+    // its clip-path geometry has to still line up with where it renders.
+    await page.locator(`${WIDE} .ring`).scrollIntoViewIfNeeded();
+    const ring = (await page.locator(`${WIDE} .ring`).boundingBox())!;
+    await page.mouse.click(ring.x + ring.width / 2, ring.y + 12);
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "send_command",
+        data: { entity_id: REMOTE, command: "DPAD_UP" },
+      });
   });
 });

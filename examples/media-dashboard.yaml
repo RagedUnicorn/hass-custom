@@ -1,0 +1,165 @@
+# A full-width Media dashboard for a wall tablet or a desktop browser.
+#
+# HOW TO USE
+#   Settings → Dashboards → + Add dashboard → New dashboard from scratch.
+#   Open it, pencil icon → three-dot menu → "Raw configuration editor",
+#   then replace everything with this file and Save.
+#
+# WHY A PANEL VIEW
+#   `type: panel` renders exactly ONE card and gives it the entire view —
+#   full width, no column cap, no centered max-width. That is what makes
+#   ru-tv-card cross its 640px container-query breakpoint and lay the remote
+#   out beside the media panel instead of below it.
+#
+#   The masonry (default) and sections views both cap card width around
+#   500px, which is below the breakpoint, so the card stays compact there
+#   no matter how large the screen is.
+#
+# WHY A GRID INSIDE THE PANEL
+#   A single card given the whole panel stretches badly on a big screen: at
+#   ~1560px the seek and volume bars run the full width and the transport
+#   buttons float in the middle of empty space. The 2-column grid keeps the
+#   TV card in its sweet spot and puts the rest of the screen to work:
+#
+#     screen    column width   ru-tv-card layout
+#     1920px    ~950px         wide  (remote beside media)
+#     1560px    ~770px         wide
+#     1280px    ~640px         right at the breakpoint, either way
+#     1024px    ~510px         compact — still perfectly usable, just stacked
+#
+#   If you want the TV card alone and full-bleed, see the commented-out
+#   alternative at the bottom.
+#
+# ENTITY IDS
+#   The TV and soundbar ids are the real ones, read out of the Development
+#   dashboard. The right-hand column still has placeholders — sonos_kitchen
+#   and the two scenes — so swap or delete those or they render unavailable.
+#
+# NOTE ON card_mod
+#   card-mod is NOT installed here, so a `card_mod:` block is silently ignored.
+#   Use the theme route for --ru-tv-max-width, or install card-mod from HACS.
+
+views:
+  - title: Media
+    path: media
+    icon: mdi:television-play
+    type: panel
+    cards:
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          # ---- left column: the TV -------------------------------------
+          - type: custom:ru-tv-card
+            title: Living Room
+            entity: media_player.sony_bravia_tv_livingroom_androidtv # androidtv_remote — power, app, volume steps
+            name: Living Room TV
+            media_entity: media_player.sony_bravia_tv_livingroom_cast # cast — title, position, seek
+            remote_entity: remote.sony_bravia_tv_livingroom_androidtv # enables the remote panel (and the wide layout)
+            # Audio leaves the Bravia over ARC to the Sonos Beam, so the TV's
+            # own volume_set is a no-op — the volume row has to target the
+            # soundbar to actually move anything.
+            volume_entity: media_player.sonos_beam_livingroom
+            source_entity: media_player.sony_bravia_tv_livingroom_braviatv # braviatv exposes the HDMI inputs
+            skip_seconds: [10, 30]
+            apps:
+              - name: Netflix
+                icon: mdi:netflix
+                color: "#E50914"
+                activity: com.netflix.ninja
+                app_id: com.netflix.ninja
+              - name: YouTube
+                color: "#FF0000"
+                activity: com.google.android.youtube.tv
+                app_id: com.google.android.youtube.tv
+              - name: Spotify
+                color: "#1DB954"
+                activity: com.spotify.tv.android
+                app_id: com.spotify.tv.android
+              - name: Plex
+                color: "#E5A00D"
+                activity: com.plexapp.android
+                app_id: com.plexapp.android
+              - name: Twitch
+                color: "#9146FF"
+                activity: tv.twitch.android.app
+                app_id: tv.twitch.android.app
+              - name: PlayStation
+                icon: mdi:sony-playstation
+                color: "#0070D1"
+                source: "HDMI 3" # switches the input instead of launching an app
+
+          # ---- right column: everything else that makes noise -----------
+          - type: vertical-stack
+            cards:
+              - type: media-control
+                entity: media_player.sonos_beam_livingroom
+
+              # Swap/extend for the speakers you actually have. Delete the
+              # whole card if there is only the one.
+              - type: media-control
+                entity: media_player.sonos_kitchen
+
+              # Quick scenes. Replace with your own or drop the card.
+              - type: grid
+                columns: 2
+                square: false
+                cards:
+                  - type: button
+                    entity: scene.movie_night
+                    icon: mdi:movie-open
+                    show_state: false
+                  - type: button
+                    entity: scene.tv_off
+                    icon: mdi:television-off
+                    show_state: false
+# ---------------------------------------------------------------------------
+# ALTERNATIVE: the TV card alone, full-bleed but capped.
+#
+# Use this if you want nothing but the TV on the screen. Cap it with
+# --ru-tv-max-width or it will stretch on anything wider than ~1100px. The cap
+# lives on the card's host element, which is also its query container, so it
+# governs the layout too — capping below 640px returns the compact layout.
+#
+# The theme route needs no extra HACS component. configuration.yaml already
+# has `frontend: themes: !include_dir_merge_named themes`, so a theme is just
+# a new file in config/themes/ — no edit to configuration.yaml. Note the
+# themes/ directory did not exist and had to be created first.
+#
+#   config/themes/ru_wide.yaml
+#     ru_wide:
+#       ru-tv-max-width: 1100px
+#
+# Then call frontend.reload_themes (no restart needed) and set it on the view
+# only, so the rest of the dashboard keeps its normal theme:
+#
+#   - type: panel
+#     path: tv
+#     theme: ru_wide
+#
+# This is what the TV view of the Development dashboard actually uses.
+#
+# Per-card with card-mod (HACS) is the alternative — but card-mod is NOT
+# installed here, and an unrecognised `card_mod:` key is silently ignored:
+#
+#   card_mod:
+#     style: |
+#       :host { --ru-tv-max-width: 1100px; }
+#
+# views:
+#   - title: TV
+#     path: tv
+#     type: panel
+#     cards:
+#       - type: custom:ru-tv-card
+#         title: Living Room
+#         entity: media_player.sony_bravia_tv_livingroom_androidtv
+#         media_entity: media_player.sony_bravia_tv_livingroom_cast
+#         remote_entity: remote.sony_bravia_tv_livingroom_androidtv
+#         volume_entity: media_player.sonos_beam_livingroom
+#         card_mod:
+#           style: |
+#             :host { --ru-tv-max-width: 1100px; }
+#
+# For a wall tablet you will probably also want the top header gone. That
+# needs the kiosk-mode plugin (HACS) — core Lovelace has no option for it.

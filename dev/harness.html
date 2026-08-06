@@ -37,6 +37,15 @@
         width: 100%;
         max-width: 400px;
       }
+      /* Deliberately wider than the rest: ru-tv-card switches to its
+         side-by-side layout on its OWN width (a container query), so the suite
+         needs two differently sized mounts on one page to tell that apart from
+         a viewport media query. max-width, not a hard width, so this doesn't
+         overflow the 390px mobile project and shift the other cards. */
+      #card-tv-wide {
+        width: 100%;
+        max-width: 900px;
+      }
     </style>
   </head>
   <body>
@@ -50,6 +59,7 @@
     <div id="card-tv"></div>
     <div id="card-tv-steppers"></div>
     <div id="card-tv-bravia"></div>
+    <div id="card-tv-wide"></div>
     <script type="module" src="./harness.ts"></script>
   </body>
 </html>

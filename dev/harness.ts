@@ -379,6 +379,20 @@ tvBraviaCard.setConfig({
   ],
 });
 
+// Identical to tvCard, but mounted in a 900px-wide slot so the card's own
+// container query trips and it renders the side-by-side layout. Same config on
+// purpose: the layout difference must come from the width alone.
+const tvWideCard = document.createElement("ru-tv-card") as LovelaceCard;
+tvWideCard.setConfig({
+  type: "custom:ru-tv-card",
+  title: "Media (wide)",
+  entity: "media_player.tv_android",
+  name: "Living Room TV",
+  media_entity: "media_player.tv_cast",
+  remote_entity: "remote.tv_livingroom",
+  apps: TV_APPS,
+});
+
 mock.onChange((hass) => {
   card.hass = hass;
   lightsCard.hass = hass;
@@ -386,6 +400,7 @@ mock.onChange((hass) => {
   tvCard.hass = hass;
   tvSteppersCard.hass = hass;
   tvBraviaCard.hass = hass;
+  tvWideCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -394,6 +409,10 @@ document.getElementById("card-purifier")!.appendChild(purifierCard);
 document.getElementById("card-tv")!.appendChild(tvCard);
 document.getElementById("card-tv-steppers")!.appendChild(tvSteppersCard);
 document.getElementById("card-tv-bravia")!.appendChild(tvBraviaCard);
+// Last on purpose: the dark-mode spec reaches for document.querySelector(
+// "ru-tv-card") to set an inline override, which must keep resolving to
+// #card-tv's instance.
+document.getElementById("card-tv-wide")!.appendChild(tvWideCard);
 
 // --- page chrome --------------------------------------------------------------
 

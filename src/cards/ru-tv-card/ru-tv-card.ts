@@ -270,13 +270,13 @@ export class RuTvCard extends LitElement {
     );
 
     return html`
-      <div class="card">
+      <div class="card ${view.hasRemote ? "has-remote" : ""}">
         <div class="header">
           <div class="title">${config.title ?? "Media"}</div>
           <div class="summary">${view.summaryText}</div>
         </div>
 
-        <div class="panel ${view.available ? "" : "unavailable"}">
+        <div class="panel media ${view.available ? "" : "unavailable"}">
           ${this._renderDeviceRow(view)}
           ${view.media
             ? html`
@@ -627,7 +627,7 @@ export class RuTvCard extends LitElement {
       </button>
     `;
     return html`
-      <div class="panel ${view.on && view.available ? "" : "dimmed"}">
+      <div class="panel remote ${view.on && view.available ? "" : "dimmed"}">
         <div class="remote-head">
           <div class="remote-title">Remote</div>
           <div class="pad-feedback">${this._padFeedback}</div>

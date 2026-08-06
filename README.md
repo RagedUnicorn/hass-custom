@@ -446,6 +446,19 @@ Behavior notes:
   on you watching the button.
 - An unavailable TV renders grayed out with disabled controls; while the TV is
   off the media/remote sections dim.
+- The card adapts to the width it is given. From about 640px it puts the remote
+  panel beside the media panel instead of below it, and a card without a remote
+  splits its playback controls and app chips into two columns. This follows the
+  **card's own** width, not the browser window's — a card in a narrow dashboard
+  column stays in the compact layout even on a wide screen, and the same card in
+  a panel-view dashboard or on a wall tablet goes wide. Nothing to configure.
+- On a very wide screen an uncapped card stretches the seek and volume bars
+  across the whole width. Set `--ru-tv-max-width` (default `none`) to stop it
+  and the card centers in its slot — e.g. `--ru-tv-max-width: 1100px` in a
+  theme, or via card-mod. The cap also governs which layout is chosen, so
+  capping below 640px returns the card to the compact layout. See
+  [`examples/media-dashboard.yaml`](examples/media-dashboard.yaml) for a
+  full-width dashboard built around this.
 - The card follows Home Assistant's light/dark mode automatically with a
   built-in palette for each; every color is exposed as a
   `--ru-tv-*` CSS custom property (see

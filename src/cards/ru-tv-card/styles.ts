@@ -29,6 +29,39 @@ export const cardStyles = css`
       sans-serif;
 
     display: block;
+
+    /* Size-query container for the wide layout at the end of this file. The
+       layout follows the width the card actually gets — a panel view, a wide
+       section, a tablet dashboard — and NOT the viewport, so a phone-width
+       card in a wide browser window stays stacked. (A @media query inside a
+       shadow root would key off the window and get exactly that case wrong.)
+
+       inline-size containment means the host takes its width from its parent
+       and never from its contents, which is how Lovelace mounts every card.
+       Block size stays content-driven, so getCardSize() is unaffected. */
+    container: ru-tv / inline-size;
+
+    /* Optional cap on how wide the card may get. The default "none" keeps the
+       fill-the-parent behavior; set it to e.g. 1100px for a panel-view
+       dashboard, where an uncapped card would otherwise stretch the seek and
+       volume bars across the whole screen.
+
+       It has to sit on :host, not .card. :host IS the query container, so
+       capping here also caps what the container query measures — the layout
+       and the real width stay in agreement. Capping .card instead would let
+       the query see the uncapped width and choose the wide layout for a card
+       that is no longer wide enough for it.
+
+       Deliberately NOT declared as a "--ru-tv-max-width: none" line among the
+       palette variables above: an own-element declaration would shadow the
+       inherited value, and then only inline styles and card-mod could set it.
+       Reading it through a var() fallback instead lets an HA theme set it on
+       :root and have it inherit down.
+
+       margin-inline centers the card once it is narrower than its slot, and
+       is a no-op while the cap is "none". */
+    max-width: var(--ru-tv-max-width, none);
+    margin-inline: auto;
   }
 
   /* Dark palette — applied when HA is in dark mode (the card reflects
@@ -672,5 +705,79 @@ export const cardStyles = css`
   .key:active {
     background: var(--ru-tv-accent);
     color: var(--ru-tv-accent-contrast);
+  }
+
+  /* --- wide (tablet) layout ----------------------------------------------- */
+
+  /* Where 640px comes from, measured against the rules above:
+       remote column floor = 230 (.ring) + 28 (.panel padding)     = 258
+       media  column floor = 260 (.transport row) + 28             = 288
+       plus 32 (.card padding) + 14 (gap)                          = 592
+     640 leaves ~48px of slack and gives the media column ~336px — about the
+     width of the phone card. Browsers without @container support simply keep
+     the stacked layout.
+
+     Note every override below needs the extra class (.card.has-remote, not
+     .card): a container query contributes NO specificity of its own, so a bare
+     .card rule would tie with the "display: flex" rule above and lose on
+     source order. */
+  @container ru-tv (min-width: 640px) {
+    .card.has-remote {
+      display: grid;
+      /* minmax(0, 1fr), not 1fr: a bare 1fr floors at min-content, which for
+         the media panel includes the 260px transport row — enough to push the
+         grid past the card, where .card's overflow:hidden would clip it.
+         "auto" on the remote column sizes it to the ring so it never squeezes.
+         The existing 14px gap carries over as both row and column gap. */
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "header header"
+        "media  remote";
+      /* align-items stays at the default "stretch" on purpose: two
+         equal-height panel backgrounds read as one deliberate row, where
+         "start" would leave a ragged bottom edge between them. */
+    }
+
+    .card.has-remote > .header {
+      grid-area: header;
+    }
+
+    .card.has-remote > .panel.media {
+      grid-area: media;
+    }
+
+    .card.has-remote > .panel.remote {
+      grid-area: remote;
+    }
+
+    /* No remote panel: a lone media panel would stretch the seek and volume
+       bars across the full width. Split it instead — device row across the
+       top, playback controls beside the app chips. Only when both halves are
+       actually there. */
+    .card:not(.has-remote) .panel.media:has(.controls):has(.apps) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas:
+        "device   device"
+        "controls apps";
+      align-items: start;
+    }
+
+    .card:not(.has-remote)
+      .panel.media:has(.controls):has(.apps)
+      > .device-row {
+      grid-area: device;
+    }
+
+    .card:not(.has-remote) .panel.media:has(.controls):has(.apps) > .controls {
+      grid-area: controls;
+    }
+
+    .card:not(.has-remote) .panel.media:has(.controls):has(.apps) > .apps {
+      grid-area: apps;
+      /* Pack the chips top-down against the controls column instead of
+         spreading them down the full row height. */
+      align-content: flex-start;
+    }
   }
 `;

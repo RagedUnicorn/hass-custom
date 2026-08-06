@@ -45,6 +45,13 @@ never move real covers.
   The suite starts its own vite server on `:5199` (or reuses a running one)
   and runs every spec in two viewport projects, because the drilldown renders
   as a bottom sheet on narrow screens and a centered dialog on wide ones.
+
+  Card-*width* behavior is tested differently. `ru-tv-card`'s wide layout is
+  driven by a container query on the card itself, not by the viewport, so
+  `dev/harness.html` mounts a deliberately wide `#card-tv-wide` alongside the
+  400px-capped `#card-tv` and the spec pins its own viewport. The assertion is
+  that two identically configured cards at different widths lay out differently
+  on one page — which is exactly what a viewport media query could not produce.
 - **CI:** the `Test` job in `validate.yml` runs the suite on every push; on
   failure the Playwright HTML report is attached as an artifact.
 
