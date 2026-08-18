@@ -48,8 +48,16 @@ const POWER_PENDING_MS = 20000;
 
 /** How long a queued app launch waits for the TV to report on. Past it the
  * launch is dropped, never sent late — a launch fired at a TV HA still
- * believes is off carries a POWER keypress (see _sendLaunch). */
-const LAUNCH_PENDING_MS = 20000;
+ * believes is off carries a POWER keypress (see _sendLaunch). Generous:
+ * androidtv_remote can take a while to reconnect after a wake. */
+const LAUNCH_PENDING_MS = 30000;
+
+/** How long a queued launch additionally waits after the TV first reports
+ * on. The TV acknowledges power over the remote protocol seconds before
+ * Android can act on an app link — a launch sent at the moment of the
+ * on-report (or paired with the wake itself) lands mid-boot and is dropped
+ * (home-assistant/core#92671). */
+const LAUNCH_SETTLE_MS = 4000;
 
 /** How long a seeked position holds without HA confirming it. */
 const SEEK_PENDING_MS = 10000;
@@ -81,9 +89,12 @@ export class RuTvCard extends LitElement {
   /** Optimistic power target while turn_on/turn_off is in flight. */
   private _pendingPower?: { target: boolean; at: number };
 
-  /** App chip tapped while the TV wasn't confirmed on yet — held until it is
-   * (see _launchApp), then sent by _flushPendingLaunch. */
-  private _pendingLaunch?: { app: TvAppConfig; at: number };
+  /** App chip whose launch rides a power-on: the chip pulses and the status
+   * names the app until the launch goes out, LAUNCH_SETTLE_MS after the TV
+   * first reports on (`onAt`, stamped by _flushPendingLaunch). The atomic
+   * wake+launch path queues here too — its settled send doubles as the
+   * retry for TVs that drop a launch arriving mid-wake. */
+  private _pendingLaunch?: { app: TvAppConfig; at: number; onAt?: number };
 
   /** Last remote press, echoed in the panel header ("▲ Up") — the tapped
    * quadrant itself gives no lasting visual confirmation. */
@@ -234,17 +245,24 @@ export class RuTvCard extends LitElement {
     }
   }
 
-  /** Sends a queued launch once the TV reports on, or drops it if the TV
-   * never got there. Runs on every update, and the 1 s clock guarantees a
-   * tick even when no state arrives. */
+  /** Sends a queued launch once the TV has been on for LAUNCH_SETTLE_MS, or
+   * drops it if the TV never got there. Runs on every update, and the 1 s
+   * clock guarantees a tick even when no state arrives — so the send lands
+   * at most one tick past the settle. */
   private _flushPendingLaunch(nowMs: number): void {
     const launch = this._pendingLaunch;
     if (!launch) return;
-    if (this._launchTargetOn()) {
+    if (!this._launchTargetOn()) {
+      if (nowMs - launch.at > LAUNCH_PENDING_MS) {
+        this._pendingLaunch = undefined;
+      }
+      return;
+    }
+    if (launch.onAt === undefined) {
+      this._pendingLaunch = { ...launch, onAt: nowMs };
+    } else if (nowMs - launch.onAt >= LAUNCH_SETTLE_MS) {
       this._pendingLaunch = undefined;
       this._sendLaunch(launch.app);
-    } else if (nowMs - launch.at > LAUNCH_PENDING_MS) {
-      this._pendingLaunch = undefined;
     }
   }
 
@@ -843,15 +861,34 @@ export class RuTvCard extends LitElement {
     });
   }
 
-  /** Launches an app — but never while the TV is still waking. `remote.turn_on`
-   * sends a POWER key whenever androidtv_remote's cached `is_on` says off, and
-   * that cache lags the real TV by seconds; a chip tapped right after power-on
-   * would land a second POWER on an already-waking TV and switch it back off.
-   * So the launch waits for the TV to report on (and starts the power-on
-   * itself when the TV is off), then goes out untouched. */
+  /** Launches an app, keyed on what HA believes about the TV. Confirmed on:
+   * the launch goes out directly. Confirmed off (the remote entity itself
+   * reports `off`): a remote.turn_on goes out right away — its POWER prefix
+   * wakes the TV, and a TV that honors the paired launch opens the app
+   * straight from standby — and the launch *also* queues, because many TVs
+   * drop a launch arriving mid-wake (home-assistant/core#92671) and need
+   * the settled re-send. Waking (a turn-on in flight): HA's "off" is stale
+   * and remote.turn_on would land a *second* POWER switching the TV back
+   * off, so the launch only queues. Chips with no atomic wake (a `source`
+   * chip, the play_media fallback, a disconnected remote) queue behind a
+   * media_player.turn_on instead. */
   private _launchApp(app: TvAppConfig): void {
     const nowMs = Date.now();
-    if (this._launchTargetOn() && this._pendingPower?.target !== true) {
+    const wakeInFlight = this._pendingPower?.target === true;
+    if (this._launchTargetOn() && !wakeInFlight) {
+      this._sendLaunch(app);
+      return;
+    }
+    const remoteEntity = this._config?.remote_entity;
+    if (
+      !wakeInFlight &&
+      app.activity &&
+      !app.source &&
+      remoteEntity &&
+      this.hass?.states[remoteEntity]?.state === "off"
+    ) {
+      this._pendingPower = { target: true, at: nowMs };
+      this._pendingLaunch = { app, at: nowMs };
       this._sendLaunch(app);
       return;
     }
@@ -859,10 +896,7 @@ export class RuTvCard extends LitElement {
     // Tapping a chip on an off TV means "put this on" — wake it, unless a
     // turn-on is already in flight. A turn-off in flight reverses, matching
     // the power toggle's own "clicking while pending reverses" rule.
-    if (
-      this._pendingPower?.target !== true &&
-      !isTvOn(this.hass?.states[this._config!.entity])
-    ) {
+    if (!wakeInFlight && !isTvOn(this.hass?.states[this._config!.entity])) {
       this._pendingPower = { target: true, at: nowMs };
       this._player(this._config!.entity, "turn_on");
     }
@@ -871,7 +905,8 @@ export class RuTvCard extends LitElement {
   /** A `source` chip switches TV input via select_source (braviatv exposes
    * HDMI inputs); otherwise remote.turn_on's `activity` launches apps on
    * androidtv_remote, falling back to play_media on the main media player.
-   * Only ever called with the TV confirmed on — see _launchApp. */
+   * Called with the TV confirmed on, or — remote branch only — confirmed
+   * off, where remote.turn_on's POWER prefix wakes it; see _launchApp. */
   private _sendLaunch(app: TvAppConfig): void {
     if (app.source) {
       this._player(

@@ -469,20 +469,25 @@ test("an app chip tapped while the TV wakes waits instead of powering it off", a
   await expect(chip).toHaveClass(/pending/);
   await expect(status).toHaveText("Turning on… · YouTube");
 
-  // The TV finishes waking and *stays* on — a second POWER would drop it —
-  // and only now does the launch go out, exactly once.
+  // The TV finishes waking and *stays* on — a second POWER would drop it.
   await expect(status).toHaveText("On · Netflix");
+  // The launch waits out the settle (the TV acks power seconds before
+  // Android can handle an app link), then goes out exactly once.
+  expect(await remoteTurnOns(page)).toEqual([]);
+  await expect(chip).toHaveClass(/pending/);
+  await expect
+    .poll(() => remoteTurnOns(page), { timeout: 8000 })
+    .toEqual([
+      {
+        domain: "remote",
+        service: "turn_on",
+        data: { entity_id: REMOTE, activity: "com.google.android.youtube.tv" },
+      },
+    ]);
   await expect(chip).not.toHaveClass(/pending/);
-  expect(await remoteTurnOns(page)).toEqual([
-    {
-      domain: "remote",
-      service: "turn_on",
-      data: { entity_id: REMOTE, activity: "com.google.android.youtube.tv" },
-    },
-  ]);
 });
 
-test("an app chip on an off TV powers it on first, then launches", async ({
+test("an app chip on an off TV wakes atomically, then re-launches once settled", async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -491,25 +496,33 @@ test("an app chip on an off TV powers it on first, then launches", async ({
       state: "off",
     });
   });
-  await expect(page.locator(`${CARD} .device-status`)).toHaveText("Off");
+  const status = page.locator(`${CARD} .device-status`);
+  const chip = page.locator(`${CARD} .app`, { hasText: "Plex" });
+  await expect(status).toHaveText("Off");
 
-  await page.locator(`${CARD} .app`, { hasText: "Plex" }).click();
-  // Power first and alone — the launch waits out the TV's reaction.
+  await chip.click();
+  const launchCall = {
+    domain: "remote",
+    service: "turn_on",
+    data: { entity_id: REMOTE, activity: "com.plexapp.android" },
+  };
+  // First call is immediate and atomic — androidtv_remote pairs its POWER
+  // key with the launch, so a TV that honors the pairing opens the app
+  // straight from standby, no media_player.turn_on involved.
+  await expect.poll(() => calls(page)).toEqual([launchCall]);
+  // Meanwhile the chip pulses and the status names what's coming.
+  await expect(chip).toHaveClass(/pending/);
+  await expect(status).toHaveText("Turning on… · Plex");
+
+  // The POWER prefix lands and the TV comes on…
+  await expect(status).toHaveText("Playing · Netflix");
+  // …and once it has settled the launch goes out once more, for the TVs
+  // that drop an app link arriving mid-wake. On, so no POWER this time.
   await expect
-    .poll(() => calls(page))
-    .toEqual([
-      { domain: "media_player", service: "turn_on", data: { entity_id: TV } },
-    ]);
-  await expect
-    .poll(() => calls(page))
-    .toEqual([
-      { domain: "media_player", service: "turn_on", data: { entity_id: TV } },
-      {
-        domain: "remote",
-        service: "turn_on",
-        data: { entity_id: REMOTE, activity: "com.plexapp.android" },
-      },
-    ]);
+    .poll(() => calls(page), { timeout: 8000 })
+    .toEqual([launchCall, launchCall]);
+  await expect(chip).not.toHaveClass(/pending/);
+  await expect(status).toHaveText("Playing · Netflix");
 });
 
 test("powering off abandons a queued launch", async ({ page }) => {
@@ -519,11 +532,14 @@ test("powering off abandons a queued launch", async ({ page }) => {
       state: "off",
     });
   });
+  const power = page.locator(`${CARD} .device-row .toggle`);
   const chip = page.locator(`${CARD} .app`, { hasText: "Twitch" });
 
+  // Wake the TV, queue a launch behind it, then change your mind.
+  await power.click();
   await chip.click();
   await expect(chip).toHaveClass(/pending/);
-  await page.locator(`${CARD} .device-row .toggle`).click();
+  await power.click();
   await expect(chip).not.toHaveClass(/pending/);
 
   // Well past the reaction lag the launch must still never have gone out.
