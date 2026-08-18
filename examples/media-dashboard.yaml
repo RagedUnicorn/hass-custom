@@ -62,32 +62,43 @@ views:
             volume_entity: media_player.sonos_beam_livingroom
             source_entity: media_player.sony_bravia_tv_livingroom_braviatv # braviatv exposes the HDMI inputs
             skip_seconds: [10, 30]
+            # `activity` uses DEEP LINKS, not package names: this Bravia (and
+            # Sony Google TVs generally) silently ignores a package-name app
+            # link — remote.turn_on wakes the TV but no app opens — while
+            # deep links launch reliably (verified 2026-08 via Developer
+            # Tools → Actions). `app_id` stays the package name; it only
+            # matches the androidtv entity's foreground-app attribute for
+            # the chip highlight.
             apps:
               - name: Netflix
                 icon: mdi:netflix
                 color: "#E50914"
-                activity: com.netflix.ninja
+                activity: https://www.netflix.com/title
                 app_id: com.netflix.ninja
               - name: YouTube
                 color: "#FF0000"
-                activity: com.google.android.youtube.tv
+                activity: https://www.youtube.com
                 app_id: com.google.android.youtube.tv
               - name: Spotify
                 color: "#1DB954"
-                activity: com.spotify.tv.android
+                activity: spotify://
                 app_id: com.spotify.tv.android
               - name: Plex
                 color: "#E5A00D"
-                activity: com.plexapp.android
+                activity: plex://
                 app_id: com.plexapp.android
               - name: Twitch
                 color: "#9146FF"
-                activity: tv.twitch.android.app
+                activity: twitch://home
                 app_id: tv.twitch.android.app
               - name: PlayStation
                 icon: mdi:sony-playstation
                 color: "#0070D1"
-                source: "HDMI 3" # switches the input instead of launching an app
+                # Switches the input instead of launching an app. Must match
+                # the braviatv entity's source_list EXACTLY — on this TV that
+                # list names the CEC device ("PlayStation 5", on HDMI 4);
+                # "HDMI 3 (eARC/ARC)" is the Sonos Beam, not a console.
+                source: PlayStation 5
 
           # ---- right column: everything else that makes noise -----------
           - type: vertical-stack
