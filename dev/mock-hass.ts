@@ -89,6 +89,44 @@ export interface MockSwitchSpec {
   on?: boolean;
 }
 
+/** The Miele status enum, narrowed to what the card renders differently. */
+export type MockWasherStatus =
+  | "off"
+  | "on"
+  | "programmed"
+  | "in_use"
+  | "pause"
+  | "program_ended";
+
+/**
+ * A Miele-style washing machine. One spec produces the whole entity family the
+ * card consumes — sensor.<base>, sensor.<base>_program, switch.<base>_power,
+ * button.<base>_start and so on — because that is exactly how the real
+ * integration names them.
+ */
+export interface MockWasherSpec {
+  /** Entity id stem, e.g. "washing_machine". */
+  base: string;
+  name: string;
+  /** Miele device id, targeted by miele.set_program. */
+  deviceId: string;
+  /** Initial status. Default "in_use". */
+  status?: MockWasherStatus;
+  /** Programme enum value, e.g. "cottons". Default "cottons". */
+  program?: string;
+  /** Cycle length in minutes. Default 149. */
+  totalMin?: number;
+  /** Minutes already run. Default 37. */
+  elapsedMin?: number;
+  /** Spin speed in rpm. Default 1400. */
+  spin?: number;
+  /** Target temperature in °C. Default 40. */
+  temperature?: number;
+  doorOpen?: boolean;
+  /** Miele's remote-start interlock. Default true (armed). */
+  mobileStart?: boolean;
+}
+
 export interface MockSensorSpec {
   entity: string;
   name: string;
@@ -206,6 +244,17 @@ interface SensorState {
   value: number;
 }
 
+interface WasherState {
+  spec: MockWasherSpec;
+  status: MockWasherStatus;
+  program: string;
+  elapsed: number;
+  total: number;
+  doorOpen: boolean;
+  mobileStart: boolean;
+  available: boolean;
+}
+
 export class MockHass {
   /** Every callService invocation, in order — assert on this in tests. */
   readonly calls: ServiceCall[] = [];
@@ -225,6 +274,8 @@ export class MockHass {
   private mediaPlayers = new Map<string, MediaPlayerState>();
 
   private remotes = new Map<string, RemoteState>();
+
+  private washers = new Map<string, WasherState>();
 
   private darkMode = false;
 
@@ -247,12 +298,14 @@ export class MockHass {
     private switchSpecs: MockSwitchSpec[] = [],
     private sensorSpecs: MockSensorSpec[] = [],
     private mediaPlayerSpecs: MockMediaPlayerSpec[] = [],
-    private remoteSpecs: MockRemoteSpec[] = []
+    private remoteSpecs: MockRemoteSpec[] = [],
+    private washerSpecs: MockWasherSpec[] = []
   ) {
     this.resetCovers();
     this.resetLights();
     this.resetFans();
     this.resetMedia();
+    this.resetWashers();
     this.snapshot = this.buildSnapshot();
     setInterval(() => this.tick(), TICK_MS);
   }
@@ -372,7 +425,66 @@ export class MockHass {
     this.resetLights();
     this.resetFans();
     this.resetMedia();
+    this.resetWashers();
     this.publish();
+  }
+
+  private resetWashers(): void {
+    this.washers.clear();
+    for (const spec of this.washerSpecs) {
+      this.washers.set(spec.base, {
+        spec,
+        status: spec.status ?? "in_use",
+        program: spec.program ?? "cottons",
+        elapsed: spec.elapsedMin ?? 37,
+        total: spec.totalMin ?? 149,
+        doorOpen: spec.doorOpen ?? false,
+        mobileStart: spec.mobileStart ?? true,
+        available: true,
+      });
+    }
+  }
+
+  /** Directly set washer state without logging a service call. */
+  setWasher(
+    base: string,
+    patch: {
+      status?: MockWasherStatus;
+      program?: string;
+      elapsedMin?: number;
+      totalMin?: number;
+      doorOpen?: boolean;
+      mobileStart?: boolean;
+      available?: boolean;
+    }
+  ): void {
+    const washer = this.washers.get(base);
+    if (!washer) return;
+    if (patch.status !== undefined) washer.status = patch.status;
+    if (patch.program !== undefined) washer.program = patch.program;
+    if (patch.elapsedMin !== undefined) washer.elapsed = patch.elapsedMin;
+    if (patch.totalMin !== undefined) washer.total = patch.totalMin;
+    if (patch.doorOpen !== undefined) washer.doorOpen = patch.doorOpen;
+    if (patch.mobileStart !== undefined) washer.mobileStart = patch.mobileStart;
+    if (patch.available !== undefined) washer.available = patch.available;
+    this.publish();
+  }
+
+  /** Find the washer owning one of its derived entity ids. */
+  private washerByEntity(entity: string): WasherState | undefined {
+    for (const washer of this.washers.values()) {
+      const base = washer.spec.base;
+      if (
+        entity === `sensor.${base}` ||
+        entity.startsWith(`sensor.${base}_`) ||
+        entity.startsWith(`switch.${base}_`) ||
+        entity.startsWith(`button.${base}_`) ||
+        entity.startsWith(`binary_sensor.${base}_`)
+      ) {
+        return washer;
+      }
+    }
+    return undefined;
   }
 
   private resetMedia(): void {
@@ -469,6 +581,40 @@ export class MockHass {
     this.calls.push({ domain, service, data });
     const raw = data?.entity_id;
     const entities = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
+    if (domain === "button" && service === "press") {
+      for (const entity of entities) {
+        const washer = this.washerByEntity(entity);
+        if (!washer || !washer.available) continue;
+        // Miele will not remote-start unless Mobile Start is armed.
+        if (entity.endsWith("_start")) {
+          if (!washer.mobileStart) continue;
+          if (washer.status === "programmed" || washer.status === "pause") {
+            washer.status = "in_use";
+          }
+        } else if (entity.endsWith("_pause")) {
+          if (washer.status === "in_use") washer.status = "pause";
+        } else if (entity.endsWith("_stop")) {
+          if (washer.status === "in_use" || washer.status === "pause") {
+            washer.status = "programmed";
+            washer.elapsed = 0;
+          }
+        }
+      }
+      this.publish();
+      return Promise.resolve();
+    }
+    if (domain === "miele" && service === "set_program") {
+      const deviceId = data?.device_id;
+      for (const washer of this.washers.values()) {
+        if (washer.spec.deviceId !== deviceId || !washer.available) continue;
+        // The real API takes an id; the mock only needs to prove the call is
+        // routed, so it records it and arms the machine.
+        washer.status = "programmed";
+        washer.elapsed = 0;
+      }
+      this.publish();
+      return Promise.resolve();
+    }
     if (domain === "light") {
       for (const entity of entities) {
         const light = this.lights.get(entity);
@@ -540,6 +686,18 @@ export class MockHass {
     }
     if (domain === "switch") {
       for (const entity of entities) {
+        // A washer's power switch is derived from its base, not a MockSwitch.
+        const washer = entity.endsWith("_power")
+          ? this.washerByEntity(entity)
+          : undefined;
+        if (washer && washer.available) {
+          const turnOn =
+            service === "turn_on" ||
+            (service === "toggle" && washer.status === "off");
+          washer.status = turnOn ? "programmed" : "off";
+          washer.elapsed = 0;
+          continue;
+        }
         const sw = this.switches.get(entity);
         if (!sw) continue;
         switch (service) {
@@ -696,6 +854,100 @@ export class MockHass {
     }
   }
 
+  /**
+   * The whole entity family the Miele integration exposes for one appliance.
+   * Models which values HA reports in which state: a machine that is off or
+   * merely programmed has no elapsed/remaining/finish readings at all.
+   */
+  private buildWasherEntities(
+    washer: WasherState
+  ): Record<string, HassEntity> {
+    const base = washer.spec.base;
+    const name = washer.spec.name;
+    const states: Record<string, HassEntity> = {};
+
+    // A real machine reports the spin/temperature of whatever programme is
+    // selected, so the mock derives them rather than reporting one fixed pair.
+    const perProgram: Record<string, { spin: number; temp: number }> = {
+      cottons: { spin: 1400, temp: 40 },
+      delicates: { spin: 600, temp: 30 },
+      woollens: { spin: 1200, temp: 30 },
+      quick_power_wash: { spin: 1200, temp: 40 },
+      shirts: { spin: 600, temp: 40 },
+    };
+    const tuned = perProgram[washer.program];
+    const spin = tuned?.spin ?? washer.spec.spin ?? 1400;
+    const temperature = tuned?.temp ?? washer.spec.temperature ?? 40;
+
+    const put = (
+      entity: string,
+      state: string,
+      attributes: Record<string, unknown> = {}
+    ): void => {
+      states[entity] = {
+        entity_id: entity,
+        state: washer.available ? state : "unavailable",
+        attributes: { friendly_name: name, ...attributes },
+      };
+    };
+
+    const running = washer.status === "in_use" || washer.status === "pause";
+    const on = washer.status !== "off";
+    const remaining = Math.max(0, washer.total - washer.elapsed);
+    const phase = !running
+      ? "not_running"
+      : washer.elapsed / washer.total < 0.08
+        ? "pre_wash"
+        : washer.elapsed / washer.total < 0.55
+          ? "main_wash"
+          : washer.elapsed / washer.total < 0.8
+            ? "rinse"
+            : "spin";
+
+    put(`sensor.${base}`, washer.status);
+    put(`sensor.${base}_program`, on ? washer.program : "no_program");
+    put(`sensor.${base}_program_phase`, phase);
+    put(
+      `sensor.${base}_remaining_time`,
+      running ? String(Math.round(remaining)) : "unknown",
+      { device_class: "duration", unit_of_measurement: "min" }
+    );
+    put(
+      `sensor.${base}_elapsed_time`,
+      running ? String(Math.round(washer.elapsed)) : "unknown",
+      { device_class: "duration", unit_of_measurement: "min" }
+    );
+    put(
+      `sensor.${base}_finish`,
+      running
+        ? new Date(Date.now() + remaining * 60000).toISOString()
+        : "unknown",
+      { device_class: "timestamp" }
+    );
+    put(`sensor.${base}_spin_speed`, on ? String(spin) : "unknown", {
+      unit_of_measurement: "rpm",
+    });
+    put(
+      `sensor.${base}_target_temperature`,
+      on ? String(temperature) : "unknown",
+      { device_class: "temperature", unit_of_measurement: "°C" }
+    );
+    put(`switch.${base}_power`, on ? "on" : "off");
+    put(`binary_sensor.${base}_door`, washer.doorOpen ? "on" : "off", {
+      device_class: "door",
+    });
+    put(
+      `binary_sensor.${base}_mobile_start`,
+      washer.mobileStart ? "on" : "off"
+    );
+    // Buttons have no meaningful state; HA reports the last press timestamp.
+    for (const action of ["start", "pause", "stop"]) {
+      put(`button.${base}_${action}`, "unknown", { device_class: "restart" });
+    }
+
+    return states;
+  }
+
   private buildSnapshot(): HomeAssistant {
     const states: Record<string, HassEntity> = {};
     for (const cover of this.covers.values()) {
@@ -723,6 +975,9 @@ export class MockHass {
     }
     for (const player of this.mediaPlayers.values()) {
       states[player.spec.entity] = this.buildMediaPlayerEntity(player);
+    }
+    for (const washer of this.washers.values()) {
+      Object.assign(states, this.buildWasherEntities(washer));
     }
     for (const remote of this.remotes.values()) {
       // A linked remote reports its player's power — androidtv_remote backs

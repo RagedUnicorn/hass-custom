@@ -190,6 +190,73 @@ export interface TvCardConfig {
   apps?: TvAppConfig[];
 }
 
+// --- ru-washer-card config ---------------------------------------------------
+
+export interface WasherPresetConfig {
+  name: string;
+  /** mdi:* icon ref rendered via <ha-icon>. */
+  icon?: string;
+  /** Numeric Miele programme id passed to miele.set_program. Discover the
+   * ids your machine actually offers by calling miele.get_programs — they
+   * differ per model, and only a subset of the programme sensor's enum is
+   * remotely selectable. */
+  program_id: number;
+  /** The programme sensor's enum value for this programme (e.g. "delicates").
+   * Used ONLY to highlight the chip while that programme is selected — the
+   * sensor reports names while set_program takes ids, so the two cannot be
+   * matched without it. Omit and the chip simply never highlights. */
+  program?: string;
+  /** Spin speed this programme runs at, in rpm. Display label only — the
+   * Miele API exposes no way to set it. */
+  spin?: number;
+  /** Temperature this programme runs at, in °C. Display label only. */
+  temperature?: number;
+}
+
+export interface WasherCardConfig {
+  type: string;
+  title?: string;
+  /** The appliance's main status sensor (the enum one, e.g.
+   * sensor.washing_machine). */
+  entity: string;
+  name?: string;
+  /** Miele device id — required for `presets`, since miele.set_program
+   * targets a device rather than an entity. Settings → Devices → the machine;
+   * the id is the last path segment of the URL. */
+  device_id?: string;
+  /** switch.* → power toggle. */
+  power_entity?: string;
+  /** button.* → Start control. Created disabled by the Miele integration;
+   * enable it in the entity registry first. */
+  start_entity?: string;
+  /** button.* → Pause control. */
+  pause_entity?: string;
+  /** button.* → Stop control. */
+  stop_entity?: string;
+  /** sensor.* reporting the selected programme → programme line. */
+  program_entity?: string;
+  /** sensor.* reporting the programme phase → phase line. */
+  phase_entity?: string;
+  /** sensor.* remaining minutes → countdown + progress. */
+  remaining_entity?: string;
+  /** sensor.* elapsed minutes → progress. */
+  elapsed_entity?: string;
+  /** timestamp sensor.* → a per-second countdown instead of whole minutes,
+   * and the "Finishes HH:MM" label. */
+  finish_entity?: string;
+  /** binary_sensor.* (device_class door) → door indicator. */
+  door_entity?: string;
+  /** binary_sensor.* → explains a refused remote start. Miele blocks it
+   * unless Mobile Start is armed on the machine itself. */
+  mobile_start_entity?: string;
+  /** sensor.* spin speed in rpm → readout chip. */
+  spin_speed_entity?: string;
+  /** sensor.* target temperature in °C → readout chip. */
+  temperature_entity?: string;
+  /** Programme chips. Needs `device_id`. */
+  presets?: WasherPresetConfig[];
+}
+
 // --- globals the HA frontend looks at ----------------------------------------
 
 export interface CustomIconsetResult {

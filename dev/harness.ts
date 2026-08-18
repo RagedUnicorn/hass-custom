@@ -9,7 +9,11 @@
 
 import "../src/main";
 import type { LovelaceCard } from "../src/types";
-import { MockHass, type ServiceCall } from "./mock-hass";
+import {
+  MockHass,
+  type MockWasherStatus,
+  type ServiceCall,
+} from "./mock-hass";
 
 // Outside HA <ha-icon> is undefined and renders empty; a small dot keeps the
 // layout realistic without pulling in an icon library.
@@ -179,6 +183,19 @@ const mock = new MockHass(
       entity: "remote.tv_livingroom",
       name: "Living Room TV Remote",
       player: "media_player.tv_android",
+    },
+  ],
+  [
+    {
+      base: "washing_machine",
+      name: "Washing machine",
+      deviceId: "mock-miele-washer",
+      status: "in_use",
+      program: "cottons",
+      totalMin: 149,
+      elapsedMin: 37,
+      spin: 1400,
+      temperature: 40,
     },
   ]
 );
@@ -379,6 +396,62 @@ tvBraviaCard.setConfig({
   ],
 });
 
+const washerCard = document.createElement("ru-washer-card") as LovelaceCard;
+washerCard.setConfig({
+  type: "custom:ru-washer-card",
+  title: "Laundry",
+  entity: "sensor.washing_machine",
+  name: "Washing machine",
+  device_id: "mock-miele-washer",
+  power_entity: "switch.washing_machine_power",
+  start_entity: "button.washing_machine_start",
+  pause_entity: "button.washing_machine_pause",
+  stop_entity: "button.washing_machine_stop",
+  program_entity: "sensor.washing_machine_program",
+  phase_entity: "sensor.washing_machine_program_phase",
+  remaining_entity: "sensor.washing_machine_remaining_time",
+  elapsed_entity: "sensor.washing_machine_elapsed_time",
+  finish_entity: "sensor.washing_machine_finish",
+  door_entity: "binary_sensor.washing_machine_door",
+  mobile_start_entity: "binary_sensor.washing_machine_mobile_start",
+  spin_speed_entity: "sensor.washing_machine_spin_speed",
+  temperature_entity: "sensor.washing_machine_target_temperature",
+  presets: [
+    {
+      name: "Underwear",
+      icon: "mdi:tshirt-crew",
+      program_id: 4,
+      program: "delicates",
+      spin: 600,
+      temperature: 30,
+    },
+    {
+      name: "Cottons",
+      icon: "mdi:tshirt-crew-outline",
+      program_id: 1,
+      program: "cottons",
+      spin: 1400,
+      temperature: 40,
+    },
+    {
+      name: "Quick",
+      icon: "mdi:lightning-bolt",
+      program_id: 146,
+      program: "quick_power_wash",
+      spin: 1200,
+      temperature: 40,
+    },
+    {
+      name: "Woollens",
+      icon: "mdi:sheep",
+      program_id: 8,
+      program: "woollens",
+      spin: 1200,
+      temperature: 30,
+    },
+  ],
+});
+
 // Identical to tvCard, but mounted in a 900px-wide slot so the card's own
 // container query trips and it renders the side-by-side layout. Same config on
 // purpose: the layout difference must come from the width alone.
@@ -401,6 +474,7 @@ mock.onChange((hass) => {
   tvSteppersCard.hass = hass;
   tvBraviaCard.hass = hass;
   tvWideCard.hass = hass;
+  washerCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -413,6 +487,7 @@ document.getElementById("card-tv-bravia")!.appendChild(tvBraviaCard);
 // "ru-tv-card") to set an inline override, which must keep resolving to
 // #card-tv's instance.
 document.getElementById("card-tv-wide")!.appendChild(tvWideCard);
+document.getElementById("card-washer")!.appendChild(washerCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -458,6 +533,18 @@ export interface Harness {
       available?: boolean;
     }
   ): void;
+  setWasher(
+    base: string,
+    patch: {
+      status?: MockWasherStatus;
+      program?: string;
+      elapsedMin?: number;
+      totalMin?: number;
+      doorOpen?: boolean;
+      mobileStart?: boolean;
+      available?: boolean;
+    }
+  ): void;
   setTravelMs(ms: number): void;
   setReactionMs(ms: number): void;
   reset(): void;
@@ -481,6 +568,7 @@ window.__harness = {
   setSwitch: (entity, on) => mock.setSwitch(entity, on),
   setSensor: (entity, value) => mock.setSensor(entity, value),
   setMediaPlayer: (entity, patch) => mock.setMediaPlayer(entity, patch),
+  setWasher: (base, patch) => mock.setWasher(base, patch),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   setReactionMs: (ms) => mock.setReactionMs(ms),
   reset: () => mock.reset(),
