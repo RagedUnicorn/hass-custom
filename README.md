@@ -28,6 +28,16 @@ names like `shutters-card` from colliding with someone else's card.
   <img src="assets/shelly.svg" alt="ru:shelly icon" width="64" height="64">
   &nbsp;&nbsp;
   <img src="assets/ubiquiti-unifi.svg" alt="ru:ubiquiti-unifi icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/youtube.svg" alt="ru:youtube icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/spotify.svg" alt="ru:spotify icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/plex.svg" alt="ru:plex icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/twitch.svg" alt="ru:twitch icon" width="64" height="64">
+  &nbsp;&nbsp;
+  <img src="assets/playstation5.svg" alt="ru:playstation5 icon" width="64" height="64">
 </p>
 
 The source is TypeScript + [Lit](https://lit.dev/), built with
@@ -111,6 +121,11 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
 | `ru:philips-hue`    | Philips Hue logo    | official Philips Hue wordmark              |
 | `ru:shelly`         | Shelly logo         | official Shelly brand mark                 |
 | `ru:ubiquiti-unifi` | Ubiquiti UniFi logo | official UniFi brand mark                  |
+| `ru:youtube`        | YouTube logo        | play-button mark, tinted via `color`       |
+| `ru:spotify`        | Spotify logo        | official Spotify brand mark                |
+| `ru:plex`           | Plex logo           | chevron mark (background dropped)          |
+| `ru:twitch`         | Twitch logo         | official Twitch brand mark                 |
+| `ru:playstation5`   | PlayStation 5 logo  | PS5 wordmark                               |
 
 ### Adding an icon
 
@@ -332,23 +347,27 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
     activity: com.netflix.ninja
     app_id: com.netflix.ninja
   - name: YouTube
+    icon: ru:youtube
     color: "#FF0000"
     activity: com.google.android.youtube.tv
     app_id: com.google.android.youtube.tv
   - name: Spotify
+    icon: ru:spotify
     color: "#1DB954"
     activity: com.spotify.tv.android
     app_id: com.spotify.tv.android
   - name: Plex
+    icon: ru:plex
     color: "#E5A00D"
     activity: com.plexapp.android
     app_id: com.plexapp.android
   - name: Twitch
+    icon: ru:twitch
     color: "#9146FF"
     activity: tv.twitch.android.app
     app_id: tv.twitch.android.app
   - name: PlayStation
-    icon: mdi:sony-playstation
+    icon: ru:playstation5
     color: "#0070D1"
     source: "HDMI 3" # input chip: switches source_entity instead of launching an app
 ```

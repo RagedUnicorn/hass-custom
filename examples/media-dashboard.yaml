@@ -76,23 +76,27 @@ views:
                 activity: https://www.netflix.com/title
                 app_id: com.netflix.ninja
               - name: YouTube
+                icon: ru:youtube
                 color: "#FF0000"
                 activity: https://www.youtube.com
                 app_id: com.google.android.youtube.tv
               - name: Spotify
+                icon: ru:spotify
                 color: "#1DB954"
                 activity: spotify://
                 app_id: com.spotify.tv.android
               - name: Plex
+                icon: ru:plex
                 color: "#E5A00D"
                 activity: plex://
                 app_id: com.plexapp.android
               - name: Twitch
+                icon: ru:twitch
                 color: "#9146FF"
                 activity: twitch://home
                 app_id: tv.twitch.android.app
               - name: PlayStation
-                icon: mdi:sony-playstation
+                icon: ru:playstation5
                 color: "#0070D1"
                 # Switches the input instead of launching an app. Must match
                 # the braviatv entity's source_list EXACTLY — on this TV that
