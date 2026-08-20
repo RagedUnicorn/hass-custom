@@ -18,8 +18,14 @@ import "./cards/ru-washer-card/ru-washer-card";
 
 registerIconSets();
 
+// Guarded: in a release build Vite replaces __VERSION__ statically, but the
+// dev loop loads this module straight off the dev server into Home Assistant,
+// where Vite 7 only provides define values via /@vite/env — a module the HA
+// page never imports. Without the guard the banner throws ReferenceError.
+const version = typeof __VERSION__ === "undefined" ? "dev" : __VERSION__;
+
 console.info(
-  `%c hass-custom %c v${__VERSION__} `,
+  `%c hass-custom %c v${version} `,
   "color:white;background:#6f42c1;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;",
   "color:#6f42c1;background:#efe7ff;font-weight:700;border-radius:0 3px 3px 0;padding:2px 6px;",
   `— icon sets: ${iconSetNames()
