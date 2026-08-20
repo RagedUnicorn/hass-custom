@@ -325,7 +325,7 @@ volume_entity: media_player.tv_bravia       # optional, e.g. braviatv → real v
 volume_mode: steppers                       # optional: auto (default) | slider | steppers
 source_entity: media_player.tv_bravia       # optional, e.g. braviatv → input-switch chips
 skip_seconds: [10, 30]                      # optional seek jumps, [back, forward]
-apps: # optional launcher chips
+apps: # optional app launcher (chips; larger tiles when the card is wide)
   - name: Netflix
     icon: mdi:netflix # optional: mdi:/ru: icon ref or an image URL
     color: "#E50914" # tints the icon ref, header dot + chip fallback
@@ -451,7 +451,8 @@ Behavior notes:
   or an image URL (put files in HA's `www/` folder and reference them as
   `/local/...`; `icon_dark` swaps in a dark-mode variant for image logos
   that vanish on a dark panel — refs tint automatically). Without an `icon`
-  the chip falls back to a small `color` dot.
+  the chip falls back to a small `color` dot — and the wide layout's larger
+  tile shows the app's initial on a `color` square instead.
 - The remote panel sends `remote.send_command` key codes (`DPAD_*`, `BACK`,
   `HOME`) and only renders when `remote_entity` is configured. The ring
   d-pad is built for eyes-free use — big targets findable by feel — so each
@@ -461,7 +462,9 @@ Behavior notes:
   off the media/remote sections dim.
 - The card adapts to the width it is given. From about 640px it puts the remote
   panel beside the media panel instead of below it, and a card without a remote
-  splits its playback controls and app chips into two columns. This follows the
+  splits its playback controls and app chips into two columns. The app launcher
+  also grows from small chips into a grid of larger tiles — icon above the
+  label — sized to however many columns fit. This follows the
   **card's own** width, not the browser window's — a card in a narrow dashboard
   column stays in the compact layout even on a wide screen, and the same card in
   a panel-view dashboard or on a wall tablet goes wide. Nothing to configure.

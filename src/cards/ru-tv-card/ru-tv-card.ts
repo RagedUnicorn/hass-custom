@@ -676,9 +676,11 @@ export class RuTvCard extends LitElement {
                     `
                 : html`
                     <div
-                      class="app-dot-sm"
+                      class="app-dot-sm ${view.on ? "" : "dim"}"
                       style=${styleMap({ background: app.color })}
-                    ></div>
+                    >
+                      ${app.name.charAt(0).toUpperCase()}
+                    </div>
                   `}
               <div class="app-name">${app.name}</div>
             </button>

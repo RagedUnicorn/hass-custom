@@ -889,4 +889,67 @@ test.describe("wide layout", () => {
         data: { entity_id: REMOTE, command: "DPAD_UP" },
       });
   });
+
+  test("app launcher is a tile grid at wide, chips compact — on the same page", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    const style = (selector: string, prop: string) =>
+      page
+        .locator(selector)
+        .first()
+        .evaluate(
+          (el, p) => getComputedStyle(el).getPropertyValue(p),
+          prop
+        );
+
+    expect(await style(`${WIDE} .apps`, "display")).toBe("grid");
+    expect(await style(`${WIDE} .app`, "flex-direction")).toBe("column");
+    expect(await style(`${WIDE} .app-icon`, "width")).toBe("34px");
+    expect(await style(`${WIDE} .app-glyph`, "width")).toBe("34px");
+
+    // The compact mount proves the trigger is the card's own width.
+    expect(await style(`${CARD} .apps`, "display")).toBe("flex");
+    expect(await style(`${CARD} .app-icon`, "width")).toBe("16px");
+  });
+
+  test("icon-less app shows a letter puck at wide, an unlettered dot compact", async ({
+    page,
+  }) => {
+    await openHarness(page);
+
+    // Twitch is the only fixture app without an icon.
+    const puck = page.locator(`${WIDE} .app-dot-sm`);
+    await expect(puck).toHaveText("T");
+    const puckStyle = await puck.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { width: s.width, fontSize: s.fontSize, bg: s.backgroundColor };
+    });
+    expect(puckStyle).toEqual({
+      width: "34px",
+      fontSize: "15px",
+      bg: "rgb(145, 70, 255)",
+    });
+
+    // Compact must be visually unchanged: 8px dot, letter collapsed.
+    const dotStyle = await page
+      .locator(`${CARD} .app-dot-sm`)
+      .evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { width: s.width, fontSize: s.fontSize };
+      });
+    expect(dotStyle).toEqual({ width: "8px", fontSize: "0px" });
+  });
+
+  test("tile hit targets survive the grid re-arrangement", async ({ page }) => {
+    await openHarness(page);
+    await page.locator(`${WIDE} .app`, { hasText: "Twitch" }).click();
+    await expect
+      .poll(() => remoteTurnOns(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "turn_on",
+        data: { entity_id: REMOTE, activity: "tv.twitch.android.app" },
+      });
+  });
 });

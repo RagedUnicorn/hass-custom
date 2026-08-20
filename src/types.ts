@@ -138,20 +138,21 @@ export interface PurifierCardConfig {
 
 export interface TvAppConfig {
   name: string;
-  /** Chip icon: an image URL (e.g. /local/icons/netflix.svg) or an icon ref
-   * (`mdi:youtube`, `ru:shelly`) rendered monochrome and tinted with `color`.
-   * The chip falls back to a `color` dot without one. */
+  /** Chip/tile icon: an image URL (e.g. /local/icons/netflix.svg) or an icon
+   * ref (`mdi:youtube`, `ru:shelly`) rendered monochrome and tinted with
+   * `color`. Without one the compact chip falls back to a `color` dot and the
+   * wide layout's tile to the app's initial on a `color` square. */
   icon?: string;
   /** Icon used instead of `icon` in dark mode — for image URLs whose logo
    * vanishes on a dark panel (icon refs tint automatically). */
   icon_dark?: string;
-  /** Color of the header dot while the app is active, and of the chip's
-   * fallback dot when no `icon` is set (any CSS color). */
+  /** Color of the header dot while the app is active, and of the chip/tile
+   * fallback (dot or lettered square) when no `icon` is set (any CSS color). */
   color?: string;
   /** What launches the app: an Android app link URL or package name, passed
    * as remote.turn_on's `activity` (falls back to media_player.play_media). */
   activity?: string;
-  /** Matched against the TV's `app_id` attribute to highlight the chip. */
+  /** Matched against the TV's `app_id` attribute to highlight the chip/tile. */
   app_id?: string;
   /** TV input to switch to instead of launching an app — passed to
    * media_player.select_source on `source_entity` (must match an entry in

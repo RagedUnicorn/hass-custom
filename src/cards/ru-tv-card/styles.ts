@@ -579,15 +579,22 @@ export const cardStyles = css`
   }
 
   .app-icon.dim,
-  .app-glyph.dim {
+  .app-glyph.dim,
+  .app-dot-sm.dim {
     opacity: 0.5;
   }
 
-  /* Fallback for apps configured without an icon. */
+  /* Fallback for apps configured without an icon. Compact renders a plain
+     8px dot: the app's initial is in the DOM all along but collapsed to
+     font-size 0, so the wide layout below can reveal it as a letter puck
+     without re-rendering (a container query cannot change the DOM — same
+     pattern as .vol-nudge). */
   .app-dot-sm {
     width: 8px;
     height: 8px;
     border-radius: 4px;
+    font-size: 0;
+    color: transparent;
   }
 
   .app-name {
@@ -801,6 +808,60 @@ export const cardStyles = css`
       /* Pack the chips top-down against the controls column instead of
          spreading them down the full row height. */
       align-content: flex-start;
+    }
+
+    /* --- app tiles ---------------------------------------------------------
+       At wide the chips grow into a grid of column tiles (the compact mock's
+       "tiles" variant). Same DOM as the chips — a container query can't add
+       elements — so the chip markup is restyled and the icon-less fallback
+       dot reveals the app initial it has carried (invisibly) all along.
+       The .card prefix supplies the specificity the note above demands; one
+       rule set covers both wide branches. */
+    .card .apps {
+      display: grid;
+      /* gap: 6px carries over from the base .apps rule. */
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    }
+
+    .card .app {
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 4px;
+      border-radius: 14px;
+    }
+
+    .card .app-icon,
+    .card .app-glyph {
+      width: 34px;
+      height: 34px;
+    }
+
+    .card .app-icon {
+      border-radius: 8px;
+    }
+
+    .card .app-glyph {
+      --mdc-icon-size: 34px;
+    }
+
+    /* Letter puck: the fallback dot at icon footprint, showing the app's
+       initial in white on the app color (matches the harness placeholder
+       icons); the shadow keeps it readable on light brand colors. */
+    .card .app-dot-sm {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .card .app-name {
+      font-size: 11px;
     }
   }
 `;
