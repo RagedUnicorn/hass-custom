@@ -952,4 +952,75 @@ test.describe("wide layout", () => {
         data: { entity_id: REMOTE, activity: "tv.twitch.android.app" },
       });
   });
+
+  test("keyboard shows below the panels at wide, stays hidden compact, and types key codes", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    const kb = page.locator(`${WIDE} .panel.keyboard`);
+    await expect(kb).toBeVisible();
+    // Same keyboard: true config on the compact mount — width alone hides it.
+    await expect(page.locator(`${CARD} .panel.keyboard`)).toBeHidden();
+
+    // Full-width third grid row: below both panels, spanning the card.
+    const kbBox = (await kb.boundingBox())!;
+    const media = (await page.locator(`${WIDE} .panel.media`).boundingBox())!;
+    const remote = (await page.locator(`${WIDE} .panel.remote`).boundingBox())!;
+    expect(kbBox.y).toBeGreaterThanOrEqual(media.y + media.height);
+    expect(kbBox.y).toBeGreaterThanOrEqual(remote.y + remote.height);
+    expect(kbBox.width).toBeGreaterThan(media.width + remote.width);
+
+    // Printable keys type through the IME text channel — TVs swallow letter
+    // KEYCODE_* events while the integration's IME is active.
+    await kb.locator('.kb-key[aria-label="a"]').click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "send_command",
+        data: { entity_id: REMOTE, command: "text:a" },
+      });
+
+    await kb.locator('.kb-key[aria-label="Space"]').click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "send_command",
+        data: { entity_id: REMOTE, command: "text: " },
+      });
+
+    await kb.locator('.kb-key[aria-label="Enter"]').click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "remote",
+        service: "send_command",
+        data: { entity_id: REMOTE, command: "KEYCODE_ENTER" },
+      });
+  });
+
+  test("holding backspace repeats the delete", async ({ page }) => {
+    await openHarness(page);
+    const backspace = page.locator(`${WIDE} .kb-key[aria-label="Backspace"]`);
+    await backspace.hover();
+    const box = (await backspace.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Immediate delete, then repeats after the 650 ms delay every 300 ms —
+    // slower than the volume steppers so a deliberate click stays one delete.
+    await page.waitForTimeout(1600);
+    await page.mouse.up();
+
+    const deletes = (await calls(page)).filter(
+      (call) => call.data?.command === "KEYCODE_DEL"
+    );
+    expect(deletes.length).toBeGreaterThanOrEqual(3);
+    // The trailing click of the press must not add an extra delete.
+    await page.waitForTimeout(300);
+    expect(
+      (await calls(page)).filter((call) => call.data?.command === "KEYCODE_DEL")
+        .length
+    ).toBe(deletes.length);
+  });
 });

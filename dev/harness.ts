@@ -357,6 +357,7 @@ tvCard.setConfig({
   name: "Living Room TV",
   media_entity: "media_player.tv_cast",
   remote_entity: "remote.tv_livingroom",
+  keyboard: true,
   apps: TV_APPS,
 });
 
@@ -463,6 +464,7 @@ tvWideCard.setConfig({
   name: "Living Room TV",
   media_entity: "media_player.tv_cast",
   remote_entity: "remote.tv_livingroom",
+  keyboard: true,
   apps: TV_APPS,
 });
 
@@ -477,6 +479,7 @@ tvNarrowCard.setConfig({
   name: "Living Room TV",
   media_entity: "media_player.tv_cast",
   remote_entity: "remote.tv_livingroom",
+  keyboard: true,
   apps: TV_APPS,
 });
 

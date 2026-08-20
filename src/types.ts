@@ -188,6 +188,17 @@ export interface TvCardConfig {
    * `source` attribute highlights them — e.g. the braviatv entity, which
    * exposes HDMI inputs; the androidtv_remote/cast entities don't. */
   source_entity?: string;
+  /** On-screen QWERTY keyboard panel typing into whatever input field is
+   * focused on the TV, via remote.send_command. Requires `remote_entity`;
+   * only shown when the card is wide enough (the ≥640px layout). Default
+   * false. */
+  keyboard?: boolean;
+  /** How printable keys reach the TV: "text" (default) sends `text:<char>`
+   * through the integration's IME channel — needs Enable IME on and a TV
+   * keyboard that tolerates it (Gboard does); "keycode" sends raw KEYCODE_*
+   * key events — the fallback when the IME conflicts with the TV's own
+   * keyboard and has to stay off. Backspace/enter are key codes either way. */
+  keyboard_mode?: "text" | "keycode";
   /** Seek skip amounts in seconds, [back, forward]. Default [10, 30]. */
   skip_seconds?: [number, number];
   /** App launcher chips. */

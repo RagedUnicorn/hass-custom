@@ -379,6 +379,8 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
 | `name`          | string | friendly name | Device name shown on the card                                      |
 | `media_entity`  | string | —             | Cast-style `media_player.*` → now-playing, seek, transport         |
 | `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
+| `keyboard`      | bool   | `false`       | On-screen QWERTY (wide layout only; needs `remote_entity`)         |
+| `keyboard_mode` | string | `text`        | How keys type: `text` (IME channel) or `keycode` (raw key events)  |
 | `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)            |
 | `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)              |
 | `volume_step`   | number | `5`           | Percent per −/+ press beside the volume slider (1–25)              |
@@ -477,6 +479,28 @@ Behavior notes:
   d-pad is built for eyes-free use — big targets findable by feel — so each
   press briefly echoes as e.g. "▲ Up" in the panel header instead of relying
   on you watching the button.
+- `keyboard: true` adds an on-screen QWERTY below the panels — digits,
+  letters, space, backspace (repeats while held) and enter, typing into
+  whatever input field is focused on the TV. `keyboard_mode` picks how
+  printable keys travel, because Android TVs accept exactly one of two
+  channels depending on the integration's **Enable IME** setting and the
+  TV's own keyboard app:
+  - `text` (default): `remote.send_command` with `text:<char>` — the
+    integration's IME channel. Needs Enable IME on (integration →
+    Configure). Quirk: Android TVs don't take concurrent virtual and
+    on-screen keyboard input, so **dismiss the TV's own on-screen keyboard
+    first** (press Back once — the text field keeps focus); while that
+    keyboard overlay is open, injected text goes nowhere without any HA
+    error.
+  - `keycode`: raw `KEYCODE_*` key events — the fallback when the IME has
+    to stay off. With IME *on*, TVs swallow letter key events (digits
+    sneak through as channel keys), which is how a half-working keyboard
+    usually announces a mode mismatch.
+  Backspace and enter go as `KEYCODE_DEL`/`KEYCODE_ENTER` in both modes.
+  Needs `remote_entity`; wide layout only — a phone-width column has no
+  room for forty keys. Tip: `remote.send_command` with
+  `command: "text:stranger things"` types a whole string at once — handy
+  in scripts.
 - An unavailable TV renders grayed out with disabled controls; while the TV is
   off the media/remote sections dim.
 - The card adapts to the width it is given. From about 640px it puts the remote

@@ -737,6 +737,51 @@ export const cardStyles = css`
     color: var(--ru-tv-accent-contrast);
   }
 
+  /* --- keyboard panel ------------------------------------------------------ */
+
+  /* Hidden at compact width regardless of config — a phone column has no
+     room for 40 keys. The wide layout below reveals it as a full-width
+     third grid row. */
+  .panel.keyboard {
+    display: none;
+    gap: 6px;
+  }
+
+  .kb-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .kb-key {
+    flex: 1;
+    max-width: 52px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--ru-tv-track);
+    color: var(--ru-tv-label);
+    font-size: 14px;
+    font-weight: 600;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .kb-key.stretch {
+    flex: 1.6;
+    max-width: 84px;
+  }
+
+  .kb-key.space {
+    flex: 7;
+    max-width: 380px;
+    font-size: 12px;
+  }
+
+  .kb-key:active {
+    background: var(--ru-tv-accent);
+    color: var(--ru-tv-accent-contrast);
+  }
+
   /* --- wide (tablet) layout ----------------------------------------------- */
 
   /* Where 640px comes from, measured against the rules above:
@@ -778,6 +823,21 @@ export const cardStyles = css`
 
     .card.has-remote > .panel.remote {
       grid-area: remote;
+    }
+
+    /* Keyboard: a full-width third row. Scoped to .has-keyboard so cards
+       without it keep the two-row grid — an empty third template row would
+       still cost a 14px trailing gap. */
+    .card.has-remote.has-keyboard {
+      grid-template-areas:
+        "header   header"
+        "media    remote"
+        "keyboard keyboard";
+    }
+
+    .card.has-remote.has-keyboard > .panel.keyboard {
+      grid-area: keyboard;
+      display: flex;
     }
 
     /* No remote panel: a lone media panel would stretch the seek and volume

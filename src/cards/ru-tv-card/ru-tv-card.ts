@@ -66,6 +66,14 @@ const SEEK_PENDING_MS = 10000;
 const HOLD_DELAY_MS = 400;
 const HOLD_REPEAT_MS = 250;
 
+/** Keyboard backspace repeat: slower than the volume steppers — 400 ms is
+ * already crossed by a deliberate click, and a stray extra delete hurts more
+ * than a stray volume step. Matches OS key-repeat feel. */
+const KB_HOLD_DELAY_MS = 650;
+const KB_HOLD_REPEAT_MS = 300;
+
+const KEYBOARD_MODES = ["text", "keycode"] as const;
+
 /** Default percent per −/+ nudge beside the volume slider. */
 const DEFAULT_VOLUME_STEP = 5;
 
@@ -172,6 +180,22 @@ export class RuTvCard extends LitElement {
     ) {
       throw new Error(
         `${CARD_TYPE}: "volume_mode" must be one of ${VOLUME_MODES.join(", ")}`
+      );
+    }
+    if (config.keyboard !== undefined && typeof config.keyboard !== "boolean") {
+      throw new Error(`${CARD_TYPE}: "keyboard" must be true or false`);
+    }
+    if (config.keyboard && !config.remote_entity) {
+      throw new Error(
+        `${CARD_TYPE}: "keyboard" needs "remote_entity" — keys are sent through remote.send_command`
+      );
+    }
+    if (
+      config.keyboard_mode !== undefined &&
+      !KEYBOARD_MODES.includes(config.keyboard_mode)
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "keyboard_mode" must be one of ${KEYBOARD_MODES.join(", ")}`
       );
     }
     if (config.volume_step !== undefined) {
@@ -316,8 +340,13 @@ export class RuTvCard extends LitElement {
       this._pendingLaunch?.app.name ?? null
     );
 
+    const showKeyboard = view.hasRemote && !!config.keyboard;
     return html`
-      <div class="card ${view.hasRemote ? "has-remote" : ""}">
+      <div
+        class="card ${view.hasRemote ? "has-remote" : ""} ${showKeyboard
+          ? "has-keyboard"
+          : ""}"
+      >
         <div class="header">
           <div class="title">${config.title ?? "Media"}</div>
           <div class="summary">${view.summaryText}</div>
@@ -343,6 +372,7 @@ export class RuTvCard extends LitElement {
         </div>
 
         ${view.hasRemote ? this._renderRemote(view) : nothing}
+        ${showKeyboard ? this._renderKeyboard(view) : nothing}
       </div>
     `;
   }
@@ -765,6 +795,69 @@ export class RuTvCard extends LitElement {
     `;
   }
 
+  /** On-screen QWERTY (config `keyboard`): printable keys go through
+   * remote.send_command as `text:<char>` — androidtv_remote's IME text
+   * channel, the documented way to type — because TVs swallow letter
+   * KEYCODE_* key events while the integration's IME is active (digits
+   * sneak through as channel keys, which misleads). Enter and backspace
+   * stay key codes; there is no text: equivalent for them. Only rendered
+   * with a remote_entity, only revealed by the wide layout (styles.ts) —
+   * a phone column has no room for 40 keys. Backspace repeats while held
+   * via the volume-stepper machinery; the TV screen itself is the typing
+   * feedback. */
+  private _renderKeyboard(view: TvView): TemplateResult {
+    const key = (
+      label: string | TemplateResult,
+      command: string,
+      ariaLabel: string,
+      cls = ""
+    ) => html`
+      <button
+        class="kb-key ${cls}"
+        aria-label=${ariaLabel}
+        ?disabled=${!view.available}
+        @click=${() => this._remoteCommand(command)}
+      >
+        ${label}
+      </button>
+    `;
+    const textMode = (this._config?.keyboard_mode ?? "text") === "text";
+    const char = (c: string) =>
+      key(c, textMode ? `text:${c}` : `KEYCODE_${c.toUpperCase()}`, c);
+    const backspace = html`
+      <button
+        class="kb-key stretch"
+        aria-label="Backspace"
+        ?disabled=${!view.available}
+        @pointerdown=${() =>
+          this._stepPress(
+            () => this._remoteCommand("KEYCODE_DEL"),
+            KB_HOLD_DELAY_MS,
+            KB_HOLD_REPEAT_MS
+          )}
+        @pointerup=${() => this._holdStop()}
+        @pointerleave=${() => this._stepLeave()}
+        @pointercancel=${() => this._stepLeave()}
+        @click=${() =>
+          this._stepClick(() => this._remoteCommand("KEYCODE_DEL"))}
+      >
+        ⌫
+      </button>
+    `;
+    return html`
+      <div class="panel keyboard ${view.on && view.available ? "" : "dimmed"}">
+        <div class="kb-row">${[..."1234567890"].map(char)}</div>
+        <div class="kb-row">${[..."qwertyuiop"].map(char)}</div>
+        <div class="kb-row">${[..."asdfghjkl"].map(char)}</div>
+        <div class="kb-row">${[..."zxcvbnm"].map(char)} ${backspace}</div>
+        <div class="kb-row">
+          ${key("space", textMode ? "text: " : "KEYCODE_SPACE", "Space", "space")}
+          ${key("⏎", "KEYCODE_ENTER", "Enter", "stretch")}
+        </div>
+      </div>
+    `;
+  }
+
   // --- drag (seek + volume) ---------------------------------------------------
   // The fill follows the pointer while dragging; the service call fires once
   // on release so the TV isn't flooded with seek/volume commands.
@@ -897,13 +990,17 @@ export class RuTvCard extends LitElement {
   // a pointer press always produces is swallowed via _stepPointerFired so
   // @click only acts on keyboard activation (Enter/Space).
 
-  private _stepPress(step: () => void): void {
+  private _stepPress(
+    step: () => void,
+    delayMs = HOLD_DELAY_MS,
+    repeatMs = HOLD_REPEAT_MS
+  ): void {
     this._stepPointerFired = true;
     step();
     this._holdStop();
     this._holdDelay = setTimeout(() => {
-      this._holdRepeat = setInterval(step, HOLD_REPEAT_MS);
-    }, HOLD_DELAY_MS);
+      this._holdRepeat = setInterval(step, repeatMs);
+    }, delayMs);
   }
 
   private _stepClick(step: () => void): void {
