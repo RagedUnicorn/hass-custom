@@ -362,6 +362,7 @@ apps: # optional launcher chips
 | `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
 | `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)            |
 | `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)              |
+| `volume_step`   | number | `5`           | Percent per −/+ press beside the volume slider (1–25)              |
 | `source_entity` | string | —             | `media_player.*` the input chips target (e.g. braviatv)            |
 | `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                    |
 | `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id`/`source` |
@@ -384,6 +385,9 @@ Behavior notes:
   the volume one notch: Android 12+ restricts absolute volume-set for cast
   devices, so stepped key presses are all such TVs support. Steppers show
   the current level between the buttons and repeat while held.
+- In slider mode, −/+ buttons appear beside the slider when the row is wide
+  enough for them; each press moves the level by `volume_step` percent
+  (default 5) and repeats while held.
 - Sony Bravia (Android/Google TV): the native
   [Sony Bravia TV](https://www.home-assistant.io/integrations/braviatv/)
   integration talks to Sony's REST API, where absolute volume-set genuinely

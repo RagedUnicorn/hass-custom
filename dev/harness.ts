@@ -466,6 +466,20 @@ tvWideCard.setConfig({
   apps: TV_APPS,
 });
 
+// Identical to tvCard, but mounted in a 320px-wide slot so the controls row
+// stays below the volume-nudge reveal width. Same config on purpose: the
+// hidden −/+ buttons must come from the row width alone.
+const tvNarrowCard = document.createElement("ru-tv-card") as LovelaceCard;
+tvNarrowCard.setConfig({
+  type: "custom:ru-tv-card",
+  title: "Media (narrow)",
+  entity: "media_player.tv_android",
+  name: "Living Room TV",
+  media_entity: "media_player.tv_cast",
+  remote_entity: "remote.tv_livingroom",
+  apps: TV_APPS,
+});
+
 mock.onChange((hass) => {
   card.hass = hass;
   lightsCard.hass = hass;
@@ -474,6 +488,7 @@ mock.onChange((hass) => {
   tvSteppersCard.hass = hass;
   tvBraviaCard.hass = hass;
   tvWideCard.hass = hass;
+  tvNarrowCard.hass = hass;
   washerCard.hass = hass;
 });
 
@@ -487,6 +502,7 @@ document.getElementById("card-tv-bravia")!.appendChild(tvBraviaCard);
 // "ru-tv-card") to set an inline override, which must keep resolving to
 // #card-tv's instance.
 document.getElementById("card-tv-wide")!.appendChild(tvWideCard);
+document.getElementById("card-tv-narrow")!.appendChild(tvNarrowCard);
 document.getElementById("card-washer")!.appendChild(washerCard);
 
 // --- page chrome --------------------------------------------------------------

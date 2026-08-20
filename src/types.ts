@@ -180,6 +180,9 @@ export interface TvCardConfig {
    * steppers forces +/− key-press buttons — the right choice for Android 12+
    * TVs where absolute volume_set only moves one step. */
   volume_mode?: "auto" | "slider" | "steppers";
+  /** Percent moved per −/+ press beside the volume slider (slider mode only;
+   * the buttons appear when the row is wide enough). 1–25, default 5. */
+  volume_step?: number;
   /** media_player.* whose select_source the input chips target and whose
    * `source` attribute highlights them — e.g. the braviatv entity, which
    * exposes HDMI inputs; the androidtv_remote/cast entities don't. */

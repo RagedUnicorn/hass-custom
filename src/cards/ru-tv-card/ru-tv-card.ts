@@ -66,6 +66,12 @@ const SEEK_PENDING_MS = 10000;
 const HOLD_DELAY_MS = 400;
 const HOLD_REPEAT_MS = 250;
 
+/** Default percent per −/+ nudge beside the volume slider. */
+const DEFAULT_VOLUME_STEP = 5;
+
+/** How long a nudged volume level holds without HA confirming it. */
+const NUDGE_PENDING_MS = 2000;
+
 export class RuTvCard extends LitElement {
   static styles = cardStyles;
 
@@ -77,6 +83,7 @@ export class RuTvCard extends LitElement {
     _pendingLaunch: { state: true },
     _pendingSeek: { state: true },
     _padFeedback: { state: true },
+    _nudge: { state: true },
   };
 
   hass?: HomeAssistant;
@@ -106,6 +113,11 @@ export class RuTvCard extends LitElement {
    * `stamp` is media_position_updated_at when the seek was issued — a changed
    * stamp means HA re-reported the position and the hold can end. */
   private _pendingSeek?: { seconds: number; at: number; stamp?: string };
+
+  /** Optimistic volume percent while −/+ nudge volume_sets are in flight —
+   * HA won't round-trip between hold-repeat ticks, so each tick compounds
+   * on this instead of re-reading the stale reported level. */
+  private _nudge?: { pct: number; at: number };
 
   /** Ticks the playback position while a track plays. */
   private _clock?: ReturnType<typeof setInterval>;
@@ -162,6 +174,19 @@ export class RuTvCard extends LitElement {
         `${CARD_TYPE}: "volume_mode" must be one of ${VOLUME_MODES.join(", ")}`
       );
     }
+    if (config.volume_step !== undefined) {
+      const step = config.volume_step;
+      if (
+        typeof step !== "number" ||
+        !Number.isFinite(step) ||
+        step < 1 ||
+        step > 25
+      ) {
+        throw new Error(
+          `${CARD_TYPE}: "volume_step" must be a number from 1 to 25`
+        );
+      }
+    }
     if (config.skip_seconds !== undefined) {
       const skip = config.skip_seconds;
       if (
@@ -184,6 +209,7 @@ export class RuTvCard extends LitElement {
     this._pendingPower = undefined;
     this._pendingLaunch = undefined;
     this._pendingSeek = undefined;
+    this._nudge = undefined;
   }
 
   getCardSize(): number {
@@ -242,6 +268,9 @@ export class RuTvCard extends LitElement {
       if (stamp !== seek.stamp || nowMs - seek.at > SEEK_PENDING_MS) {
         this._pendingSeek = undefined;
       }
+    }
+    if (this._nudge && nowMs - this._nudge.at > NUDGE_PENDING_MS) {
+      this._nudge = undefined;
     }
   }
 
@@ -528,11 +557,13 @@ export class RuTvCard extends LitElement {
           class="vol-step"
           aria-label=${ariaLabel}
           ?disabled=${!volume.available}
-          @pointerdown=${() => this._stepPress(volume, service)}
+          @pointerdown=${() =>
+            this._stepPress(() => this._volumeStep(volume, service))}
           @pointerup=${() => this._holdStop()}
           @pointerleave=${() => this._stepLeave()}
           @pointercancel=${() => this._stepLeave()}
-          @click=${() => this._stepClick(volume, service)}
+          @click=${() =>
+            this._stepClick(() => this._volumeStep(volume, service))}
         >
           ${glyph}
         </button>
@@ -553,22 +584,48 @@ export class RuTvCard extends LitElement {
     }
 
     const dragPct = this._drag["vol"];
-    const fill = dragPct ?? volume.pct ?? 0;
+    // Pending nudge value (pruned after NUDGE_PENDING_MS in willUpdate) —
+    // keeps the fill and readout moving during a −/+ hold.
+    const nudgePct = this._nudge?.pct;
+    const fill = dragPct ?? nudgePct ?? volume.pct ?? 0;
     const valueText =
-      volume.muted || (dragPct === undefined && volume.pct === null)
+      volume.muted ||
+      (dragPct === undefined && nudgePct === undefined && volume.pct === null)
         ? "—"
-        : `${Math.round(dragPct ?? volume.pct ?? 0)}%`;
+        : `${Math.round(fill)}%`;
+
+    // −/+ beside the slider — always rendered, revealed by the
+    // ru-tv-controls container query when the row has room (styles.ts).
+    const nudge = (glyph: string, dir: 1 | -1, ariaLabel: string) => html`
+      <button
+        class="vol-nudge"
+        aria-label=${ariaLabel}
+        ?disabled=${!volume.available}
+        @pointerdown=${() =>
+          this._stepPress(() => this._nudgeVolume(volume, dir))}
+        @pointerup=${() => this._holdStop()}
+        @pointerleave=${() => this._stepLeave()}
+        @pointercancel=${() => this._stepLeave()}
+        @click=${() => this._stepClick(() => this._nudgeVolume(volume, dir))}
+      >
+        ${glyph}
+      </button>
+    `;
 
     return html`
       <div class="vol-row ${volume.available ? "" : "unavailable"}">
-        ${label}
+        ${label} ${nudge("−", -1, "Volume down")}
         <div
           class="vol-track ${volume.available ? "" : "disabled"}"
           @pointerdown=${(e: PointerEvent) => this._dragStart(e, "vol")}
           @pointermove=${(e: PointerEvent) => this._dragMove(e, "vol")}
           @pointerup=${() => {
             const pct = this._dragEnd("vol");
-            if (pct !== undefined) this._setVolume(volume, pct);
+            if (pct !== undefined) {
+              // The drag's absolute level supersedes any pending nudge.
+              this._nudge = undefined;
+              this._setVolume(volume, pct);
+            }
           }}
           @pointercancel=${() => this._dragCancel("vol")}
         >
@@ -577,6 +634,7 @@ export class RuTvCard extends LitElement {
             style="width: ${fill}%"
           ></div>
         </div>
+        ${nudge("+", 1, "Volume up")}
         <div class="vol-value">${valueText}</div>
       </div>
     `;
@@ -816,29 +874,42 @@ export class RuTvCard extends LitElement {
     this._player(volume.entity, service);
   }
 
+  /** One −/+ press beside the slider: an absolute volume_set at the current
+   * level ± volume_step. Bases on the pending nudge value so hold-repeat
+   * ticks and quick taps compound instead of re-reading the stale level. */
+  private _nudgeVolume(volume: TvVolumeView, dir: 1 | -1): void {
+    if (!volume.entity || !volume.available) return;
+    const step = this._config?.volume_step ?? DEFAULT_VOLUME_STEP;
+    const now = Date.now();
+    const base =
+      this._nudge && now - this._nudge.at < NUDGE_PENDING_MS
+        ? this._nudge.pct
+        : (volume.pct ?? 0);
+    const next = Math.min(100, Math.max(0, base + dir * step));
+    this._nudge = { pct: next, at: now };
+    this._setVolume(volume, next);
+  }
+
   // --- volume stepper hold-to-repeat -------------------------------------------
   // Press fires one step immediately, holding repeats it; the trailing click
   // a pointer press always produces is swallowed via _stepPointerFired so
   // @click only acts on keyboard activation (Enter/Space).
 
-  private _stepPress(volume: TvVolumeView, service: string): void {
+  private _stepPress(step: () => void): void {
     this._stepPointerFired = true;
-    this._volumeStep(volume, service);
+    step();
     this._holdStop();
     this._holdDelay = setTimeout(() => {
-      this._holdRepeat = setInterval(
-        () => this._volumeStep(volume, service),
-        HOLD_REPEAT_MS
-      );
+      this._holdRepeat = setInterval(step, HOLD_REPEAT_MS);
     }, HOLD_DELAY_MS);
   }
 
-  private _stepClick(volume: TvVolumeView, service: string): void {
+  private _stepClick(step: () => void): void {
     if (this._stepPointerFired) {
       this._stepPointerFired = false;
       return;
     }
-    this._volumeStep(volume, service);
+    step();
   }
 
   /** Pointer left the button — no click will follow, so also drop the flag. */

@@ -11,14 +11,16 @@
  * only when the reported state disagrees, and the key toggles). Apps:
  * Netflix (active), YouTube, Spotify, Plex, Twitch.
  *
- * Four card instances share those entities: #card-tv (volume_mode auto →
+ * Five card instances share those entities: #card-tv (volume_mode auto →
  * slider on the cast entity), #card-tv-steppers (volume_mode steppers →
  * key-press steps on the androidtv entity), #card-tv-bravia
  * (volume_entity + source_entity media_player.tv_bravia, a braviatv-like
  * player at 35% whose volume_set is absolute, on HDMI 1 of HDMI 1…4; adds
- * a PlayStation chip with source "HDMI 3") and #card-tv-wide (identical
+ * a PlayStation chip with source "HDMI 3"), #card-tv-wide (identical
  * config to #card-tv, but in a 900px mount so its container query trips and
- * it renders the side-by-side layout). Selectors stay scoped to one.
+ * it renders the side-by-side layout) and #card-tv-narrow (identical config
+ * again, in a 320px mount that keeps the controls row below the volume-nudge
+ * reveal width). Selectors stay scoped to one.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -27,6 +29,7 @@ const CARD = "#card-tv ru-tv-card";
 const STEPPERS = "#card-tv-steppers ru-tv-card";
 const BRAVIA_CARD = "#card-tv-bravia ru-tv-card";
 const WIDE = "#card-tv-wide ru-tv-card";
+const NARROW = "#card-tv-narrow ru-tv-card";
 const TV = "media_player.tv_android";
 const CAST = "media_player.tv_cast";
 const BRAVIA = "media_player.tv_bravia";
@@ -360,6 +363,11 @@ test("an unavailable volume_entity disables the row instead of retargeting", asy
   await expect(page.locator(`${BRAVIA_CARD} .vol-value`)).toHaveText("—");
   await expect(page.locator(`${BRAVIA_CARD} .vol-mute`)).toBeDisabled();
 
+  // The −/+ nudges disable too (asserted on the element, not visibility —
+  // in the 390px mobile project the row is too narrow to reveal them).
+  await expect(page.locator(`${BRAVIA_CARD} .vol-nudge`).nth(0)).toBeDisabled();
+  await expect(page.locator(`${BRAVIA_CARD} .vol-nudge`).nth(1)).toBeDisabled();
+
   const track = page.locator(`${BRAVIA_CARD} .vol-track`);
   await expect(track).toHaveClass(/disabled/);
   const box = (await track.boundingBox())!;
@@ -378,6 +386,7 @@ test("an unavailable volume_entity disables the row instead of retargeting", asy
   );
   await expect(row).not.toHaveClass(/unavailable/);
   await expect(page.locator(`${BRAVIA_CARD} .vol-value`)).toHaveText("35%");
+  await expect(page.locator(`${BRAVIA_CARD} .vol-nudge`).nth(1)).toBeEnabled();
 });
 
 test("volume_mode steppers steps the androidtv entity and shows the level", async ({
@@ -426,6 +435,92 @@ test("holding a volume stepper repeats the step", async ({ page }) => {
   expect(
     (await calls(page)).filter((call) => call.service === "volume_up").length
   ).toBe(ups.length);
+});
+
+test.describe("volume nudges (−/+ beside the slider)", () => {
+  // Pinned so both Playwright projects run these identically — the reveal is
+  // driven by the controls row's own width (nested container query), so the
+  // viewport only has to be wide enough for each mount to get its max-width.
+  test.use({ viewport: { width: 1100, height: 1000 } });
+
+  function volumeSets(page: Page) {
+    return calls(page).then((log) =>
+      log.filter((call) => call.service === "volume_set")
+    );
+  }
+
+  test("appear when the row has room, stay hidden when it doesn't", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    // Identical configs on the same page at the same viewport — visibility
+    // can only come from each mount's own width.
+    const wide = page.locator(`${WIDE} .vol-nudge`);
+    await expect(wide).toHaveCount(2);
+    await expect(wide.nth(0)).toBeVisible();
+    await expect(wide.nth(1)).toBeVisible();
+
+    const narrow = page.locator(`${NARROW} .vol-nudge`);
+    await expect(narrow).toHaveCount(2);
+    await expect(narrow.nth(0)).toBeHidden();
+    await expect(narrow.nth(1)).toBeHidden();
+  });
+
+  test("presses volume_set the level ± volume_step and compound", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    const nudges = page.locator(`${WIDE} .vol-nudge`);
+
+    // Cast fixture is at 35%, default step 5 → up lands on exactly 40%.
+    await nudges.nth(1).click();
+    await expect
+      .poll(() => volumeSets(page))
+      .toEqual([
+        {
+          domain: "media_player",
+          service: "volume_set",
+          data: { entity_id: CAST, volume_level: 0.4 },
+        },
+      ]);
+    await expect(page.locator(`${WIDE} .vol-value`)).toHaveText("40%");
+
+    // Down bases on the pending 40 → back to 35.
+    await nudges.nth(0).click();
+    await expect
+      .poll(() => volumeSets(page))
+      .toContainEqual({
+        domain: "media_player",
+        service: "volume_set",
+        data: { entity_id: CAST, volume_level: 0.35 },
+      });
+    await expect(page.locator(`${WIDE} .vol-value`)).toHaveText("35%");
+  });
+
+  test("holding a nudge repeats and each step compounds on the last", async ({
+    page,
+  }) => {
+    await openHarness(page);
+    const up = page.locator(`${WIDE} .vol-nudge`).nth(1);
+    await up.hover();
+    const box = (await up.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    // Immediate step, then repeats after the 400 ms delay every 250 ms.
+    await page.waitForTimeout(1200);
+    await page.mouse.up();
+
+    const sets = await volumeSets(page);
+    expect(sets.length).toBeGreaterThanOrEqual(3);
+    // Each tick moves +5% from the previous optimistic value, not from the
+    // (potentially stale) reported level: 0.40, 0.45, 0.50, …
+    sets.forEach((call, i) => {
+      expect(call.data?.volume_level).toBeCloseTo(0.35 + 0.05 * (i + 1), 5);
+    });
+    // The trailing click of the press must not add an extra step.
+    await page.waitForTimeout(300);
+    expect((await volumeSets(page)).length).toBe(sets.length);
+  });
 });
 
 test("app chips launch via remote.turn_on with the app's activity", async ({

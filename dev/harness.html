@@ -47,6 +47,14 @@
         width: 100%;
         max-width: 900px;
       }
+      /* Deliberately narrower than the rest: the volume −/+ nudges reveal on
+         the controls row's OWN width (a nested container query), so the suite
+         needs a mount where the row stays too narrow in both viewport
+         projects. */
+      #card-tv-narrow {
+        width: 100%;
+        max-width: 320px;
+      }
     </style>
   </head>
   <body>
@@ -61,6 +69,7 @@
     <div id="card-tv-steppers"></div>
     <div id="card-tv-bravia"></div>
     <div id="card-tv-wide"></div>
+    <div id="card-tv-narrow"></div>
     <div id="card-washer"></div>
     <script type="module" src="./harness.ts"></script>
   </body>

@@ -268,6 +268,12 @@ export const cardStyles = css`
     display: flex;
     flex-direction: column;
     gap: 8px;
+    /* Nested size container for the volume nudge reveal below: the −/+
+       buttons key off the row's own width, not the card's — the wide
+       layout narrows the media column, so the :host query (ru-tv) is the
+       wrong proxy. Safe: .controls never sizes from its contents (it's a
+       stretched flex child or a minmax(0, 1fr) grid item in every layout). */
+    container: ru-tv-controls / inline-size;
   }
 
   .track {
@@ -481,7 +487,8 @@ export const cardStyles = css`
     text-align: right;
   }
 
-  .vol-step {
+  .vol-step,
+  .vol-nudge {
     width: 42px;
     height: 26px;
     border-radius: 9px;
@@ -504,9 +511,25 @@ export const cardStyles = css`
     text-align: center;
   }
 
-  .vol-step:active {
+  .vol-step:active,
+  .vol-nudge:active {
     background: var(--ru-tv-accent);
     color: var(--ru-tv-accent-contrast);
+  }
+
+  /* −/+ beside the slider, only when the row has room. Fixed content is
+     190px (34 mute + 2×42 nudges + 32 value + 4×10 gaps), so 330px keeps
+     the slider ≥140px. The reveal must follow the hide in source order —
+     a container query adds no specificity (same gotcha as the wide
+     layout below). */
+  .vol-nudge {
+    display: none;
+  }
+
+  @container ru-tv-controls (min-width: 330px) {
+    .vol-nudge {
+      display: inline-block;
+    }
   }
 
   /* --- app chips ---------------------------------------------------------------------- */
