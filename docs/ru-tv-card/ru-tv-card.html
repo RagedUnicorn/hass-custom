@@ -382,11 +382,11 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:900},&quot;remoteStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;ring&quot;,&quot;options&quot;:[&quot;ring&quot;,&quot;swipe&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Remote&quot;},&quot;appLauncher&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;chips&quot;,&quot;options&quot;:[&quot;chips&quot;,&quot;tiles&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Apps&quot;},&quot;volumeControl&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;steppers&quot;,&quot;options&quot;:[&quot;steppers&quot;,&quot;slider&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Volume&quot;}}">
 class Component extends DCLogic {
   APPS = [
-    { id: 'youtube', name: 'YouTube', dot: '#FF0000', icon: '../common/uploads/youtube.svg', title: 'Pixel 11 review — MKBHD', dur: 1160 },
-    { id: 'plex', name: 'Plex', dot: '#E5A00D', icon: '../common/icons/plex-flat.svg', title: 'Dune: Part Two', dur: 9960 },
+    { id: 'youtube', name: 'YouTube', dot: '#FF0000', icon: '../../assets/youtube.svg', title: 'Pixel 11 review — MKBHD', dur: 1160 },
+    { id: 'plex', name: 'Plex', dot: '#E5A00D', icon: '../../assets/plex.svg', title: 'Dune: Part Two', dur: 9960 },
 
-    { id: 'spotify', name: 'Spotify', dot: '#1DB954', icon: '../common/uploads/spotify.svg', title: 'Discover Weekly', dur: 214 },
-    { id: 'twitch', name: 'Twitch', dot: '#9146FF', icon: '../common/icons/twitch-purple.svg', title: 'GTA VI speedrun — live', dur: 5400 }
+    { id: 'spotify', name: 'Spotify', dot: '#1DB954', icon: '../../assets/spotify.svg', title: 'Discover Weekly', dur: 214 },
+    { id: 'twitch', name: 'Twitch', dot: '#9146FF', icon: '../../assets/twitch.svg', title: 'GTA VI speedrun — live', dur: 5400 }
   ];
 
   state = { on: true, pending: null, app: 'youtube', playing: true, pos: 754, vol: 35, muted: false, padFeedback: '', swipeGlyph: '●', swipeActive: false };
