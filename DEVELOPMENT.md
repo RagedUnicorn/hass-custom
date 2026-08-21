@@ -88,7 +88,7 @@ Notes:
 2. Add a side-effect import in [`src/main.ts`](src/main.ts) and mention the
    card in its console banner.
 3. Document the card in its own `docs/<element-name>/<element-name>.md` and link it from the
-   [README's card list](README.md#cards).
+   [card list](docs/cards.md) in `docs/cards.md`.
 4. Add a mock-harness mount and a Playwright spec — see [TEST.md](TEST.md).
 
 ## Cutting a release
