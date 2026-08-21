@@ -27,4 +27,4 @@ jobs:
       - name: Upload hass-custom.js
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/hass-custom.js
+          files: generated/dist/hass-custom.js

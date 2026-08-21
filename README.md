@@ -42,7 +42,7 @@ names like `shutters-card` from colliding with someone else's card.
 </p>
 
 The source is TypeScript + [Lit](https://lit.dev/), built with
-[Vite](https://vite.dev/) into a single `dist/hass-custom.js`. Because HACS
+[Vite](https://vite.dev/) into a single `hass-custom.js` bundle. Because HACS
 treats a repository as a single category, everything here is frontend
 JavaScript — themes, integrations, templates and python_scripts are *separate*
 HACS categories and need their own repositories.

@@ -2,7 +2,7 @@
  * hass-custom — RagedUnicorn custom frontend resources for Home Assistant.
  *
  * Distributed via HACS as a "Plugin (Dashboard)" repository. HACS registers
- * the built dist/hass-custom.js as a Lovelace resource; this entry point runs
+ * the built generated/dist/hass-custom.js as a Lovelace resource; this entry point runs
  * on load and registers everything the bundle ships:
  *
  *   - custom icon sets (e.g. `ru:matter`, `ru:zigbee`) — see icons.ts

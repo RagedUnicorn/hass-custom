@@ -4,10 +4,13 @@ import { defineConfig, devices } from "@playwright/test";
 // against a real Home Assistant.
 export default defineConfig({
   testDir: "tests",
+  outputDir: "generated/test-results",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? [["html"], ["github"]] : "list",
+  reporter: process.env.CI
+    ? [["html", { outputFolder: "generated/playwright-report" }], ["github"]]
+    : "list",
   use: {
     baseURL: "http://localhost:5199",
     trace: "on-first-retry",

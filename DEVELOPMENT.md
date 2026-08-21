@@ -1,7 +1,7 @@
 # Development
 
 The source is TypeScript + [Lit](https://lit.dev/), built with
-[Vite](https://vite.dev/) into a single `dist/hass-custom.js`.
+[Vite](https://vite.dev/) into a single `generated/dist/hass-custom.js`.
 
 ## Project structure
 
@@ -19,7 +19,7 @@ src/
 ```sh
 npm install
 npm run typecheck   # tsc --noEmit
-npm run build       # bundle to dist/hass-custom.js
+npm run build       # bundle to generated/dist/hass-custom.js
 npm run dev         # vite dev server for the live-HA dev loop
 ```
 
@@ -95,5 +95,5 @@ Notes:
 
 1. Bump `version` in [`package.json`](package.json).
 2. Commit, tag and publish a GitHub release.
-3. The release workflow builds the bundle and attaches `dist/hass-custom.js`;
+3. The release workflow builds the bundle and attaches `generated/dist/hass-custom.js`;
    HACS then offers the update.

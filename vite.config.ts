@@ -9,7 +9,7 @@ export default defineConfig({
   },
   build: {
     target: "es2021",
-    outDir: "dist",
+    outDir: "generated/dist",
     emptyOutDir: true,
     lib: {
       entry: "src/main.ts",
