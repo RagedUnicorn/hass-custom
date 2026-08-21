@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+@keyframes omniflow{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+@keyframes omnipulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — custom light cards, exploration 1</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Four card types per direction: room card (Kitchen, 3 bulbs), OmniGlow LightStrip card, scene selector, whole-home overview. All three options run on one shared simulated state — flipping a light in one updates the others. Entity names come from your MQTT list.</div>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Minimalist UI direction — light cards in the style of shutter 2a/2b, tap a room to drill in</span></div>
+<div class="dv-opts">
+
+<!-- ============ 2a MINIMALIST LIGHTS ============ -->
+<div class="dv-opt" id="2a" data-screen-label="2a Minimalist lights">
+  <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Minimalist (UI-Lovelace-Minimalist style) — room tiles with brightness slider + drilldown popup with per-bulb dimmers. Tap the icon to toggle, the row to open.</div>
+  <div class="dv-card" style="width:390px">
+    <div style="position:relative;background:#F5F6FA;padding:20px 16px 24px;min-height:660px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Lights</div>
+        <div style="font-size:12.5px;color:#9AA0AE;font-weight:500">{{ totalOnText }}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding:0 2px">
+        <div onClick="{{ ulmAllOn }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#3B3B3B"><span style="width:8px;height:8px;border-radius:4px;background:#FFA723"></span>All on</div>
+        <div onClick="{{ allOff }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#3B3B3B"><span style="width:8px;height:8px;border-radius:4px;background:#C3C8D4"></span>All off</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ ulmRooms }}" as="r" hint-placeholder-count="8">
+          <div style="background:#fff;border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ r.openDetail }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+              <div onClick="{{ r.toggle }}" style="width:30px;height:30px;border-radius:15px;background:{{ r.iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:12px;height:12px;border-radius:6px;background:{{ r.iconColor }};box-shadow:0 0 8px {{ r.glow }}"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:700;color:#3B3B3B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                <div style="font-size:10.5px;font-weight:500;color:{{ r.statusColor }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.statusText }}</div>
+              </div>
+              <div style="color:#C3C8D4;font-size:15px;font-weight:600;flex:none">&#8250;</div>
+            </div>
+            <div onPointerDown="{{ r.sliderDown }}" style="position:relative;height:26px;border-radius:9px;background:#F1F2F6;overflow:hidden;cursor:ew-resize;touch-action:none">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:{{ r.fillW }};background:linear-gradient(90deg,#FFD37A,#FFA723)"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 14px">
+        <div style="font-size:13px;font-weight:700;color:#3B3B3B;margin-bottom:12px">Scenes</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px;border-radius:14px;border:2px solid {{ s.ulmRing }};cursor:pointer">
+              <div style="width:38px;height:38px;border-radius:19px;background:{{ s.gradient }}"></div>
+              <div style="font-size:11px;font-weight:600;color:#3B3B3B">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ ulmShowDetail }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ ulmCloseDetail }}" style="position:absolute;inset:0;background:rgba(35,40,54,.4);display:flex;align-items:flex-end;z-index:5">
+          <div onClick="{{ eatClick }}" style="background:#F5F6FA;border-radius:24px 24px 0 0;padding:18px 16px 22px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:21px;background:{{ ulmDetail.iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:16px;height:16px;border-radius:8px;background:{{ ulmDetail.iconColor }};box-shadow:0 0 10px {{ ulmDetail.glow }}"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16px;font-weight:700;color:#3B3B3B">{{ ulmDetail.name }}</div>
+                <div style="font-size:12px;font-weight:500;color:{{ ulmDetail.statusColor }};margin-top:2px">{{ ulmDetail.statusText }}</div>
+              </div>
+              <div onClick="{{ ulmCloseDetail }}" style="width:34px;height:34px;border-radius:17px;background:#fff;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:13px;cursor:pointer">&#10005;</div>
+            </div>
+            <div style="background:#fff;border-radius:20px;padding:16px 8px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+              <sc-for list="{{ ulmDetail.bulbs }}" as="b" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <div onPointerDown="{{ b.barDown }}" style="position:relative;width:56px;height:150px;border-radius:14px;background:#F1F2F6;overflow:hidden;cursor:ns-resize;touch-action:none">
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:{{ b.fillH }};background:linear-gradient(180deg,#FFD37A,#FFA723)"></div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:#3B3B3B">{{ b.name }}</div>
+                  <div style="font-size:11px;font-weight:500;color:{{ b.statusColor }}">{{ b.pctText }}</div>
+                  <div onClick="{{ b.toggle }}" style="width:36px;height:22px;border-radius:11px;background:{{ b.togBg }};position:relative;cursor:pointer;transition:background .2s">
+                    <div style="position:absolute;top:3px;left:0;width:16px;height:16px;border-radius:8px;background:#fff;transform:translateX({{ b.togX }}px);transition:transform .2s"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ ulmDetail.isStrip }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#fff;border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="height:34px;border-radius:12px;background:{{ strip.gradient }};background-size:200% 100%;animation:{{ strip.anim }};opacity:{{ strip.op }}"></div>
+                <div style="display:flex;gap:6px">
+                  <sc-for list="{{ ulmDetail.effects }}" as="f" hint-placeholder-count="3">
+                    <div onClick="{{ f.set }}" style="padding:7px 14px;border-radius:9px;background:{{ f.ulmBg }};color:{{ f.ulmCol }};font-size:12px;font-weight:600;cursor:pointer">{{ f.name }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;gap:8px">
+              <div onClick="{{ ulmDetail.allOn }}" style="flex:1;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#3B3B3B;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#FFA723"></span>All on</div>
+              <div onClick="{{ ulmDetail.allOff }}" style="flex:1;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#3B3B3B;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#C3C8D4"></span>All off</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2b MINIMALIST LIGHTS DARK ============ -->
+<div class="dv-opt" id="2b" data-screen-label="2b Minimalist lights dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Dark variant of <a class="dv-oid" href="#2a">2a</a> — same layout and shared state</div>
+  <div class="dv-card" style="width:390px">
+    <div style="position:relative;background:#1A1B1E;padding:20px 16px 24px;min-height:660px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#E8E9ED">Lights</div>
+        <div style="font-size:12.5px;color:#8B8F9B;font-weight:500">{{ totalOnText }}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding:0 2px">
+        <div onClick="{{ ulmAllOn }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#242529;cursor:pointer;font-size:12px;font-weight:600;color:#E8E9ED"><span style="width:8px;height:8px;border-radius:4px;background:#FFC65C"></span>All on</div>
+        <div onClick="{{ allOff }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#242529;cursor:pointer;font-size:12px;font-weight:600;color:#E8E9ED"><span style="width:8px;height:8px;border-radius:4px;background:#4A4E59"></span>All off</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ ulmRooms }}" as="r" hint-placeholder-count="8">
+          <div style="background:#242529;border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ r.openDetail }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+              <div onClick="{{ r.toggle }}" style="width:30px;height:30px;border-radius:15px;background:{{ r.iconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:12px;height:12px;border-radius:6px;background:{{ r.iconColorD }};box-shadow:0 0 8px {{ r.glowD }}"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:700;color:#E8E9ED;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                <div style="font-size:10.5px;font-weight:500;color:{{ r.statusColorD }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.statusText }}</div>
+              </div>
+              <div style="color:#4A4E59;font-size:15px;font-weight:600;flex:none">&#8250;</div>
+            </div>
+            <div onPointerDown="{{ r.sliderDown }}" style="position:relative;height:26px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden;cursor:ew-resize;touch-action:none">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:{{ r.fillW }};background:linear-gradient(90deg,#FFD37A,#FFA723)"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#242529;border-radius:20px;padding:16px 14px">
+        <div style="font-size:13px;font-weight:700;color:#E8E9ED;margin-bottom:12px">Scenes</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px;border-radius:14px;border:2px solid {{ s.ulmRing }};cursor:pointer">
+              <div style="width:38px;height:38px;border-radius:19px;background:{{ s.gradient }}"></div>
+              <div style="font-size:11px;font-weight:600;color:#E8E9ED">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ ulmShowDetail }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ ulmCloseDetail }}" style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:5">
+          <div onClick="{{ eatClick }}" style="background:#1A1B1E;border-radius:24px 24px 0 0;padding:18px 16px 22px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:21px;background:{{ ulmDetail.iconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:16px;height:16px;border-radius:8px;background:{{ ulmDetail.iconColorD }};box-shadow:0 0 10px {{ ulmDetail.glowD }}"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16px;font-weight:700;color:#E8E9ED">{{ ulmDetail.name }}</div>
+                <div style="font-size:12px;font-weight:500;color:{{ ulmDetail.statusColorD }};margin-top:2px">{{ ulmDetail.statusText }}</div>
+              </div>
+              <div onClick="{{ ulmCloseDetail }}" style="width:34px;height:34px;border-radius:17px;background:#242529;display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:13px;cursor:pointer">&#10005;</div>
+            </div>
+            <div style="background:#242529;border-radius:20px;padding:16px 8px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+              <sc-for list="{{ ulmDetail.bulbs }}" as="b" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <div onPointerDown="{{ b.barDown }}" style="position:relative;width:56px;height:150px;border-radius:14px;background:rgba(255,255,255,.07);overflow:hidden;cursor:ns-resize;touch-action:none">
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:{{ b.fillH }};background:linear-gradient(180deg,#FFD37A,#FFA723)"></div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:#E8E9ED">{{ b.name }}</div>
+                  <div style="font-size:11px;font-weight:500;color:{{ b.statusColorD }}">{{ b.pctText }}</div>
+                  <div onClick="{{ b.toggle }}" style="width:36px;height:22px;border-radius:11px;background:{{ b.togBgD }};position:relative;cursor:pointer;transition:background .2s">
+                    <div style="position:absolute;top:3px;left:0;width:16px;height:16px;border-radius:8px;background:#fff;transform:translateX({{ b.togX }}px);transition:transform .2s"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ ulmDetail.isStrip }}" hint-placeholder-val="{{ false }}">
+              <div style="background:#242529;border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="height:34px;border-radius:12px;background:{{ strip.gradient }};background-size:200% 100%;animation:{{ strip.anim }};opacity:{{ strip.op }}"></div>
+                <div style="display:flex;gap:6px">
+                  <sc-for list="{{ ulmDetail.effects }}" as="f" hint-placeholder-count="3">
+                    <div onClick="{{ f.set }}" style="padding:7px 14px;border-radius:9px;background:{{ f.ulmBgD }};color:{{ f.ulmColD }};font-size:12px;font-weight:600;cursor:pointer">{{ f.name }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="display:flex;gap:8px">
+              <div onClick="{{ ulmDetail.allOn }}" style="flex:1;height:42px;border-radius:14px;background:#242529;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#E8E9ED;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#FFC65C"></span>All on</div>
+              <div onClick="{{ ulmDetail.allOff }}" style="flex:1;height:42px;border-radius:14px;background:#242529;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#E8E9ED;cursor:pointer"><span style="width:8px;height:8px;border-radius:4px;background:#4A4E59"></span>All off</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "amber accent everywhere instead of per-scene gradients" · "add the OmniGlow segment editor to the popup" · "tablet layout of <a class="dv-oid" href="#2a">2a</a>"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Three directions — visuals + interaction models</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a AMBIENT GLOW ============ -->
+<div class="dv-opt" id="1a" data-screen-label="1a Ambient glow">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Ambient glow — soft dark, big pill sliders (press &amp; drag anywhere on the pill)</div>
+  <div class="dv-card" style="width:400px">
+    <div style="--acc:#ffb64d;--off:rgba(255,255,255,.16);background:#141519;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:'Space Grotesk',system-ui,sans-serif">
+
+      <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#fff">Kitchen</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:2px">{{ kitchen.statusText }}</div>
+          </div>
+          <div onClick="{{ kitchen.toggleAll }}" style="width:44px;height:26px;border-radius:13px;background:{{ kitchen.tog.bg }};position:relative;cursor:pointer;transition:background .2s">
+            <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ kitchen.tog.x }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+        <div onPointerDown="{{ kitchen.sliderDown }}" style="position:relative;height:52px;border-radius:14px;background:rgba(255,255,255,.06);overflow:hidden;cursor:ew-resize;touch-action:none">
+          <div style="position:absolute;top:0;bottom:0;left:0;width:{{ kitchen.fillW }};background:{{ kitchen.fill }};transition:background .2s"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:600;color:#fff;mix-blend-mode:difference">{{ kitchen.briPct }}%</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <sc-for list="{{ kitchen.bulbs }}" as="b" hint-placeholder-count="3">
+            <div onClick="{{ b.toggle }}" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.06);cursor:pointer;opacity:{{ b.op }}">
+              <div style="width:8px;height:8px;border-radius:4px;background:{{ b.fill }}"></div>
+              <div style="font-size:12px;color:rgba(255,255,255,.85)">{{ b.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#fff">OmniGlow</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:2px">Living room · LightStrip</div>
+          </div>
+          <div onClick="{{ strip.toggle }}" style="width:44px;height:26px;border-radius:13px;background:{{ strip.tog.bg }};position:relative;cursor:pointer;transition:background .2s">
+            <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ strip.tog.x }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+        <div style="height:40px;border-radius:12px;background:{{ strip.gradient }};background-size:200% 100%;animation:{{ strip.anim }};opacity:{{ strip.op }};transition:opacity .3s"></div>
+        <div onPointerDown="{{ strip.sliderDown }}" style="position:relative;height:34px;border-radius:10px;background:rgba(255,255,255,.06);overflow:hidden;cursor:ew-resize;touch-action:none">
+          <div style="position:absolute;top:0;bottom:0;left:0;width:{{ strip.fillW }};background:{{ strip.fill }}"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:600;color:#fff;mix-blend-mode:difference">{{ strip.briPct }}%</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{ strip.effects }}" as="f" hint-placeholder-count="3">
+            <div onClick="{{ f.set }}" style="padding:7px 14px;border-radius:9px;background:{{ f.bg }};color:{{ f.col }};font-size:12px;font-weight:600;cursor:pointer">{{ f.name }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:16px;font-weight:600;color:#fff">Scenes</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid {{ s.ring }};cursor:pointer">
+              <div style="width:18px;height:18px;border-radius:9px;background:{{ s.gradient }};flex:none"></div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#fff">{{ s.name }}</div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,.4)">{{ s.desc }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:16px;font-weight:600;color:#fff">All lights</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.45)">{{ totalOnText }}</div>
+        </div>
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="8">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="width:7px;height:7px;border-radius:4px;background:{{ r.dot }}"></div>
+              <div style="font-size:13px;color:rgba(255,255,255,.85)">{{ r.name }}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="font-size:11.5px;color:rgba(255,255,255,.4)">{{ r.meta }}</div>
+              <div onClick="{{ r.toggle }}" style="width:36px;height:22px;border-radius:11px;background:{{ r.tog.bg }};position:relative;cursor:pointer;transition:background .2s">
+                <div style="position:absolute;top:3px;left:0;width:16px;height:16px;border-radius:8px;background:#fff;transform:translateX({{ r.tog.xs }}px);transition:transform .2s"></div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+        <div onClick="{{ allOff }}" style="margin-top:12px;padding:11px;border-radius:12px;background:rgba(255,255,255,.07);text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.8);cursor:pointer">Everything off</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b WARM PAPER ============ -->
+<div class="dv-opt" id="1b" data-screen-label="1b Warm paper">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Warm paper — light, editorial; vertical per-bulb bars, tap-to-cycle strip segments</div>
+  <div class="dv-card" style="width:400px">
+    <div style="--acc:#c85a3a;--off:#e4dcca;background:#f6f2ea;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:system-ui,sans-serif">
+
+      <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;color:#2a2419">Kitchen</div>
+          <div onClick="{{ kitchen.toggleAll }}" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:{{ kitchen.fill }};cursor:pointer;text-transform:uppercase">{{ kitchen.onLabel }}</div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:flex-end">
+          <sc-for list="{{ kitchen.bulbs }}" as="b" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+              <div style="font-size:11px;color:#8a8069">{{ b.briPct }}%</div>
+              <div onPointerDown="{{ b.barDown }}" style="width:46px;height:110px;border-radius:10px;background:#efe9da;overflow:hidden;position:relative;cursor:ns-resize;touch-action:none">
+                <div style="position:absolute;left:0;right:0;bottom:0;height:{{ b.fillH }};background:{{ b.fill }};transition:background .2s"></div>
+              </div>
+              <div onClick="{{ b.toggle }}" style="font-size:11.5px;color:#5c5340;cursor:pointer;opacity:{{ b.op }}">{{ b.name }}</div>
+            </div>
+          </sc-for>
+          <div style="flex:1;font-size:11px;line-height:1.5;color:#a89e85;padding-bottom:24px">Drag a bar to dim.<br>Tap a name to toggle.</div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;color:#2a2419">OmniGlow strip</div>
+          <div onClick="{{ strip.toggle }}" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:{{ strip.fill }};cursor:pointer;text-transform:uppercase">{{ strip.onLabel }}</div>
+        </div>
+        <div style="display:flex;gap:4px;opacity:{{ strip.op }}">
+          <sc-for list="{{ strip.segments }}" as="seg" hint-placeholder-count="6">
+            <div onClick="{{ seg.cycle }}" style="flex:1;height:44px;border-radius:6px;background:{{ seg.color }};cursor:pointer"></div>
+          </sc-for>
+        </div>
+        <div style="font-size:11px;color:#a89e85">Tap a segment to cycle its colour</div>
+        <div onPointerDown="{{ strip.sliderDown }}" style="position:relative;height:12px;border-radius:6px;background:#efe9da;overflow:hidden;cursor:ew-resize;touch-action:none">
+          <div style="position:absolute;top:0;bottom:0;left:0;width:{{ strip.fillW }};background:{{ strip.fill }}"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{ strip.effects }}" as="f" hint-placeholder-count="3">
+            <div onClick="{{ f.set }}" style="padding:6px 13px;border-radius:999px;border:1px solid #d9d0ba;background:{{ f.bg }};color:{{ f.col }};font-size:12px;font-weight:500;cursor:pointer">{{ f.name }}</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;color:#2a2419">Scenes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;border:1px solid {{ s.chipBorder }};background:{{ s.chipBg }};cursor:pointer">
+              <div style="width:12px;height:12px;border-radius:6px;background:{{ s.gradient }}"></div>
+              <div style="font-size:12.5px;font-weight:500;color:#3c3425">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;color:#2a2419">Home</div>
+          <div style="font-size:11.5px;color:#a89e85">{{ totalOnText }}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="8">
+            <div onClick="{{ r.toggle }}" style="padding:11px 12px;border-radius:10px;border:1px solid #e7dfce;background:{{ r.tileBg }};cursor:pointer">
+              <div style="font-size:13px;font-weight:600;color:#3c3425">{{ r.name }}</div>
+              <div style="font-size:11px;color:#a89e85;margin-top:2px">{{ r.meta }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onClick="{{ allOff }}" style="padding:10px;border-radius:10px;border:1px solid #d9d0ba;text-align:center;font-size:12.5px;font-weight:600;color:#5c5340;cursor:pointer">Everything off</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1c CONSOLE ============ -->
+<div class="dv-opt" id="1c" data-screen-label="1c Console">
+  <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Console — technical mono, stepped 10-tick dimmer, segment editor with hex readout</div>
+  <div class="dv-card" style="width:420px">
+    <div style="--acc:#35e8a8;--off:rgba(255,255,255,.12);background:#0a0c0f;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:'IBM Plex Mono',monospace">
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px">
+        <div style="font-size:11px;letter-spacing:.18em;color:rgba(255,255,255,.5)">LIGHTING / CONTROL</div>
+        <div style="font-size:11px;color:var(--acc)">{{ totalOnText }}</div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em">KITCHEN</div>
+          <div onClick="{{ kitchen.toggleAll }}" style="font-size:11px;color:{{ kitchen.fill }};cursor:pointer">[ {{ kitchen.onLabel }} ]</div>
+        </div>
+        <div style="display:flex;gap:3px">
+          <sc-for list="{{ kitchen.ticks }}" as="t" hint-placeholder-count="10">
+            <div onClick="{{ t.set }}" style="flex:1;height:26px;border-radius:2px;background:{{ t.bg }};cursor:pointer"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ kitchen.bulbs }}" as="b" hint-placeholder-count="3">
+            <div onClick="{{ b.toggle }}" style="display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px dashed rgba(255,255,255,.08);cursor:pointer">
+              <div style="font-size:11.5px;color:rgba(255,255,255,.75)">{{ b.label }}</div>
+              <div style="display:flex;gap:12px;align-items:baseline">
+                <div style="font-size:10.5px;color:rgba(255,255,255,.35)">{{ b.briPct }}%</div>
+                <div style="font-size:11px;font-weight:600;color:{{ b.fill }};min-width:32px;text-align:right">{{ b.statusText }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em">OMNIGLOW / LIVINGROOM</div>
+          <div onClick="{{ strip.toggle }}" style="font-size:11px;color:{{ strip.fill }};cursor:pointer">[ {{ strip.onLabel }} ]</div>
+        </div>
+        <div style="height:10px;border-radius:5px;background:{{ strip.gradient }};background-size:200% 100%;animation:{{ strip.anim }};opacity:{{ strip.op }}"></div>
+        <div style="display:flex;gap:4px;opacity:{{ strip.op }}">
+          <sc-for list="{{ strip.segments }}" as="seg" hint-placeholder-count="6">
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px;align-items:center">
+              <div onClick="{{ seg.cycle }}" style="width:100%;height:58px;border-radius:4px;background:{{ seg.color }};cursor:pointer"></div>
+              <div style="font-size:8.5px;color:rgba(255,255,255,.4)">{{ seg.hex }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div onPointerDown="{{ strip.sliderDown }}" style="position:relative;height:22px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;cursor:ew-resize;touch-action:none">
+          <div style="position:absolute;top:0;bottom:0;left:0;width:{{ strip.fillW }};background:{{ strip.fill }};opacity:.85"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;padding:0 8px;font-size:10px;color:#fff;mix-blend-mode:difference">BRI {{ strip.briPct }}</div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <sc-for list="{{ strip.effects }}" as="f" hint-placeholder-count="3">
+            <div onClick="{{ f.set }}" style="font-size:11px;color:{{ f.colC }};cursor:pointer">[ {{ f.nameUpper }} ]</div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;margin-bottom:4px">SCENES</div>
+        <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+          <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px dashed rgba(255,255,255,.08);cursor:pointer">
+            <div style="font-size:10px;color:rgba(255,255,255,.35);width:18px">{{ s.idx }}</div>
+            <div style="width:34px;height:10px;border-radius:3px;background:{{ s.gradient }}"></div>
+            <div style="font-size:11.5px;color:rgba(255,255,255,.8);flex:1">{{ s.nameUpper }}</div>
+            <div style="font-size:11px;color:var(--acc)">{{ s.marker }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;margin-bottom:6px">ZONES</div>
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="8">
+          <div onClick="{{ r.toggle }}" style="display:flex;justify-content:space-between;align-items:center;padding:7px 4px;border-bottom:1px dashed rgba(255,255,255,.08);cursor:pointer">
+            <div style="display:flex;flex-direction:column">
+              <div style="font-size:11.5px;color:rgba(255,255,255,.8)">{{ r.nameUpper }}</div>
+              <sc-if value="{{ showIds }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:9px;color:rgba(255,255,255,.28);margin-top:2px">{{ r.entity }}</div>
+              </sc-if>
+            </div>
+            <div style="display:flex;gap:12px;align-items:baseline">
+              <div style="font-size:10.5px;color:rgba(255,255,255,.35)">{{ r.frac }}</div>
+              <div style="width:8px;height:8px;border-radius:4px;background:{{ r.dot }}"></div>
+            </div>
+          </div>
+        </sc-for>
+        <div onClick="{{ allOff }}" style="margin-top:10px;padding:9px;border:1px solid rgba(255,255,255,.18);border-radius:4px;text-align:center;font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[ ALL OFF ]</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "more like <a class="dv-oid" href="#1a">1a</a> but with the segment editor from <a class="dv-oid" href="#1c">1c</a>" · "make <a class="dv-oid" href="#1b">1b</a> a full tablet layout" · "new directions"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;stripSegments&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:6,&quot;min&quot;:3,&quot;max&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;OmniGlow strip&quot;},&quot;showEntityIds&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Debug&quot;}}">
+class Component extends DCLogic {
+  state = {
+    lights: {
+      'kitchen-1': { on: true, bri: 80 }, 'kitchen-2': { on: true, bri: 80 }, 'kitchen-3': { on: false, bri: 60 },
+      'bedroom-1': { on: false, bri: 50 }, 'bedroom-2': { on: false, bri: 50 },
+      'office-1': { on: true, bri: 100 }, 'entry-1': { on: false, bri: 70 },
+      'closet-1': { on: false, bri: 100 }, 'wardrobe-1': { on: false, bri: 100 },
+      'dr-ceiling': { on: false, bri: 90 }, 'dr-spot-1': { on: false, bri: 75 }, 'dr-spot-2': { on: false, bri: 75 }, 'dr-spot-3': { on: false, bri: 75 }, 'dr-spot-4': { on: false, bri: 75 }
+    },
+    strip: { on: true, bri: 65, effect: 'flow', segIdx: [0, 3, 5, 1, 6, 2, 4, 7, 0, 3] },
+    scene: null,
+    ulmDetail: null
+  };
+
+  PALETTE = ['#ff6a3d', '#ffb43d', '#ffe27a', '#ff3d81', '#b03dff', '#3d8bff', '#3dd9ff', '#3dffb0'];
+
+  ROOMS = [
+    { id: 'kitchen', name: 'Kitchen', lights: ['kitchen-1', 'kitchen-2', 'kitchen-3'], entity: 'hue-bulb-kitchen-*' },
+    { id: 'bedroom', name: 'Bedroom', lights: ['bedroom-1', 'bedroom-2'], entity: 'hue-bulb-bedroom-*' },
+    { id: 'dressing', name: 'Dressing room', lights: ['dr-ceiling', 'dr-spot-1', 'dr-spot-2', 'dr-spot-3', 'dr-spot-4'], entity: 'hue-*-dressingroom-*' },
+    { id: 'living', name: 'Living room', lights: [], strip: true, entity: 'hue-lightstrip-livingroom-1' },
+    { id: 'office', name: 'Office', lights: ['office-1'], entity: 'hue-bulb-office-1' },
+    { id: 'entry', name: 'Entry', lights: ['entry-1'], entity: 'hue-bulb-entry-1' },
+    { id: 'closet', name: 'Closet', lights: ['closet-1'], entity: 'hue-bulb-closet-1' },
+    { id: 'wardrobe', name: 'Wardrobe', lights: ['wardrobe-1'], entity: 'hue-bulb-wardrobe-1' }
+  ];
+
+  SCENES = [
+    { id: 'relax', name: 'Relax', desc: 'Warm & dim', gradient: 'linear-gradient(90deg,#ff9a4d,#ff5a3d)', rooms: { kitchen: 35, bedroom: 30, living: 0 }, strip: { on: true, bri: 30, effect: 'static', segIdx: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1] } },
+    { id: 'focus', name: 'Focus', desc: 'Bright work light', gradient: 'linear-gradient(90deg,#dff3ff,#8fd0ff)', rooms: { kitchen: 100, office: 100 }, strip: { on: false } },
+    { id: 'movie', name: 'Movie', desc: 'Strip only, low', gradient: 'linear-gradient(90deg,#b03dff,#3d8bff)', rooms: {}, strip: { on: true, bri: 40, effect: 'flow', segIdx: [4, 5, 6, 4, 5, 6, 4, 5, 6, 4] } },
+    { id: 'bright', name: 'Everything', desc: 'All lights 100%', gradient: 'linear-gradient(90deg,#fff3d6,#ffd98a)', rooms: { kitchen: 100, bedroom: 100, dressing: 100, office: 100, entry: 100, closet: 100, wardrobe: 100 }, strip: { on: true, bri: 100, effect: 'static' } }
+  ];
+
+  clamp(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+
+  hSlide(cb) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (x) => cb(this.clamp((x - rect.left) / rect.width * 100));
+      go(e.clientX);
+      const mv = (ev) => go(ev.clientX);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  vSlide(cb) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (y) => cb(this.clamp((rect.bottom - y) / rect.height * 100));
+      go(e.clientY);
+      const mv = (ev) => go(ev.clientY);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  patchLights(patchMap) {
+    this.setState((s) => {
+      const lights = { ...s.lights };
+      for (const id in patchMap) lights[id] = { ...lights[id], ...patchMap[id] };
+      return { lights, scene: null };
+    });
+  }
+
+  setRoomBri(roomId, pct) {
+    const room = this.ROOMS.find((r) => r.id === roomId);
+    if (room.strip) { this.setState((s) => ({ strip: { ...s.strip, bri: pct, on: pct > 0 }, scene: null })); return; }
+    const p = {};
+    room.lights.forEach((id) => { p[id] = { bri: pct, on: pct > 0 }; });
+    this.patchLights(p);
+  }
+
+  toggleRoom(roomId) {
+    const room = this.ROOMS.find((r) => r.id === roomId);
+    if (room.strip) { this.setState((s) => ({ strip: { ...s.strip, on: !s.strip.on }, scene: null })); return; }
+    const anyOn = room.lights.some((id) => this.state.lights[id].on);
+    const p = {};
+    room.lights.forEach((id) => { p[id] = { on: !anyOn }; });
+    this.patchLights(p);
+  }
+
+  applyScene(sc) {
+    this.setState((s) => {
+      const lights = { ...s.lights };
+      this.ROOMS.forEach((room) => {
+        if (room.strip) return;
+        const bri = sc.rooms[room.id];
+        room.lights.forEach((id) => {
+          lights[id] = bri === undefined ? { ...lights[id], on: false } : { ...lights[id], on: bri > 0, bri: bri };
+        });
+      });
+      const strip = { ...s.strip, ...sc.strip };
+      return { lights, strip, scene: sc.id };
+    });
+  }
+
+  tog(on, small) { return { bg: on ? 'var(--acc)' : 'var(--off)', x: on ? 18 : 2, xs: on ? 16 : 2 }; }
+
+  renderVals() {
+    const s = this.state;
+    const L = s.lights;
+    const acc = 'var(--acc)', off = 'var(--off)';
+    const fillOf = (on) => (on ? acc : off);
+
+    // Kitchen
+    const kIds = ['kitchen-1', 'kitchen-2', 'kitchen-3'];
+    const kOn = kIds.filter((id) => L[id].on);
+    const kBri = kOn.length ? Math.round(kOn.reduce((a, id) => a + L[id].bri, 0) / kOn.length) : 0;
+    const kitchen = {
+      onCount: kOn.length,
+      statusText: kOn.length ? kOn.length + ' of 3 on · ' + kBri + '%' : 'All off',
+      onLabel: kOn.length ? 'ON' : 'OFF',
+      briPct: kBri,
+      fillW: kBri + '%',
+      fill: fillOf(kOn.length > 0),
+      tog: this.tog(kOn.length > 0),
+      toggleAll: () => this.toggleRoom('kitchen'),
+      sliderDown: this.hSlide((p) => this.setRoomBri('kitchen', p)),
+      bulbs: kIds.map((id, i) => {
+        const l = L[id];
+        return {
+          name: 'Bulb ' + (i + 1),
+          label: 'hue-bulb-kitchen-' + (i + 1),
+          on: l.on, briPct: l.bri,
+          fillH: (l.on ? l.bri : 0) + '%',
+          fill: fillOf(l.on),
+          op: l.on ? '1' : '.45',
+          statusText: l.on ? 'ON' : 'OFF',
+          toggle: () => this.patchLights({ [id]: { on: !l.on } }),
+          barDown: this.vSlide((p) => this.patchLights({ [id]: { bri: p, on: p > 0 } }))
+        };
+      }),
+      ticks: Array.from({ length: 10 }, (_, i) => ({
+        bg: i < Math.round(kBri / 10) ? acc : off,
+        set: () => this.setRoomBri('kitchen', (i + 1) * 10)
+      }))
+    };
+
+    // Strip
+    const n = Math.max(3, Math.min(10, this.props.stripSegments ?? 6));
+    const segColors = s.strip.segIdx.slice(0, n).map((i) => this.PALETTE[i]);
+    const animMap = { static: 'none', flow: 'omniflow 5s linear infinite', pulse: 'omnipulse 2.4s ease-in-out infinite' };
+    const strip = {
+      on: s.strip.on,
+      onLabel: s.strip.on ? 'ON' : 'OFF',
+      briPct: s.strip.bri,
+      fillW: s.strip.bri + '%',
+      fill: fillOf(s.strip.on),
+      op: s.strip.on ? '1' : '.22',
+      tog: this.tog(s.strip.on),
+      gradient: 'linear-gradient(90deg,' + segColors.join(',') + ')',
+      anim: s.strip.on ? animMap[s.strip.effect] : 'none',
+      toggle: () => this.setState((st) => ({ strip: { ...st.strip, on: !st.strip.on }, scene: null })),
+      sliderDown: this.hSlide((p) => this.setState((st) => ({ strip: { ...st.strip, bri: p, on: p > 0 }, scene: null }))),
+      segments: segColors.map((c, k) => ({
+        color: c,
+        hex: c.toUpperCase(),
+        cycle: () => this.setState((st) => {
+          const segIdx = [...st.strip.segIdx];
+          segIdx[k] = (segIdx[k] + 1) % this.PALETTE.length;
+          return { strip: { ...st.strip, segIdx, on: true }, scene: null };
+        })
+      })),
+      effects: ['static', 'flow', 'pulse'].map((id) => {
+        const active = s.strip.effect === id;
+        const name = id.charAt(0).toUpperCase() + id.slice(1);
+        return {
+          name, nameUpper: id.toUpperCase(),
+          bg: active ? acc : 'rgba(0,0,0,0)',
+          col: active ? '#141519' : '#8a8069',
+          colC: active ? 'var(--acc)' : 'rgba(255,255,255,.35)',
+          set: () => this.setState((st) => ({ strip: { ...st.strip, effect: id, on: true }, scene: null }))
+        };
+      })
+    };
+    // 1a effect pills need light-on-dark inactive text; reuse col for 1b (paper). Override bg for 1a via same values is fine.
+    strip.effects.forEach((f) => { if (f.bg === 'rgba(0,0,0,0)') f.bg = 'rgba(127,127,127,.12)'; });
+
+    // Scenes
+    const scenes = this.SCENES.map((sc, i) => ({
+      idx: '0' + (i + 1),
+      name: sc.name,
+      nameUpper: sc.name.toUpperCase(),
+      desc: sc.desc,
+      gradient: sc.gradient,
+      ring: s.scene === sc.id ? 'var(--acc)' : 'rgba(127,127,127,.15)',
+      chipBorder: s.scene === sc.id ? 'var(--acc)' : '#d9d0ba',
+      chipBg: s.scene === sc.id ? 'color-mix(in oklab, var(--acc) 12%, white)' : '#fff',
+      marker: s.scene === sc.id ? '\u25CF' : '',
+      ulmRing: s.scene === sc.id ? '#FFA723' : 'rgba(0,0,0,0)',
+      apply: () => this.applyScene(sc)
+    }));
+
+    // Rooms overview
+    const rooms = this.ROOMS.map((room) => {
+      const anyOn = room.strip ? s.strip.on : room.lights.some((id) => L[id].on);
+      const onCount = room.strip ? (s.strip.on ? 1 : 0) : room.lights.filter((id) => L[id].on).length;
+      const total = room.strip ? 1 : room.lights.length;
+      return {
+        name: room.name,
+        nameUpper: room.name.toUpperCase(),
+        entity: room.entity,
+        meta: anyOn ? onCount + ' of ' + total + ' on' : 'Off',
+        frac: onCount + '/' + total,
+        dot: fillOf(anyOn),
+        tog: this.tog(anyOn),
+        tileBg: anyOn ? 'color-mix(in oklab, var(--acc) 10%, white)' : '#fff',
+        toggle: () => this.toggleRoom(room.id)
+      };
+    });
+
+    const totalOn = Object.values(L).filter((l) => l.on).length + (s.strip.on ? 1 : 0);
+    const allOff = () => {
+      this.setState((st) => {
+        const lights = {};
+        for (const id in st.lights) lights[id] = { ...st.lights[id], on: false };
+        return { lights, strip: { ...st.strip, on: false }, scene: null };
+      });
+    };
+
+    // ULM minimalist cards (turn 2) — amber accent for lights
+    const AMB = '#FFA723', AMB_D = '#FFC65C';
+    const nameOf = (id, i, count) => {
+      if (id === 'dr-ceiling') return 'Ceiling';
+      if (id.indexOf('dr-spot') === 0) return 'Spot ' + id.split('-')[2];
+      return count > 1 ? 'Bulb ' + (i + 1) : 'Bulb';
+    };
+    const bulbCols = (on) => ({
+      statusColor: on ? '#E8930C' : '#9AA0AE',
+      statusColorD: on ? AMB_D : '#8B8F9B',
+      togBg: on ? AMB : '#E3E5EC',
+      togBgD: on ? AMB : 'rgba(255,255,255,.14)',
+      togX: on ? 17 : 3
+    });
+    const ulmRooms = this.ROOMS.map((room) => {
+      const isStrip = !!room.strip;
+      const ids = room.lights;
+      const onIds = ids.filter((id) => L[id].on);
+      const anyOn = isStrip ? s.strip.on : onIds.length > 0;
+      const total = isStrip ? 1 : ids.length;
+      const nOn = isStrip ? (s.strip.on ? 1 : 0) : onIds.length;
+      const avg = isStrip
+        ? (s.strip.on ? s.strip.bri : 0)
+        : (onIds.length ? Math.round(onIds.reduce((a, id) => a + L[id].bri, 0) / onIds.length) : 0);
+      const statusText = anyOn
+        ? (total > 1 ? nOn + ' of ' + total + ' on \u00B7 ' + avg + '%' : 'On \u00B7 ' + avg + '%')
+        : 'Off';
+      const bulbs = isStrip
+        ? [{
+            name: 'Strip',
+            pctText: s.strip.on ? s.strip.bri + '%' : 'Off',
+            fillH: (s.strip.on ? s.strip.bri : 0) + '%',
+            ...bulbCols(s.strip.on),
+            toggle: () => this.setState((st) => ({ strip: { ...st.strip, on: !st.strip.on }, scene: null })),
+            barDown: this.vSlide((p) => this.setState((st) => ({ strip: { ...st.strip, bri: p, on: p > 0 }, scene: null })))
+          }]
+        : ids.map((id, i) => {
+            const l = L[id];
+            return {
+              name: nameOf(id, i, ids.length),
+              pctText: l.on ? l.bri + '%' : 'Off',
+              fillH: (l.on ? l.bri : 0) + '%',
+              ...bulbCols(l.on),
+              toggle: () => this.patchLights({ [id]: { on: !l.on } }),
+              barDown: this.vSlide((p) => this.patchLights({ [id]: { bri: p, on: p > 0 } }))
+            };
+          });
+      const effects = ['static', 'flow', 'pulse'].map((eid) => {
+        const active = s.strip.effect === eid;
+        return {
+          name: eid.charAt(0).toUpperCase() + eid.slice(1),
+          ulmBg: active ? 'rgba(255,167,35,.18)' : '#F1F2F6',
+          ulmCol: active ? '#B26A00' : '#8A90A0',
+          ulmBgD: active ? 'rgba(255,167,35,.25)' : 'rgba(255,255,255,.07)',
+          ulmColD: active ? AMB_D : '#8B8F9B',
+          set: () => this.setState((st) => ({ strip: { ...st.strip, effect: eid, on: true }, scene: null }))
+        };
+      });
+      return {
+        id: room.id, name: room.name, statusText, isStrip, bulbs, effects,
+        iconBg: anyOn ? 'rgba(255,167,35,.18)' : 'rgba(112,118,134,.15)',
+        iconColor: anyOn ? AMB : '#707686',
+        glow: anyOn ? 'rgba(255,167,35,.8)' : 'rgba(0,0,0,0)',
+        iconBgD: anyOn ? 'rgba(255,167,35,.22)' : 'rgba(255,255,255,.08)',
+        iconColorD: anyOn ? AMB_D : '#9AA0AE',
+        glowD: anyOn ? 'rgba(255,198,92,.8)' : 'rgba(0,0,0,0)',
+        statusColor: anyOn ? '#E8930C' : '#9AA0AE',
+        statusColorD: anyOn ? AMB_D : '#8B8F9B',
+        fillW: avg + '%',
+        sliderDown: this.hSlide((p) => this.setRoomBri(room.id, p)),
+        toggle: (e) => { e.stopPropagation(); this.toggleRoom(room.id); },
+        openDetail: () => this.setState({ ulmDetail: room.id }),
+        allOn: () => isStrip
+          ? this.setState((st) => ({ strip: { ...st.strip, on: true }, scene: null }))
+          : this.patchLights(Object.fromEntries(ids.map((id) => [id, { on: true }]))),
+        allOff: () => isStrip
+          ? this.setState((st) => ({ strip: { ...st.strip, on: false }, scene: null }))
+          : this.patchLights(Object.fromEntries(ids.map((id) => [id, { on: false }])))
+      };
+    });
+    const ulmDetail = s.ulmDetail ? ulmRooms.find((r) => r.id === s.ulmDetail) : null;
+
+    return {
+      kitchen, strip, scenes, rooms, allOff,
+      totalOnText: totalOn ? totalOn + ' of 15 lights on' : 'All off',
+      showIds: this.props.showEntityIds ?? false,
+      ulmRooms, ulmDetail,
+      ulmShowDetail: !!ulmDetail,
+      ulmCloseDetail: () => this.setState({ ulmDetail: null }),
+      eatClick: (e) => e.stopPropagation(),
+      ulmAllOn: () => this.setState((st) => {
+        const lights = {};
+        for (const id in st.lights) lights[id] = { ...st.lights[id], on: true };
+        return { lights, strip: { ...st.strip, on: true }, scene: null };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# An Air dashboard built around ru-purifier-card.
+#
+# HOW TO USE
+#   Settings → Dashboards → + Add dashboard → New dashboard from scratch.
+#   Open it, pencil icon → three-dot menu → "Raw configuration editor",
+#   then replace everything with this file and Save.
+#
+# WHY A DEFAULT (MASONRY) VIEW
+#   Unlike ru-tv-card (see media-dashboard.yaml), the purifier card has no
+#   wide breakpoint — it is a phone-first compact card. Masonry's ~500px
+#   column cap is exactly its sweet spot, so no panel view tricks are needed.
+#
+# ENTITY IDS
+#   The ids below are placeholders in the Dyson naming scheme — replace them
+#   with your own (Settings → Devices & services → Entities). Only `entity`
+#   (the fan) is required: leave out `night_mode_entity` to drop the Night
+#   chip, and leave out both PM sensors to hide the air quality panel.
+
+views:
+  - title: Air
+    path: air
+    icon: mdi:air-purifier
+    cards:
+      - type: custom:ru-purifier-card
+        title: Air
+        entity: fan.bedroom_dyson_purifier
+        name: Bedroom Purifier # optional, defaults to friendly_name
+        night_mode_entity: switch.bedroom_dyson_purifier_night_mode # optional
+        pm25_entity: sensor.bedroom_dyson_purifier_pm2_5 # optional
+        pm10_entity: sensor.bedroom_dyson_purifier_pm10 # optional

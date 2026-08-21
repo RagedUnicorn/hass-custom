@@ -7,6 +7,13 @@ and toggles. The drilldown is a viewport-level overlay — a bottom sheet on
 narrow screens, a centered dialog on wide ones (closes on scrim tap, ✕, or
 Escape).
 
+The [design mock](ru-lights-card.html) this card implements sits beside this
+page (render it with `npm run dev` at
+`http://localhost:5173/docs/ru-lights-card/ru-lights-card.html` — GitHub shows
+only its source), and
+[`examples/lights-dashboard.yaml`](../../examples/lights-dashboard.yaml) is a
+ready-to-paste dashboard.
+
 ```yaml
 type: custom:ru-lights-card
 title: Lights

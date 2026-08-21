@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:900px}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.dv-rule{font:400 11px/1.5 ui-monospace,Menlo,monospace;color:rgba(0,0,0,.42);background:rgba(0,0,0,.04);border-radius:5px;padding:6px 9px;max-width:900px}
+@keyframes dc-knob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — Android TV card, wide layout</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Companion to <b>TV Card</b>, which holds the 390px phone options 1a/1b and the remote explorations 2a–2c. Same palette, same components, same simulated media_player — only the arrangement changes. This is the layout the card adopts on a wall tablet or in a panel-view dashboard.</div>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Wide layout — the card reflows itself when it is given room. No second card, no config option.</span></div>
+<div class="dv-rule">Driven by a CSS container query on the card's own width, not the viewport: <b>@container (min-width: 640px)</b>. A card sitting in a narrow dashboard column stays on the 390px layout even on a wide screen — only the card's real width decides. 640px is the measured floor: 230px ring + 28px panel padding = 258 for the remote column, 260px transport row + 28 = 288 for the media column, plus 32px card padding and the 14px gap.</div>
+<div class="dv-opts" style="margin-top:20px">
+
+<!-- ============ 3a WIDE, REMOTE BESIDE MEDIA ============ -->
+<div class="dv-opt" id="3a" data-screen-label="3a Wide">
+  <div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Wide — the remote moves from below the media panel to beside it. Two columns: media takes the flexible one, the remote column is sized to the ring so it never squeezes. Panels stretch to equal height so they read as one row.</div>
+  <div class="dv-card" style="width:900px">
+    <div style="background:#F5F6FA;padding:20px 16px 24px;display:flex;flex-direction:column;gap:14px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Media</div>
+        <div style="font-size:12.5px;font-weight:500;color:#9AA0AE">{{ summaryText }}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:stretch">
+
+        <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+              <div style="width:16px;height:16px;border-radius:8px;background:{{ appDot }};box-shadow:0 0 10px {{ appGlow }}"></div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:700;color:#3B3B3B">Living Room TV</div>
+              <div style="font-size:11.5px;font-weight:500;color:{{ statusColor }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ statusText }}</div>
+            </div>
+            <div onClick="{{ togglePower }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBg }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+              <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s;animation:{{ knobAnim }}"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+            <div style="min-width:0">
+              <div style="font-size:13.5px;font-weight:700;color:#3B3B3B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+              <div style="font-size:11px;font-weight:500;color:#9AA0AE;margin-top:1px">{{ appName }}</div>
+            </div>
+            <div onPointerDown="{{ seekDown }}" style="position:relative;height:8px;border-radius:4px;background:#F1F2F6;cursor:ew-resize;touch-action:none">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:{{ progW }};background:#3D5AFE;border-radius:4px"></div>
+              <div style="position:absolute;top:50%;left:{{ progW }};width:14px;height:14px;border-radius:7px;background:#fff;border:2px solid #3D5AFE;box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translate(-50%,-50%);pointer-events:none"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ posText }}</div>
+              <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ durText }}</div>
+            </div>
+            <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+              <div onClick="{{ skipBack }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#8634;10</div>
+              <div onClick="{{ prev }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;&#9664;</div>
+              <div onClick="{{ togglePlay }}" style="width:52px;height:52px;border-radius:17px;background:rgba(61,90,254,.15);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:15px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">{{ playGlyph }}</div>
+              <div onClick="{{ next }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;&#9654;</div>
+              <div onClick="{{ skipFwd }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">30&#8635;</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+              <div onClick="{{ toggleMute }}" style="width:34px;height:26px;border-radius:9px;background:{{ muteBg }};display:flex;align-items:center;justify-content:center;color:{{ muteCol }};cursor:pointer;flex:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+              </div>
+              <div onPointerDown="{{ volSlideDown }}" style="position:relative;flex:1;height:26px;border-radius:9px;background:#F1F2F6;overflow:hidden;cursor:ew-resize;touch-action:none">
+                <div style="position:absolute;top:0;bottom:0;left:0;width:{{ volW }};background:linear-gradient(90deg,#7C90FF,#3D5AFE);opacity:{{ volOp }}"></div>
+              </div>
+              <div style="font-size:11.5px;font-weight:600;color:#3B3B3B;width:44px;flex:none;text-align:center">{{ volText }}</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px">
+            <sc-for list="{{ apps }}" as="a" hint-placeholder-count="4">
+              <div onClick="{{ a.launch }}" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;border-radius:14px;background:{{ a.bg }};cursor:pointer">
+                <div style="width:34px;height:34px;border-radius:8px;background-image:url('{{ a.icon }}');background-size:contain;background-position:center;background-repeat:no-repeat;opacity:{{ a.iconOp }}"></div>
+                <div style="font-size:11px;font-weight:600;color:{{ a.col }}">{{ a.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font-size:13px;font-weight:700;color:#3B3B3B">Remote</div>
+            <div style="font-size:12px;font-weight:600;color:#3D5AFE;min-height:16px">{{ padFeedback }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;flex:1;align-items:center">
+            <div style="position:relative;width:230px;height:230px;border-radius:115px;background:#F1F2F6;overflow:hidden">
+              <div onClick="{{ padUp }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,100% 0);display:flex;align-items:flex-start;justify-content:center;padding-top:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9650;</div>
+              <div onClick="{{ padDown }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 100%,100% 100%);display:flex;align-items:flex-end;justify-content:center;padding-bottom:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9660;</div>
+              <div onClick="{{ padLeft }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,0 100%);display:flex;align-items:center;justify-content:flex-start;padding-left:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;</div>
+              <div onClick="{{ padRight }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,100% 0,100% 100%);display:flex;align-items:center;justify-content:flex-end;padding-right:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;</div>
+              <div onClick="{{ padOk }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:46px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:14px;font-weight:700;cursor:pointer" style-active="background:#3D5AFE;color:#fff">OK</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:10px">
+            <div onClick="{{ padBack }}" style="width:104px;height:52px;border-radius:16px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"></path></svg>
+            </div>
+            <div onClick="{{ padHome }}" style="width:104px;height:52px;border-radius:16px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 L12 3 L21 11"></path><path d="M5 10 V20 H19 V10"></path></svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3b WIDE DARK ============ -->
+<div class="dv-opt" id="3b" data-screen-label="3b Wide dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Dark variant of <a class="dv-oid" href="#3a">3a</a> — same layout and shared state.</div>
+  <div class="dv-card" style="width:900px;border-color:rgba(255,255,255,.08)">
+    <div style="background:#1A1B1E;padding:20px 16px 24px;display:flex;flex-direction:column;gap:14px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#E8E9ED">Media</div>
+        <div style="font-size:12.5px;font-weight:500;color:#8B8F9B">{{ summaryText }}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:stretch">
+
+        <div style="background:#242529;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+              <div style="width:16px;height:16px;border-radius:8px;background:{{ appDotD }};box-shadow:0 0 10px {{ appGlow }}"></div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:700;color:#E8E9ED">Living Room TV</div>
+              <div style="font-size:11.5px;font-weight:500;color:{{ statusColorD }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ statusText }}</div>
+            </div>
+            <div onClick="{{ togglePower }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBgD }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+              <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s;animation:{{ knobAnim }}"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+            <div style="min-width:0">
+              <div style="font-size:13.5px;font-weight:700;color:#E8E9ED;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+              <div style="font-size:11px;font-weight:500;color:#8B8F9B;margin-top:1px">{{ appName }}</div>
+            </div>
+            <div onPointerDown="{{ seekDown }}" style="position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.07);cursor:ew-resize;touch-action:none">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:{{ progW }};background:#7C90FF;border-radius:4px"></div>
+              <div style="position:absolute;top:50%;left:{{ progW }};width:14px;height:14px;border-radius:7px;background:#242529;border:2px solid #7C90FF;box-shadow:0 1px 4px rgba(0,0,0,.5);transform:translate(-50%,-50%);pointer-events:none"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <div style="font-size:10.5px;font-weight:500;color:#8B8F9B">{{ posText }}</div>
+              <div style="font-size:10.5px;font-weight:500;color:#8B8F9B">{{ durText }}</div>
+            </div>
+            <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+              <div onClick="{{ skipBack }}" style="width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#8634;10</div>
+              <div onClick="{{ prev }}" style="width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;&#9664;</div>
+              <div onClick="{{ togglePlay }}" style="width:52px;height:52px;border-radius:17px;background:rgba(61,90,254,.28);display:flex;align-items:center;justify-content:center;color:#7C90FF;font-size:15px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">{{ playGlyph }}</div>
+              <div onClick="{{ next }}" style="width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;&#9654;</div>
+              <div onClick="{{ skipFwd }}" style="width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">30&#8635;</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+              <div onClick="{{ toggleMute }}" style="width:34px;height:26px;border-radius:9px;background:{{ muteBgD }};display:flex;align-items:center;justify-content:center;color:{{ muteColD }};cursor:pointer;flex:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+              </div>
+              <div onPointerDown="{{ volSlideDown }}" style="position:relative;flex:1;height:26px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden;cursor:ew-resize;touch-action:none">
+                <div style="position:absolute;top:0;bottom:0;left:0;width:{{ volW }};background:linear-gradient(90deg,#7C90FF,#3D5AFE);opacity:{{ volOp }}"></div>
+              </div>
+              <div style="font-size:11.5px;font-weight:600;color:#E8E9ED;width:44px;flex:none;text-align:center">{{ volText }}</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px">
+            <sc-for list="{{ apps }}" as="a" hint-placeholder-count="4">
+              <div onClick="{{ a.launch }}" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;border-radius:14px;background:{{ a.bgD }};cursor:pointer">
+                <div style="width:34px;height:34px;border-radius:8px;background-image:url('{{ a.iconD }}');background-size:contain;background-position:center;background-repeat:no-repeat;opacity:{{ a.iconOp }}"></div>
+                <div style="font-size:11px;font-weight:600;color:{{ a.colD }}">{{ a.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#242529;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font-size:13px;font-weight:700;color:#E8E9ED">Remote</div>
+            <div style="font-size:12px;font-weight:600;color:#7C90FF;min-height:16px">{{ padFeedback }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;flex:1;align-items:center">
+            <div style="position:relative;width:230px;height:230px;border-radius:115px;background:rgba(255,255,255,.07);overflow:hidden">
+              <div onClick="{{ padUp }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,100% 0);display:flex;align-items:flex-start;justify-content:center;padding-top:18px;color:#8B8F9B;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9650;</div>
+              <div onClick="{{ padDown }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 100%,100% 100%);display:flex;align-items:flex-end;justify-content:center;padding-bottom:18px;color:#8B8F9B;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9660;</div>
+              <div onClick="{{ padLeft }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,0 100%);display:flex;align-items:center;justify-content:flex-start;padding-left:18px;color:#8B8F9B;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;</div>
+              <div onClick="{{ padRight }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,100% 0,100% 100%);display:flex;align-items:center;justify-content:flex-end;padding-right:18px;color:#8B8F9B;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;</div>
+              <div onClick="{{ padOk }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:46px;background:#242529;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#7C90FF;font-size:14px;font-weight:700;cursor:pointer" style-active="background:#3D5AFE;color:#fff">OK</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:10px">
+            <div onClick="{{ padBack }}" style="width:104px;height:52px;border-radius:16px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"></path></svg>
+            </div>
+            <div onClick="{{ padHome }}" style="width:104px;height:52px;border-radius:16px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 L12 3 L21 11"></path><path d="M5 10 V20 H19 V10"></path></svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3c WIDE, NO REMOTE ============ -->
+<div class="dv-opt" id="3c" data-screen-label="3c Wide, no remote">
+  <div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Wide without a remote entity — with no second panel to sit beside, the media panel splits internally instead: device row across the top, playback controls beside the app tiles. Otherwise a lone panel would stretch the seek and volume bars across the full width.</div>
+  <div class="dv-card" style="width:900px">
+    <div style="background:#F5F6FA;padding:20px 16px 24px;display:flex;flex-direction:column;gap:14px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Media</div>
+        <div style="font-size:12.5px;font-weight:500;color:#9AA0AE">{{ summaryText }}</div>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start">
+
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:12px">
+          <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+            <div style="width:16px;height:16px;border-radius:8px;background:{{ appDot }};box-shadow:0 0 10px {{ appGlow }}"></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:#3B3B3B">Living Room TV</div>
+            <div style="font-size:11.5px;font-weight:500;color:{{ statusColor }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ statusText }}</div>
+          </div>
+          <div onClick="{{ togglePower }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBg }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+            <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s;animation:{{ knobAnim }}"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+          <div style="min-width:0">
+            <div style="font-size:13.5px;font-weight:700;color:#3B3B3B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+            <div style="font-size:11px;font-weight:500;color:#9AA0AE;margin-top:1px">{{ appName }}</div>
+          </div>
+          <div onPointerDown="{{ seekDown }}" style="position:relative;height:8px;border-radius:4px;background:#F1F2F6;cursor:ew-resize;touch-action:none">
+            <div style="position:absolute;top:0;bottom:0;left:0;width:{{ progW }};background:#3D5AFE;border-radius:4px"></div>
+            <div style="position:absolute;top:50%;left:{{ progW }};width:14px;height:14px;border-radius:7px;background:#fff;border:2px solid #3D5AFE;box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translate(-50%,-50%);pointer-events:none"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ posText }}</div>
+            <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ durText }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+            <div onClick="{{ skipBack }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#8634;10</div>
+            <div onClick="{{ prev }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;&#9664;</div>
+            <div onClick="{{ togglePlay }}" style="width:52px;height:52px;border-radius:17px;background:rgba(61,90,254,.15);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:15px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">{{ playGlyph }}</div>
+            <div onClick="{{ next }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;&#9654;</div>
+            <div onClick="{{ skipFwd }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">30&#8635;</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+            <div onClick="{{ toggleMute }}" style="width:34px;height:26px;border-radius:9px;background:{{ muteBg }};display:flex;align-items:center;justify-content:center;color:{{ muteCol }};cursor:pointer;flex:none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+            </div>
+            <div onClick="{{ volDn }}" style="flex:1;height:26px;border-radius:9px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:13px;font-weight:700;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">&#8722;</div>
+            <div style="font-size:11.5px;font-weight:600;color:#3B3B3B;width:44px;flex:none;text-align:center">{{ volText }}</div>
+            <div onClick="{{ volUp }}" style="flex:1;height:26px;border-radius:9px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:13px;font-weight:700;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">+</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;align-content:start">
+          <sc-for list="{{ apps }}" as="a" hint-placeholder-count="4">
+            <div onClick="{{ a.launch }}" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;border-radius:14px;background:{{ a.bg }};cursor:pointer">
+              <div style="width:34px;height:34px;border-radius:8px;background-image:url('{{ a.icon }}');background-size:contain;background-position:center;background-repeat:no-repeat;opacity:{{ a.iconOp }}"></div>
+              <div style="font-size:11px;font-weight:600;color:{{ a.col }}">{{ a.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3d WIDE WITH KEYBOARD ============ -->
+<div class="dv-opt" id="3d" data-screen-label="3d Wide with keyboard">
+  <div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>Opt-in on-screen keyboard (config <b>keyboard: true</b>, needs the remote entity) — a full-width third row under both panels. Printable keys type through the androidtv_remote IME text channel (<b>keyboard_mode: text</b>, default) or as raw key codes (<b>keycode</b>); backspace repeats while held, enter/backspace are key codes either way. Dismiss the TV's own on-screen keyboard (Back) before typing — Android TVs refuse concurrent virtual + on-screen keyboard input. Wide layout only — a phone column has no room for forty keys.</div>
+  <div class="dv-card" style="width:900px">
+    <div style="background:#F5F6FA;padding:20px 16px 24px;display:flex;flex-direction:column;gap:14px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Media</div>
+        <div style="font-size:12.5px;font-weight:500;color:#9AA0AE">{{ summaryText }}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:stretch">
+
+        <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+              <div style="width:16px;height:16px;border-radius:8px;background:{{ appDot }};box-shadow:0 0 10px {{ appGlow }}"></div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:700;color:#3B3B3B">Living Room TV</div>
+              <div style="font-size:11.5px;font-weight:500;color:{{ statusColor }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ statusText }}</div>
+            </div>
+            <div onClick="{{ togglePower }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBg }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+              <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s;animation:{{ knobAnim }}"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+            <div style="min-width:0">
+              <div style="font-size:13.5px;font-weight:700;color:#3B3B3B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+              <div style="font-size:11px;font-weight:500;color:#9AA0AE;margin-top:1px">{{ appName }}</div>
+            </div>
+            <div onPointerDown="{{ seekDown }}" style="position:relative;height:8px;border-radius:4px;background:#F1F2F6;cursor:ew-resize;touch-action:none">
+              <div style="position:absolute;top:0;bottom:0;left:0;width:{{ progW }};background:#3D5AFE;border-radius:4px"></div>
+              <div style="position:absolute;top:50%;left:{{ progW }};width:14px;height:14px;border-radius:7px;background:#fff;border:2px solid #3D5AFE;box-shadow:0 1px 4px rgba(0,0,0,.25);transform:translate(-50%,-50%);pointer-events:none"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ posText }}</div>
+              <div style="font-size:10.5px;font-weight:500;color:#9AA0AE">{{ durText }}</div>
+            </div>
+            <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+              <div onClick="{{ skipBack }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#8634;10</div>
+              <div onClick="{{ prev }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;&#9664;</div>
+              <div onClick="{{ togglePlay }}" style="width:52px;height:52px;border-radius:17px;background:rgba(61,90,254,.15);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:15px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">{{ playGlyph }}</div>
+              <div onClick="{{ next }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;&#9654;</div>
+              <div onClick="{{ skipFwd }}" style="width:42px;height:42px;border-radius:14px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:11px;font-weight:600;cursor:pointer" style-active="background:#3D5AFE;color:#fff">30&#8635;</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+              <div onClick="{{ toggleMute }}" style="width:34px;height:26px;border-radius:9px;background:{{ muteBg }};display:flex;align-items:center;justify-content:center;color:{{ muteCol }};cursor:pointer;flex:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+              </div>
+              <div onPointerDown="{{ volSlideDown }}" style="position:relative;flex:1;height:26px;border-radius:9px;background:#F1F2F6;overflow:hidden;cursor:ew-resize;touch-action:none">
+                <div style="position:absolute;top:0;bottom:0;left:0;width:{{ volW }};background:linear-gradient(90deg,#7C90FF,#3D5AFE);opacity:{{ volOp }}"></div>
+              </div>
+              <div style="font-size:11.5px;font-weight:600;color:#3B3B3B;width:44px;flex:none;text-align:center">{{ volText }}</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px">
+            <sc-for list="{{ apps }}" as="a" hint-placeholder-count="4">
+              <div onClick="{{ a.launch }}" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;border-radius:14px;background:{{ a.bg }};cursor:pointer">
+                <div style="width:34px;height:34px;border-radius:8px;background-image:url('{{ a.icon }}');background-size:contain;background-position:center;background-repeat:no-repeat;opacity:{{ a.iconOp }}"></div>
+                <div style="font-size:11px;font-weight:600;color:{{ a.col }}">{{ a.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font-size:13px;font-weight:700;color:#3B3B3B">Remote</div>
+            <div style="font-size:12px;font-weight:600;color:#3D5AFE;min-height:16px">{{ padFeedback }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;flex:1;align-items:center">
+            <div style="position:relative;width:230px;height:230px;border-radius:115px;background:#F1F2F6;overflow:hidden">
+              <div onClick="{{ padUp }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,100% 0);display:flex;align-items:flex-start;justify-content:center;padding-top:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9650;</div>
+              <div onClick="{{ padDown }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 100%,100% 100%);display:flex;align-items:flex-end;justify-content:center;padding-bottom:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9660;</div>
+              <div onClick="{{ padLeft }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,0 0,0 100%);display:flex;align-items:center;justify-content:flex-start;padding-left:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9664;</div>
+              <div onClick="{{ padRight }}" style="position:absolute;inset:0;clip-path:polygon(50% 50%,100% 0,100% 100%);display:flex;align-items:center;justify-content:flex-end;padding-right:18px;color:#8A90A0;font-size:13px;cursor:pointer" style-active="background:#3D5AFE;color:#fff">&#9654;</div>
+              <div onClick="{{ padOk }}" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:46px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:14px;font-weight:700;cursor:pointer" style-active="background:#3D5AFE;color:#fff">OK</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:10px">
+            <div onClick="{{ padBack }}" style="width:104px;height:52px;border-radius:16px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 L8 12 L15 19"></path></svg>
+            </div>
+            <div onClick="{{ padHome }}" style="width:104px;height:52px;border-radius:16px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;cursor:pointer" style-active="background:#3D5AFE;color:#fff">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 L12 3 L21 11"></path><path d="M5 10 V20 H19 V10"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="grid-column:1/-1;background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:6px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;justify-content:center;gap:6px">
+            <sc-for list="{{ kbRow1 }}" as="k" hint-placeholder-count="10">
+              <div style="flex:1;max-width:52px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">{{ k.ch }}</div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:center;gap:6px">
+            <sc-for list="{{ kbRow2 }}" as="k" hint-placeholder-count="10">
+              <div style="flex:1;max-width:52px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">{{ k.ch }}</div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:center;gap:6px">
+            <sc-for list="{{ kbRow3 }}" as="k" hint-placeholder-count="9">
+              <div style="flex:1;max-width:52px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">{{ k.ch }}</div>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:center;gap:6px">
+            <sc-for list="{{ kbRow4 }}" as="k" hint-placeholder-count="7">
+              <div style="flex:1;max-width:52px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">{{ k.ch }}</div>
+            </sc-for>
+            <div style="flex:1.6;max-width:84px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">&#9003;</div>
+          </div>
+          <div style="display:flex;justify-content:center;gap:6px">
+            <div style="flex:7;max-width:380px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:12px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">space</div>
+            <div style="flex:1.6;max-width:84px;height:40px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:14px;font-weight:600;cursor:pointer;user-select:none" style-active="background:#3D5AFE;color:#fff">&#9166;</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "scale the ring and keys up on really wide cards" · "three-column layout with the app grid as its own panel" · "wide layouts for the light and shutter cards"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":900}}'>
+class Component extends DCLogic {
+  APPS = [
+    { id: 'youtube', name: 'YouTube', dot: '#FF0000', icon: '../common/uploads/youtube.svg', title: 'Pixel 11 review — MKBHD', dur: 1160 },
+    { id: 'plex', name: 'Plex', dot: '#E5A00D', icon: '../common/icons/plex-flat.svg', title: 'Dune: Part Two', dur: 9960 },
+    { id: 'spotify', name: 'Spotify', dot: '#1DB954', icon: '../common/uploads/spotify.svg', title: 'Discover Weekly', dur: 214 },
+    { id: 'twitch', name: 'Twitch', dot: '#9146FF', icon: '../common/icons/twitch-purple.svg', title: 'GTA VI speedrun — live', dur: 5400 }
+  ];
+
+  state = { on: true, pending: null, app: 'youtube', playing: true, pos: 754, vol: 35, muted: false, padFeedback: '' };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      const s = this.state;
+      if (!s.on || !s.playing) return;
+      const app = this.APPS.find((a) => a.id === s.app);
+      this.setState({ pos: Math.min(app.dur, s.pos + 1) });
+    }, 1000);
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.fbTimer); clearTimeout(this.pwrTimer); }
+
+  padPress(label, glyph) {
+    clearTimeout(this.fbTimer);
+    this.setState({ padFeedback: glyph + ' ' + label });
+    this.fbTimer = setTimeout(() => this.setState({ padFeedback: '' }), 900);
+  }
+
+  hSlide(cb) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (x) => cb(Math.max(0, Math.min(1, (x - rect.left) / rect.width)));
+      go(e.clientX);
+      const mv = (ev) => go(ev.clientX);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  fmt(sec) {
+    sec = Math.round(sec);
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s2 = sec % 60;
+    const mm = (h ? String(m).padStart(2, '0') : m), ss = String(s2).padStart(2, '0');
+    return h ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const on = s.on;
+    // While a power command is in flight the toggle sits at its target and
+    // pulses -- a real TV takes seconds to react to turn_on/turn_off.
+    const effOn = s.pending !== null ? s.pending : on;
+    const app = this.APPS.find((a) => a.id === s.app);
+    const pendingText = s.pending === null ? null : (s.pending ? 'Turning on…' : 'Turning off…');
+    const statusText = pendingText || (on ? (s.playing ? 'Playing · ' + app.name : 'Paused · ' + app.name) : 'Off');
+
+    return {
+      summaryText: pendingText || (on ? (s.playing ? 'Playing · ' + app.name : 'Paused') : 'Off'),
+      statusText,
+      title: app.title,
+      appName: app.name,
+      appDot: on ? app.dot : '#707686',
+      appDotD: on ? app.dot : '#9AA0AE',
+      appGlow: on ? app.dot + 'AA' : 'rgba(0,0,0,0)',
+      iconBg: on ? 'rgba(61,90,254,.15)' : 'rgba(112,118,134,.15)',
+      iconBgD: on ? 'rgba(61,90,254,.28)' : 'rgba(255,255,255,.08)',
+      statusColor: on ? '#3D5AFE' : '#9AA0AE',
+      statusColorD: on ? '#7C90FF' : '#8B8F9B',
+      togBg: effOn ? '#3D5AFE' : '#E3E5EC',
+      togBgD: effOn ? '#3D5AFE' : 'rgba(255,255,255,.14)',
+      togX: effOn ? 21 : 3,
+      knobAnim: s.pending !== null ? 'dc-knob-pulse 1s ease-in-out infinite' : 'none',
+      togglePower: () => {
+        const target = !effOn;
+        clearTimeout(this.pwrTimer);
+        this.setState({ pending: target });
+        this.pwrTimer = setTimeout(() => this.setState({ on: target, pending: null }), 2500);
+      },
+      ctrlOp: on ? '1' : '.4',
+      progW: Math.round(s.pos / app.dur * 100) + '%',
+      posText: this.fmt(s.pos),
+      durText: this.fmt(app.dur),
+      seekDown: this.hSlide((f) => this.setState({ pos: f * app.dur, on: true })),
+      skipBack: () => this.setState({ pos: Math.max(0, s.pos - 10), on: true }),
+      skipFwd: () => this.setState({ pos: Math.min(app.dur, s.pos + 30), on: true }),
+      playGlyph: s.playing && on ? '❘❘' : '▶',
+      togglePlay: () => this.setState({ playing: !s.playing, on: true }),
+      prev: () => this.setState({ pos: 0 }),
+      next: () => this.setState({ pos: 0, playing: true }),
+      muteCol: s.muted ? '#F54436' : '#8A90A0',
+      muteColD: s.muted ? '#FF6B5E' : '#8B8F9B',
+      muteBg: s.muted ? 'rgba(245,68,54,.12)' : 'transparent',
+      muteBgD: s.muted ? 'rgba(255,107,94,.16)' : 'transparent',
+      waveOp: s.muted ? '0' : '1',
+      xOp: s.muted ? '1' : '0',
+      toggleMute: () => this.setState({ muted: !s.muted }),
+      volText: s.muted ? '—' : s.vol + '%',
+      volUp: () => this.setState({ vol: Math.min(100, s.vol + 2), muted: false }),
+      volDn: () => this.setState({ vol: Math.max(0, s.vol - 2), muted: false }),
+      volW: s.vol + '%',
+      volOp: s.muted ? '.3' : '1',
+      volSlideDown: this.hSlide((f) => this.setState({ vol: Math.round(f * 100), muted: false })),
+      apps: this.APPS.map((a) => {
+        const active = on && s.app === a.id;
+        return {
+          name: a.name,
+          dot: a.dot,
+          icon: a.icon,
+          iconD: a.iconD ?? a.icon,
+          iconOp: on ? '1' : '.5',
+          bg: active ? 'rgba(61,90,254,.15)' : '#F1F2F6',
+          col: active ? '#3D5AFE' : '#8A90A0',
+          bgD: active ? 'rgba(61,90,254,.28)' : 'rgba(255,255,255,.07)',
+          colD: active ? '#7C90FF' : '#8B8F9B',
+          launch: () => this.setState({ app: a.id, on: true, playing: true, pos: 0 })
+        };
+      }),
+      kbRow1: [...'1234567890'].map((ch) => ({ ch })),
+      kbRow2: [...'qwertyuiop'].map((ch) => ({ ch })),
+      kbRow3: [...'asdfghjkl'].map((ch) => ({ ch })),
+      kbRow4: [...'zxcvbnm'].map((ch) => ({ ch })),
+      padFeedback: s.padFeedback,
+      padUp: () => this.padPress('Up', '▲'),
+      padDown: () => this.padPress('Down', '▼'),
+      padLeft: () => this.padPress('Left', '◀'),
+      padRight: () => this.padPress('Right', '▶'),
+      padOk: () => this.padPress('OK', '●'),
+      padBack: () => this.padPress('Back', '‹'),
+      padHome: () => this.padPress('Home', '⌂')
+    };
+  }
+}
+</script>
+</body>
+</html>

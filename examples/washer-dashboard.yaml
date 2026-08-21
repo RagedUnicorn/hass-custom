@@ -1,0 +1,60 @@
+# A Laundry dashboard built around ru-washer-card.
+#
+# HOW TO USE
+#   Settings → Dashboards → + Add dashboard → New dashboard from scratch.
+#   Open it, pencil icon → three-dot menu → "Raw configuration editor",
+#   then replace everything with this file and Save.
+#
+# WHY A DEFAULT (MASONRY) VIEW
+#   Unlike ru-tv-card (see media-dashboard.yaml), the washer card has no wide
+#   breakpoint — it is a phone-first compact card. Masonry's ~500px column
+#   cap is exactly its sweet spot, so no panel view tricks are needed.
+#
+# ENTITY IDS
+#   The ids below are placeholders in the Miele integration's naming scheme —
+#   replace them with your own. Only `entity` (the enum status sensor) is
+#   required; every other entity you leave out simply drops its row.
+#   `device_id` (needed for the presets, miele.set_program targets a device)
+#   comes from Developer Tools → Actions → miele.get_programs, and the
+#   `program_id` values come from that call's response.
+#
+# MOBILE START
+#   Remote start only works while the machine's Mobile Start is armed; the
+#   card blocks Start and explains why when `mobile_start_entity` reads off.
+
+views:
+  - title: Laundry
+    path: laundry
+    icon: mdi:washing-machine
+    cards:
+      - type: custom:ru-washer-card
+        title: Laundry
+        entity: sensor.washing_machine # required — the enum status sensor
+        name: Washing machine
+        device_id: 1a2b3c… # required for presets
+        power_entity: switch.washing_machine_power
+        start_entity: button.washing_machine_start
+        pause_entity: button.washing_machine_pause
+        stop_entity: button.washing_machine_stop
+        program_entity: sensor.washing_machine_program
+        phase_entity: sensor.washing_machine_program_phase
+        remaining_entity: sensor.washing_machine_remaining_time
+        elapsed_entity: sensor.washing_machine_elapsed_time
+        finish_entity: sensor.washing_machine_finish
+        door_entity: binary_sensor.washing_machine_door
+        mobile_start_entity: binary_sensor.washing_machine_mobile_start
+        spin_speed_entity: sensor.washing_machine_spin_speed
+        temperature_entity: sensor.washing_machine_target_temperature
+        presets:
+          - name: Underwear
+            icon: mdi:tshirt-crew
+            program_id: 4 # from miele.get_programs
+            program: delicates # optional — highlights the chip while it runs
+            spin: 600 # label only — not settable
+            temperature: 30 # label only — not settable
+          - name: Towels
+            icon: mdi:towel
+            program_id: 1
+            program: cottons
+            spin: 1400
+            temperature: 60

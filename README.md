@@ -139,11 +139,11 @@ config option, and behavior notes:
 
 | Card                                            | What it is                                                                        |
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
-| [`ru-shutters-card`](docs/ru-shutters-card.md)  | Room-grouped shutter control: global chips, position presets, drag-to-position drilldown |
-| [`ru-lights-card`](docs/ru-lights-card.md)      | Room-grouped light control: dimming sliders, scenes panel, per-bulb drilldown     |
-| [`ru-purifier-card`](docs/ru-purifier-card.md)  | Air purifier control with speed ticks, mode chips and a PM2.5/PM10 air quality panel |
-| [`ru-tv-card`](docs/ru-tv-card.md)              | Android TV media + remote: now-playing, volume, app launcher, ring d-pad, keyboard |
-| [`ru-washer-card`](docs/ru-washer-card.md)      | Miele washing machine: programme, live countdown, Start/Pause/Stop, programme presets |
+| [`ru-shutters-card`](docs/ru-shutters-card/ru-shutters-card.md)  | Room-grouped shutter control: global chips, position presets, drag-to-position drilldown |
+| [`ru-lights-card`](docs/ru-lights-card/ru-lights-card.md)      | Room-grouped light control: dimming sliders, scenes panel, per-bulb drilldown     |
+| [`ru-purifier-card`](docs/ru-purifier-card/ru-purifier-card.md)  | Air purifier control with speed ticks, mode chips and a PM2.5/PM10 air quality panel |
+| [`ru-tv-card`](docs/ru-tv-card/ru-tv-card.md)              | Android TV media + remote: now-playing, volume, app launcher, ring d-pad, keyboard |
+| [`ru-washer-card`](docs/ru-washer-card/ru-washer-card.md)      | Miele washing machine: programme, live countdown, Start/Pause/Stop, programme presets |
 
 Common to all cards:
 

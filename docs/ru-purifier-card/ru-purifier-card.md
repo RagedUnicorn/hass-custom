@@ -5,6 +5,13 @@ spinning-ring icon (spin speed follows fan speed), power toggle, tap-to-set
 speed ticks, Auto / Manual / Night mode chips and an oscillation toggle, plus
 an optional air quality panel with PM2.5/PM10 bars rated Good / Fair / Poor.
 
+The [design mock](ru-purifier-card.html) this card implements sits beside this
+page (render it with `npm run dev` at
+`http://localhost:5173/docs/ru-purifier-card/ru-purifier-card.html` — GitHub
+shows only its source), and
+[`examples/purifier-dashboard.yaml`](../../examples/purifier-dashboard.yaml)
+is a ready-to-paste dashboard.
+
 ```yaml
 type: custom:ru-purifier-card
 title: Air

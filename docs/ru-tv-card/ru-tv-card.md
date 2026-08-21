@@ -13,6 +13,13 @@ position, seek, volume level). The card spans both; every control is
 feature-detected from `supported_features`, so a config with only `entity`
 still renders a sensible card.
 
+The design mocks this card implements sit beside this page —
+[compact](ru-tv-card.html) and [wide](ru-tv-card-wide.html) (render them with
+`npm run dev` at `http://localhost:5173/docs/ru-tv-card/ru-tv-card.html` —
+GitHub shows only their source), and
+[`examples/media-dashboard.yaml`](../../examples/media-dashboard.yaml) is a
+ready-to-paste dashboard.
+
 ```yaml
 type: custom:ru-tv-card
 title: Media

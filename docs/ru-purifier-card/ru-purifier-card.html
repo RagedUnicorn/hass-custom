@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+@keyframes purspin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — Dyson purifier card, exploration 1</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Same minimalist style as light/shutter 2a/2b, teal accent for air. One device: fan.bedroom_dyson_purifier. Simulated state — air quality drifts gently; in Auto the fan speed follows PM2.5. Tapping a speed tick switches to Manual.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Minimalist UI direction — purifier card, light + dark</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a MINIMALIST PURIFIER ============ -->
+<div class="dv-opt" id="1a" data-screen-label="1a Minimalist purifier">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Minimalist (UI-Lovelace-Minimalist style) — control card + air quality &amp; filter card</div>
+  <div class="dv-card" style="width:390px">
+    <div style="background:#F5F6FA;padding:20px 16px 24px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Air</div>
+        <div style="font-size:12.5px;color:#9AA0AE;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+            <div style="width:18px;height:18px;border-radius:9px;border:3.5px solid {{ iconColor }};border-top-color:rgba(0,0,0,0);box-sizing:border-box;animation:{{ spinAnim }}"></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:#3B3B3B">Bedroom Purifier</div>
+            <div style="font-size:11.5px;font-weight:500;color:{{ statusColor }};margin-top:1px">{{ statusText }}</div>
+          </div>
+          <div onClick="{{ togglePur }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBg }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+            <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font-size:12px;font-weight:600;color:#8A90A0">Speed</div>
+            <div style="font-size:11.5px;font-weight:600;color:{{ speedColor }}">{{ speedLabel }}</div>
+          </div>
+          <div style="display:flex;gap:3px">
+            <sc-for list="{{ ticks }}" as="t" hint-placeholder-count="10">
+              <div onClick="{{ t.set }}" style="flex:1;height:26px;border-radius:5px;background:{{ t.bg }};cursor:pointer"></div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+            <div onClick="{{ m.set }}" style="padding:7px 14px;border-radius:9px;background:{{ m.bg }};color:{{ m.col }};font-size:12px;font-weight:600;cursor:pointer">{{ m.name }}</div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+          <div style="font-size:12.5px;font-weight:600;color:#3B3B3B">Oscillation</div>
+          <div onClick="{{ toggleOsc }}" style="width:36px;height:22px;border-radius:11px;background:{{ oscTogBg }};position:relative;cursor:pointer;transition:background .2s">
+            <div style="position:absolute;top:3px;left:0;width:16px;height:16px;border-radius:8px;background:#fff;transform:translateX({{ oscTogX }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-size:13px;font-weight:700;color:#3B3B3B">Air quality</div>
+          <div style="font-size:12px;font-weight:700;color:{{ aqColor }}">{{ aqWord }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:11.5px;font-weight:600;color:#8A90A0;width:52px;flex:none">PM 2.5</div>
+          <div style="flex:1;height:8px;border-radius:4px;background:#F1F2F6;overflow:hidden">
+            <div style="height:100%;width:{{ pm25W }};background:{{ aqBar }};border-radius:4px;transition:width .6s"></div>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:#3B3B3B;width:64px;flex:none;text-align:right">{{ pm25Text }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:11.5px;font-weight:600;color:#8A90A0;width:52px;flex:none">PM 10</div>
+          <div style="flex:1;height:8px;border-radius:4px;background:#F1F2F6;overflow:hidden">
+            <div style="height:100%;width:{{ pm10W }};background:{{ aqBar }};border-radius:4px;transition:width .6s"></div>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:#3B3B3B;width:64px;flex:none;text-align:right">{{ pm10Text }}</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b MINIMALIST PURIFIER DARK ============ -->
+<div class="dv-opt" id="1b" data-screen-label="1b Minimalist purifier dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dark variant of <a class="dv-oid" href="#1a">1a</a> — same layout and shared state</div>
+  <div class="dv-card" style="width:390px">
+    <div style="background:#1A1B1E;padding:20px 16px 24px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#E8E9ED">Air</div>
+        <div style="font-size:12.5px;color:#8B8F9B;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div style="background:#242529;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:42px;height:42px;border-radius:21px;background:{{ iconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+            <div style="width:18px;height:18px;border-radius:9px;border:3.5px solid {{ iconColorD }};border-top-color:rgba(0,0,0,0);box-sizing:border-box;animation:{{ spinAnim }}"></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:#E8E9ED">Bedroom Purifier</div>
+            <div style="font-size:11.5px;font-weight:500;color:{{ statusColorD }};margin-top:1px">{{ statusText }}</div>
+          </div>
+          <div onClick="{{ togglePur }}" style="width:44px;height:26px;border-radius:13px;background:{{ togBgD }};position:relative;cursor:pointer;transition:background .2s;flex:none">
+            <div style="position:absolute;top:3px;left:0;width:20px;height:20px;border-radius:10px;background:#fff;transform:translateX({{ togX }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="font-size:12px;font-weight:600;color:#8B8F9B">Speed</div>
+            <div style="font-size:11.5px;font-weight:600;color:{{ speedColorD }}">{{ speedLabel }}</div>
+          </div>
+          <div style="display:flex;gap:3px">
+            <sc-for list="{{ ticks }}" as="t" hint-placeholder-count="10">
+              <div onClick="{{ t.set }}" style="flex:1;height:26px;border-radius:5px;background:{{ t.bgD }};cursor:pointer"></div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px">
+          <sc-for list="{{ modes }}" as="m" hint-placeholder-count="3">
+            <div onClick="{{ m.set }}" style="padding:7px 14px;border-radius:9px;background:{{ m.bgD }};color:{{ m.colD }};font-size:12px;font-weight:600;cursor:pointer">{{ m.name }}</div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:2px">
+          <div style="font-size:12.5px;font-weight:600;color:#E8E9ED">Oscillation</div>
+          <div onClick="{{ toggleOsc }}" style="width:36px;height:22px;border-radius:11px;background:{{ oscTogBgD }};position:relative;cursor:pointer;transition:background .2s">
+            <div style="position:absolute;top:3px;left:0;width:16px;height:16px;border-radius:8px;background:#fff;transform:translateX({{ oscTogX }}px);transition:transform .2s"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#242529;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-size:13px;font-weight:700;color:#E8E9ED">Air quality</div>
+          <div style="font-size:12px;font-weight:700;color:{{ aqColorD }}">{{ aqWord }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:11.5px;font-weight:600;color:#8B8F9B;width:52px;flex:none">PM 2.5</div>
+          <div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div style="height:100%;width:{{ pm25W }};background:{{ aqBarD }};border-radius:4px;transition:width .6s"></div>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:#E8E9ED;width:64px;flex:none;text-align:right">{{ pm25Text }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:11.5px;font-weight:600;color:#8B8F9B;width:52px;flex:none">PM 10</div>
+          <div style="flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden">
+            <div style="height:100%;width:{{ pm10W }};background:{{ aqBarD }};border-radius:4px;transition:width .6s"></div>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:#E8E9ED;width:64px;flex:none;text-align:right">{{ pm10Text }}</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "add a night mode timer" · "combine with the bedroom lights into one bedroom card" · "add a 24h PM2.5 sparkline"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;simulateDrift&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simulation&quot;}}">
+class Component extends DCLogic {
+  state = {
+    on: true,
+    speed: 4,
+    mode: 'auto',   // auto | manual | night
+    osc: true,
+    pm25: 8,
+    pm10: 12
+  };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if ((this.props.simulateDrift ?? true) === false) return;
+      this.setState((s) => {
+        let pm25 = Math.max(3, Math.min(40, s.pm25 + (Math.random() - 0.48) * 2.5));
+        let pm10 = Math.max(4, Math.min(55, pm25 * 1.4 + (Math.random() - 0.5) * 2));
+        let speed = s.speed;
+        if (s.on && s.mode === 'auto') speed = Math.max(1, Math.min(10, Math.round(pm25 / 3)));
+        return { pm25, pm10, speed };
+      });
+    }, 3000);
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  aqLevel(pm25) {
+    if (pm25 <= 12) return { word: 'Good', c: '#3D5AFE', cD: '#7C90FF' };
+    if (pm25 <= 35) return { word: 'Fair', c: '#E8930C', cD: '#FFC65C' };
+    return { word: 'Poor', c: '#F54436', cD: '#FF6B5E' };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const TEAL = '#3D5AFE', TEAL_D = '#7C90FF';
+    const on = s.on;
+    const aq = this.aqLevel(s.pm25);
+    const pm25 = Math.round(s.pm25);
+    const pm10 = Math.round(s.pm10);
+
+    const modeName = { auto: 'Auto', manual: 'Manual', night: 'Night' }[s.mode];
+    const statusText = on
+      ? modeName + ' · speed ' + s.speed + (s.osc ? ' · oscillating' : '')
+      : 'Off';
+    const summaryText = on ? modeName + ' · ' + aq.word : 'Off · ' + aq.word;
+
+    // Night mode spins slowly, auto/manual by speed
+    const spinAnim = on ? 'purspin ' + (s.mode === 'night' ? 6 : Math.max(0.8, 4 - s.speed * 0.3)) + 's linear infinite' : 'none';
+
+    const setMode = (m) => this.setState((st) => ({
+      mode: m,
+      on: true,
+      speed: m === 'night' ? Math.min(st.speed, 4) : st.speed
+    }));
+
+    return {
+      summaryText, statusText, spinAnim,
+      iconBg: on ? 'rgba(61,90,254,.15)' : 'rgba(112,118,134,.15)',
+      iconColor: on ? TEAL : '#707686',
+      iconBgD: on ? 'rgba(61,90,254,.28)' : 'rgba(255,255,255,.08)',
+      iconColorD: on ? TEAL_D : '#9AA0AE',
+      statusColor: on ? TEAL : '#9AA0AE',
+      statusColorD: on ? TEAL_D : '#8B8F9B',
+      togBg: on ? TEAL : '#E3E5EC',
+      togBgD: on ? TEAL : 'rgba(255,255,255,.14)',
+      togX: on ? 21 : 3,
+      togglePur: () => this.setState({ on: !on }),
+      ctrlOp: on ? '1' : '.4',
+      speedLabel: s.mode === 'auto' ? 'Auto · ' + s.speed : s.speed + ' of 10',
+      speedColor: s.mode === 'auto' ? TEAL : '#8A90A0',
+      speedColorD: s.mode === 'auto' ? TEAL_D : '#8B8F9B',
+      ticks: Array.from({ length: 10 }, (_, i) => ({
+        bg: on && i < s.speed ? TEAL : '#F1F2F6',
+        bgD: on && i < s.speed ? TEAL_D : 'rgba(255,255,255,.07)',
+        set: () => this.setState({ speed: i + 1, mode: 'manual', on: true })
+      })),
+      modes: ['auto', 'manual', 'night'].map((m) => {
+        const active = on && s.mode === m;
+        return {
+          name: { auto: 'Auto', manual: 'Manual', night: 'Night' }[m],
+          bg: active ? 'rgba(61,90,254,.15)' : '#F1F2F6',
+          col: active ? '#3D5AFE' : '#8A90A0',
+          bgD: active ? 'rgba(61,90,254,.28)' : 'rgba(255,255,255,.07)',
+          colD: active ? TEAL_D : '#8B8F9B',
+          set: () => setMode(m)
+        };
+      }),
+      oscTogBg: on && s.osc ? TEAL : '#E3E5EC',
+      oscTogBgD: on && s.osc ? TEAL : 'rgba(255,255,255,.14)',
+      oscTogX: on && s.osc ? 17 : 3,
+      toggleOsc: () => this.setState({ osc: !s.osc, on: true }),
+      aqWord: aq.word,
+      aqColor: aq.c,
+      aqColorD: aq.cD,
+      aqBar: aq.c,
+      aqBarD: aq.cD,
+      pm25Text: pm25 + ' µg/m³',
+      pm10Text: pm10 + ' µg/m³',
+      pm25W: Math.min(100, pm25 * 2.5) + '%',
+      pm10W: Math.min(100, pm10 * 1.8) + '%'
+    };
+  }
+}
+</script>
+</body>
+</html>

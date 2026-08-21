@@ -1,0 +1,53 @@
+# A Shutters dashboard built around ru-shutters-card.
+#
+# HOW TO USE
+#   Settings → Dashboards → + Add dashboard → New dashboard from scratch.
+#   Open it, pencil icon → three-dot menu → "Raw configuration editor",
+#   then replace everything with this file and Save.
+#
+# WHY A DEFAULT (MASONRY) VIEW
+#   Unlike ru-tv-card (see media-dashboard.yaml), the shutters card has no
+#   wide breakpoint — it is a phone-first compact card. Masonry's ~500px
+#   column cap is exactly its sweet spot, so no panel view tricks are needed;
+#   the card also drops into any existing dashboard as-is.
+#
+# ENTITY IDS
+#   The cover ids below are placeholders in the Shelly 2PM naming scheme —
+#   replace them with your own (Settings → Devices & services → Entities,
+#   domain `cover`). Rooms and covers are free-form: add or delete freely.
+
+views:
+  - title: Shutters
+    path: shutters
+    icon: mdi:window-shutter
+    cards:
+      - type: custom:ru-shutters-card
+        title: Shutters
+        rooms:
+          - name: Bedroom
+            covers:
+              - entity: cover.shelly_2pm_shutter_bedroom_medium
+                name: Window
+          - name: Office
+            icon: mdi:desk # optional, defaults to mdi:window-shutter
+            covers:
+              - entity: cover.shelly_2pm_shutter_office_big_left
+                name: Big left
+              - entity: cover.shelly_2pm_shutter_office_big_right
+                name: Big right
+          - name: Living room
+            covers:
+              - entity: cover.shelly_2pm_shutter_livingroom_medium
+                name: Medium
+        # Omit `presets` for the built-ins: Morning (100), Half (50),
+        # Privacy (20), Night (0). Positions are 0 closed … 100 open.
+        presets:
+          - name: Morning
+            icon: mdi:weather-sunny
+            position: 100
+          - name: Movie
+            icon: mdi:movie-open
+            position: 10
+          - name: Night
+            icon: mdi:weather-night
+            position: 0

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.dv-sub{font:400 10.5px system-ui,sans-serif;color:rgba(0,0,0,.45);margin:4px 0 0}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — shutter cards, exploration 1</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Two cards per direction: a minimal phone card (rooms up/stop/down + all up/down + presets) and a detail tablet card (every shutter, drag to position). All three directions share one simulated state — shutters travel over ~3 s, stop works mid-travel. Positions read as words (Open / Closed / Partly open), no percentages. Your 7 Shelly 2PM covers.</div>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Minimalist UI direction — one minimal card, tap a room to drill into detail</span></div>
+<div class="dv-opts">
+
+<!-- ============ 2a MINIMALIST DRILLDOWN ============ -->
+<div class="dv-opt" id="2a" data-screen-label="2a Minimalist drilldown">
+  <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Minimalist (UI-Lovelace-Minimalist style) — room cover cards + drilldown popup with per-shutter sliders. Tap a room row to open it.</div>
+  <div class="dv-card" style="width:390px">
+    <div style="position:relative;background:#F5F6FA;padding:20px 16px 24px;min-height:660px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#3B3B3B">Shutters</div>
+        <div style="font-size:12.5px;color:#9AA0AE;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding:0 2px">
+        <div onClick="{{ allUp }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#3B3B3B"><span style="color:#3D5AFE;font-size:10px">&#9650;</span>All up</div>
+        <div onClick="{{ allDown }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#3B3B3B"><span style="color:#3D5AFE;font-size:10px">&#9660;</span>All down</div>
+        <div onClick="{{ allStop }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#3B3B3B;opacity:{{ anyMovingOp }}"><span style="color:#F54436;font-size:9px">&#9632;</span>Stop</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+          <div style="background:#fff;border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ r.openDetail }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+              <div style="width:30px;height:30px;border-radius:15px;background:{{ r.ulmIconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:14px;height:11px;border-radius:2.5px;background:repeating-linear-gradient(180deg,{{ r.ulmIconColor }} 0px,{{ r.ulmIconColor }} 2px,rgba(0,0,0,0) 2px,rgba(0,0,0,0) 4px)"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:700;color:#3B3B3B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                <div style="font-size:10.5px;font-weight:500;color:{{ r.ulmStatusColor }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.statusText }}</div>
+              </div>
+              <div style="color:#C3C8D4;font-size:15px;font-weight:600;flex:none">&#8250;</div>
+            </div>
+            <div style="display:flex;gap:5px">
+              <div onClick="{{ r.openAll }}" style="flex:1;height:28px;border-radius:9px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:9.5px;cursor:pointer">&#9650;</div>
+              <div onClick="{{ r.stopAll }}" style="flex:1;height:28px;border-radius:9px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:8.5px;cursor:pointer;opacity:{{ r.stopOp }}">&#9632;</div>
+              <div onClick="{{ r.closeAll }}" style="flex:1;height:28px;border-radius:9px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:9.5px;cursor:pointer">&#9660;</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 14px">
+        <div style="font-size:13px;font-weight:700;color:#3B3B3B;margin-bottom:12px">Presets</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px;border-radius:14px;border:2px solid {{ s.ulmRing }};cursor:pointer">
+              <div style="width:38px;height:38px;border-radius:19px;background:rgba(61,90,254,.15);display:flex;align-items:center;justify-content:center;color:#3D5AFE;font-size:15px">{{ s.glyph }}</div>
+              <div style="font-size:11px;font-weight:600;color:#3B3B3B">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeDetail }}" style="position:absolute;inset:0;background:rgba(35,40,54,.4);display:flex;align-items:flex-end;z-index:5">
+          <div onClick="{{ eatClick }}" style="background:#F5F6FA;border-radius:24px 24px 0 0;padding:18px 16px 22px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:21px;background:{{ detail.ulmIconBg }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:18px;height:15px;border-radius:3px;background:repeating-linear-gradient(180deg,{{ detail.ulmIconColor }} 0px,{{ detail.ulmIconColor }} 2.5px,rgba(0,0,0,0) 2.5px,rgba(0,0,0,0) 5px)"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16px;font-weight:700;color:#3B3B3B">{{ detail.name }}</div>
+                <div style="font-size:12px;font-weight:500;color:{{ detail.ulmStatusColor }};margin-top:2px">{{ detail.statusText }}</div>
+              </div>
+              <div onClick="{{ closeDetail }}" style="width:34px;height:34px;border-radius:17px;background:#fff;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:13px;cursor:pointer">&#10005;</div>
+            </div>
+            <div style="background:#fff;border-radius:20px;padding:16px 8px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{ detail.covers }}" as="c" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <div onPointerDown="{{ c.dragV }}" style="position:relative;width:64px;height:170px;border-radius:16px;background:linear-gradient(180deg,#B8D9F8 0%,#D3E7FA 55%,#EAF4FD 100%);overflow:hidden;cursor:ns-resize;touch-action:none;border:1px solid #DDE3EC">
+                    <div style="position:absolute;top:0;left:0;right:0;height:{{ c.shutterH }};background:repeating-linear-gradient(180deg,#AEB6C6 0px,#AEB6C6 7px,#98A1B4 7px,#98A1B4 10px);border-bottom:3px solid #3D5AFE;box-shadow:0 2px 5px rgba(30,40,70,.25)">
+                      <div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:20px;height:4px;border-radius:2px;background:rgba(255,255,255,.85)"></div>
+                    </div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:#3B3B3B">{{ c.name }}</div>
+                  <div style="font-size:11px;font-weight:500;color:{{ c.ulmStatusColor }}">{{ c.statusWord }}{{ c.pctText }}</div>
+                  <div style="display:flex;gap:5px">
+                    <div onClick="{{ c.open }}" style="width:30px;height:30px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer">&#9650;</div>
+                    <div onClick="{{ c.stop }}" style="width:30px;height:30px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:9px;cursor:pointer;opacity:{{ c.stopOp }}">&#9632;</div>
+                    <div onClick="{{ c.close }}" style="width:30px;height:30px;border-radius:10px;background:#F1F2F6;display:flex;align-items:center;justify-content:center;color:#8A90A0;font-size:10px;cursor:pointer">&#9660;</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div onClick="{{ detail.openAll }}" style="flex:1;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#3B3B3B;cursor:pointer"><span style="color:#3D5AFE;font-size:10px">&#9650;</span>All up</div>
+              <div onClick="{{ detail.stopAll }}" style="flex:1;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#3B3B3B;cursor:pointer;opacity:{{ detail.stopOp }}"><span style="color:#F54436;font-size:9px">&#9632;</span>Stop</div>
+              <div onClick="{{ detail.closeAll }}" style="flex:1;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#3B3B3B;cursor:pointer"><span style="color:#3D5AFE;font-size:10px">&#9660;</span>All down</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2b MINIMALIST DARK ============ -->
+<div class="dv-opt" id="2b" data-screen-label="2b Minimalist drilldown dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>Dark variant of <a class="dv-oid" href="#2a">2a</a> — same layout and shared state</div>
+  <div class="dv-card" style="width:390px">
+    <div style="position:relative;background:#1A1B1E;padding:20px 16px 24px;min-height:660px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div style="font-size:22px;font-weight:700;color:#E8E9ED">Shutters</div>
+        <div style="font-size:12.5px;color:#8B8F9B;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding:0 2px">
+        <div onClick="{{ allUp }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#242529;cursor:pointer;font-size:12px;font-weight:600;color:#E8E9ED"><span style="color:#7C90FF;font-size:10px">&#9650;</span>All up</div>
+        <div onClick="{{ allDown }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#242529;cursor:pointer;font-size:12px;font-weight:600;color:#E8E9ED"><span style="color:#7C90FF;font-size:10px">&#9660;</span>All down</div>
+        <div onClick="{{ allStop }}" style="display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#242529;cursor:pointer;font-size:12px;font-weight:600;color:#E8E9ED;opacity:{{ anyMovingOp }}"><span style="color:#FF6B5E;font-size:9px">&#9632;</span>Stop</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+          <div style="background:#242529;border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:9px">
+            <div onClick="{{ r.openDetail }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0">
+              <div style="width:30px;height:30px;border-radius:15px;background:{{ r.ulmIconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:14px;height:11px;border-radius:2.5px;background:repeating-linear-gradient(180deg,{{ r.ulmIconColorD }} 0px,{{ r.ulmIconColorD }} 2px,rgba(0,0,0,0) 2px,rgba(0,0,0,0) 4px)"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:700;color:#E8E9ED;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                <div style="font-size:10.5px;font-weight:500;color:{{ r.ulmStatusColorD }};margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.statusText }}</div>
+              </div>
+              <div style="color:#4A4E59;font-size:15px;font-weight:600;flex:none">&#8250;</div>
+            </div>
+            <div style="display:flex;gap:5px">
+              <div onClick="{{ r.openAll }}" style="flex:1;height:28px;border-radius:9px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:9.5px;cursor:pointer">&#9650;</div>
+              <div onClick="{{ r.stopAll }}" style="flex:1;height:28px;border-radius:9px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:8.5px;cursor:pointer;opacity:{{ r.stopOp }}">&#9632;</div>
+              <div onClick="{{ r.closeAll }}" style="flex:1;height:28px;border-radius:9px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:9.5px;cursor:pointer">&#9660;</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#242529;border-radius:20px;padding:16px 14px">
+        <div style="font-size:13px;font-weight:700;color:#E8E9ED;margin-bottom:12px">Presets</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px;border-radius:14px;border:2px solid {{ s.ulmRing }};cursor:pointer">
+              <div style="width:38px;height:38px;border-radius:19px;background:rgba(61,90,254,.25);display:flex;align-items:center;justify-content:center;color:#7C90FF;font-size:15px">{{ s.glyph }}</div>
+              <div style="font-size:11px;font-weight:600;color:#E8E9ED">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ showDetail }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeDetail }}" style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:5">
+          <div onClick="{{ eatClick }}" style="background:#1A1B1E;border-radius:24px 24px 0 0;padding:18px 16px 22px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:21px;background:{{ detail.ulmIconBgD }};display:flex;align-items:center;justify-content:center;flex:none">
+                <div style="width:18px;height:15px;border-radius:3px;background:repeating-linear-gradient(180deg,{{ detail.ulmIconColorD }} 0px,{{ detail.ulmIconColorD }} 2.5px,rgba(0,0,0,0) 2.5px,rgba(0,0,0,0) 5px)"></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16px;font-weight:700;color:#E8E9ED">{{ detail.name }}</div>
+                <div style="font-size:12px;font-weight:500;color:{{ detail.ulmStatusColorD }};margin-top:2px">{{ detail.statusText }}</div>
+              </div>
+              <div onClick="{{ closeDetail }}" style="width:34px;height:34px;border-radius:17px;background:#242529;display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:13px;cursor:pointer">&#10005;</div>
+            </div>
+            <div style="background:#242529;border-radius:20px;padding:16px 8px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{ detail.covers }}" as="c" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <div onPointerDown="{{ c.dragV }}" style="position:relative;width:64px;height:170px;border-radius:16px;background:linear-gradient(180deg,#2A3A63 0%,#22304F 55%,#1B2540 100%);overflow:hidden;cursor:ns-resize;touch-action:none;border:1px solid rgba(255,255,255,.08)">
+                    <div style="position:absolute;top:0;left:0;right:0;height:{{ c.shutterH }};background:repeating-linear-gradient(180deg,#4A4F5C 0px,#4A4F5C 7px,#3F4450 7px,#3F4450 10px);border-bottom:3px solid #7C90FF;box-shadow:0 2px 6px rgba(0,0,0,.5)">
+                      <div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:20px;height:4px;border-radius:2px;background:rgba(255,255,255,.7)"></div>
+                    </div>
+                  </div>
+                  <div style="font-size:12px;font-weight:700;color:#E8E9ED">{{ c.name }}</div>
+                  <div style="font-size:11px;font-weight:500;color:{{ c.ulmStatusColorD }}">{{ c.statusWord }}{{ c.pctText }}</div>
+                  <div style="display:flex;gap:5px">
+                    <div onClick="{{ c.open }}" style="width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:10px;cursor:pointer">&#9650;</div>
+                    <div onClick="{{ c.stop }}" style="width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:9px;cursor:pointer;opacity:{{ c.stopOp }}">&#9632;</div>
+                    <div onClick="{{ c.close }}" style="width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:#8B8F9B;font-size:10px;cursor:pointer">&#9660;</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div onClick="{{ detail.openAll }}" style="flex:1;height:42px;border-radius:14px;background:#242529;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#E8E9ED;cursor:pointer"><span style="color:#7C90FF;font-size:10px">&#9650;</span>All up</div>
+              <div onClick="{{ detail.stopAll }}" style="flex:1;height:42px;border-radius:14px;background:#242529;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#E8E9ED;cursor:pointer;opacity:{{ detail.stopOp }}"><span style="color:#FF6B5E;font-size:9px">&#9632;</span>Stop</div>
+              <div onClick="{{ detail.closeAll }}" style="flex:1;height:42px;border-radius:14px;background:#242529;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:#E8E9ED;cursor:pointer"><span style="color:#7C90FF;font-size:10px">&#9660;</span>All down</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "presets as chips instead" · "dark mode variant of <a class="dv-oid" href="#2a">2a</a>" · "show all 7 shutters flat instead of per-room drilldown"</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Three directions — minimal + detail shutter cards</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a AMBIENT GLOW ============ -->
+<div class="dv-opt" id="1a" data-screen-label="1a Ambient glow shutters">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Ambient glow — soft dark; minimal room rows, detail window-shaped drag targets</div>
+  <div class="dv-card" style="width:380px">
+    <div style="--acc:#ffb64d;--off:rgba(255,255,255,.16);background:#141519;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:'Space Grotesk',system-ui,sans-serif">
+      <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:#fff">Shutters</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.45);margin-top:2px">{{ summaryText }}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <div onClick="{{ allUp }}" style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:var(--acc);font-size:13px;cursor:pointer">&#9650;</div>
+            <div onClick="{{ allDown }}" style="width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75);font-size:13px;cursor:pointer">&#9660;</div>
+          </div>
+        </div>
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="width:7px;height:7px;border-radius:4px;background:{{ r.dot }}"></div>
+              <div>
+                <div style="font-size:13.5px;color:rgba(255,255,255,.9)">{{ r.name }}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:1px">{{ r.statusText }}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <div onClick="{{ r.openAll }}" style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);font-size:11px;cursor:pointer">&#9650;</div>
+              <div onClick="{{ r.stopAll }}" style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:var(--acc);font-size:10px;cursor:pointer;opacity:{{ r.stopOp }}">&#9632;</div>
+              <div onClick="{{ r.closeAll }}" style="width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);font-size:11px;cursor:pointer">&#9660;</div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:9px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid {{ s.ring }};cursor:pointer">
+              <div style="font-size:12px;color:var(--acc)">{{ s.glyph }}</div>
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:#fff">{{ s.name }}</div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,.4)">{{ s.desc }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dv-sub">Detail card — wall tablet · drag a window to set position</div>
+  <div class="dv-card" style="width:640px">
+    <div style="--acc:#ffb64d;--off:rgba(255,255,255,.16);background:#141519;padding:18px;display:flex;flex-direction:column;gap:12px;font-family:'Space Grotesk',system-ui,sans-serif">
+      <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+        <div style="background:#1d1f25;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:#fff">{{ r.name }}</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <div style="font-size:11.5px;color:rgba(255,255,255,.4);margin-right:6px">{{ r.statusText }}</div>
+              <div onClick="{{ r.openAll }}" style="padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);font-size:11px;cursor:pointer">&#9650;</div>
+              <div onClick="{{ r.stopAll }}" style="padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.07);color:var(--acc);font-size:10px;cursor:pointer;opacity:{{ r.stopOp }}">&#9632;</div>
+              <div onClick="{{ r.closeAll }}" style="padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);font-size:11px;cursor:pointer">&#9660;</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <sc-for list="{{ r.covers }}" as="c" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:7px;width:124px">
+                <div onPointerDown="{{ c.dragV }}" style="position:relative;height:150px;border-radius:12px;background:linear-gradient(180deg,#33455f,#232f47);overflow:hidden;cursor:ns-resize;touch-action:none;border:1px solid rgba(255,255,255,.08)">
+                  <div style="position:absolute;top:0;left:0;right:0;height:{{ c.shutterH }};background:repeating-linear-gradient(180deg,#4a5160 0px,#4a5160 9px,#3b414e 9px,#3b414e 12px);border-bottom:2px solid var(--acc)"></div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div>
+                    <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.9)">{{ c.name }}</div>
+                    <div style="font-size:10.5px;color:{{ c.statusColor }};margin-top:1px">{{ c.statusWord }}{{ c.pctText }}</div>
+                  </div>
+                  <div onClick="{{ c.stop }}" style="width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;color:var(--acc);font-size:9px;cursor:pointer;opacity:{{ c.stopOp }}">&#9632;</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b WARM PAPER ============ -->
+<div class="dv-opt" id="1b" data-screen-label="1b Warm paper shutters">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Warm paper — light editorial; minimal room tiles, detail vertical shutter bars</div>
+  <div class="dv-card" style="width:380px">
+    <div style="background:#f6f2ea;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:system-ui,sans-serif">
+      <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font-family:'Source Serif 4',serif;font-size:19px;font-weight:600;color:#2a2419">Shutters</div>
+          <div style="font-size:11.5px;color:#a89e85">{{ summaryText }}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+            <div style="padding:12px;border-radius:10px;border:1px solid #e7dfce;background:{{ r.tileBg }}">
+              <div style="font-size:13px;font-weight:600;color:#3c3425">{{ r.name }}</div>
+              <div style="font-size:11px;color:#a89e85;margin:2px 0 9px">{{ r.statusText }}</div>
+              <div style="display:flex;gap:5px">
+                <div onClick="{{ r.openAll }}" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid #d9d0ba;text-align:center;font-size:11px;color:#5c5340;cursor:pointer;background:#fff">&#9650;</div>
+                <div onClick="{{ r.stopAll }}" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid #d9d0ba;text-align:center;font-size:10px;color:#c85a3a;cursor:pointer;background:#fff;opacity:{{ r.stopOp }}">&#9632;</div>
+                <div onClick="{{ r.closeAll }}" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid #d9d0ba;text-align:center;font-size:11px;color:#5c5340;cursor:pointer;background:#fff">&#9660;</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div onClick="{{ allUp }}" style="flex:1;padding:10px;border-radius:10px;border:1px solid #d9d0ba;text-align:center;font-size:12.5px;font-weight:600;color:#5c5340;cursor:pointer">All up</div>
+          <div onClick="{{ allDown }}" style="flex:1;padding:10px;border-radius:10px;border:1px solid #d9d0ba;text-align:center;font-size:12.5px;font-weight:600;color:#5c5340;cursor:pointer">All down</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+            <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;border:1px solid {{ s.chipBorder }};background:{{ s.chipBg }};cursor:pointer">
+              <div style="font-size:11px;color:#c85a3a">{{ s.glyph }}</div>
+              <div style="font-size:12.5px;font-weight:500;color:#3c3425">{{ s.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dv-sub">Detail card — wall tablet · drag a bar; tap name row buttons for up/stop/down</div>
+  <div class="dv-card" style="width:640px">
+    <div style="background:#f6f2ea;padding:18px;display:flex;flex-direction:column;gap:12px;font-family:system-ui,sans-serif">
+      <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+        <div style="background:#fff;border:1px solid #e7dfce;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font-family:'Source Serif 4',serif;font-size:18px;font-weight:600;color:#2a2419">{{ r.name }}</div>
+            <div style="font-size:11px;color:#a89e85">{{ r.statusText }}</div>
+          </div>
+          <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap">
+            <sc-for list="{{ r.covers }}" as="c" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                <div style="font-size:11px;color:{{ c.statusColorPaper }}">{{ c.statusWord }}{{ c.pctText }}</div>
+                <div onPointerDown="{{ c.dragV }}" style="width:52px;height:120px;border-radius:10px;background:linear-gradient(180deg,#eef4f0,#e2ebe6);overflow:hidden;position:relative;cursor:ns-resize;touch-action:none;border:1px solid #e7dfce">
+                  <div style="position:absolute;top:0;left:0;right:0;height:{{ c.shutterH }};background:repeating-linear-gradient(180deg,#cdbd97 0px,#cdbd97 8px,#bfae86 8px,#bfae86 11px);border-bottom:2px solid #c85a3a"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div onClick="{{ c.open }}" style="font-size:10px;color:#5c5340;cursor:pointer;padding:4px 6px;border:1px solid #d9d0ba;border-radius:6px">&#9650;</div>
+                  <div onClick="{{ c.stop }}" style="font-size:9px;color:#c85a3a;cursor:pointer;padding:4px 6px;border:1px solid #d9d0ba;border-radius:6px;opacity:{{ c.stopOp }}">&#9632;</div>
+                  <div onClick="{{ c.close }}" style="font-size:10px;color:#5c5340;cursor:pointer;padding:4px 6px;border:1px solid #d9d0ba;border-radius:6px">&#9660;</div>
+                </div>
+                <div style="font-size:11.5px;color:#5c5340">{{ c.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1c CONSOLE ============ -->
+<div class="dv-opt" id="1c" data-screen-label="1c Console shutters">
+  <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Console — technical mono; minimal command list, detail horizontal position tracks with entity ids</div>
+  <div class="dv-card" style="width:400px">
+    <div style="--acc:#35e8a8;background:#0a0c0f;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:'IBM Plex Mono',monospace">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px">
+        <div style="font-size:11px;letter-spacing:.18em;color:rgba(255,255,255,.5)">COVERS / CONTROL</div>
+        <div style="font-size:11px;color:var(--acc)">{{ summaryUpper }}</div>
+      </div>
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:2px">
+        <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px dashed rgba(255,255,255,.08)">
+            <div>
+              <div style="font-size:11.5px;color:rgba(255,255,255,.8)">{{ r.nameUpper }}</div>
+              <div style="font-size:9.5px;color:{{ r.statusColorC }};margin-top:2px">{{ r.statusUpper }}</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <div onClick="{{ r.openAll }}" style="font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[UP]</div>
+              <div onClick="{{ r.stopAll }}" style="font-size:11px;color:var(--acc);cursor:pointer;opacity:{{ r.stopOp }}">[ST]</div>
+              <div onClick="{{ r.closeAll }}" style="font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[DN]</div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <div onClick="{{ allUp }}" style="flex:1;padding:9px;border:1px solid rgba(255,255,255,.18);border-radius:4px;text-align:center;font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[ ALL UP ]</div>
+          <div onClick="{{ allDown }}" style="flex:1;padding:9px;border:1px solid rgba(255,255,255,.18);border-radius:4px;text-align:center;font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[ ALL DOWN ]</div>
+        </div>
+      </div>
+      <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em;margin-bottom:4px">PRESETS</div>
+        <sc-for list="{{ scenes }}" as="s" hint-placeholder-count="4">
+          <div onClick="{{ s.apply }}" style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px dashed rgba(255,255,255,.08);cursor:pointer">
+            <div style="font-size:10px;color:rgba(255,255,255,.35);width:18px">{{ s.idx }}</div>
+            <div style="font-size:11.5px;color:rgba(255,255,255,.8);flex:1">{{ s.nameUpper }}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.4)">{{ s.descUpper }}</div>
+            <div style="font-size:11px;color:var(--acc);width:12px">{{ s.marker }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <div class="dv-sub">Detail card — wall tablet · drag a track to set position (left = closed, right = open)</div>
+  <div class="dv-card" style="width:640px">
+    <div style="--acc:#35e8a8;background:#0a0c0f;padding:18px;display:flex;flex-direction:column;gap:14px;font-family:'IBM Plex Mono',monospace">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px">
+        <div style="font-size:11px;letter-spacing:.18em;color:rgba(255,255,255,.5)">COVERS / POSITION</div>
+        <div style="font-size:11px;color:var(--acc)">{{ summaryUpper }}</div>
+      </div>
+      <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+        <div style="border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <div style="font-size:13px;font-weight:600;color:#fff;letter-spacing:.05em">{{ r.nameUpper }}</div>
+            <div style="font-size:10px;color:{{ r.statusColorC }}">{{ r.statusUpper }}</div>
+          </div>
+          <sc-for list="{{ r.covers }}" as="c" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.08)">
+              <div style="width:150px;flex:none">
+                <div style="font-size:11.5px;color:rgba(255,255,255,.8)">{{ c.nameUpper }}</div>
+                <div style="font-size:8.5px;color:rgba(255,255,255,.28);margin-top:2px;word-break:break-all">{{ c.entity }}</div>
+              </div>
+              <div onPointerDown="{{ c.dragH }}" style="position:relative;flex:1;height:22px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;cursor:ew-resize;touch-action:none">
+                <div style="position:absolute;top:0;bottom:0;left:0;width:{{ c.fillW }};background:var(--acc);opacity:.8"></div>
+              </div>
+              <div style="width:86px;flex:none;font-size:10px;color:{{ c.statusColorC }};text-align:right">{{ c.statusUpper }}{{ c.pctText }}</div>
+              <div style="display:flex;gap:7px;flex:none">
+                <div onClick="{{ c.open }}" style="font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[UP]</div>
+                <div onClick="{{ c.stop }}" style="font-size:11px;color:var(--acc);cursor:pointer;opacity:{{ c.stopOp }}">[ST]</div>
+                <div onClick="{{ c.close }}" style="font-size:11px;color:rgba(255,255,255,.75);cursor:pointer">[DN]</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "more like <a class="dv-oid" href="#1a">1a</a> but with the position tracks from <a class="dv-oid" href="#1c">1c</a>" · "different presets" · "new directions"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;travelSeconds&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:10,&quot;step&quot;:0.5,&quot;unit&quot;:&quot;s&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Simulation&quot;},&quot;showPercent&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;}}">
+class Component extends DCLogic {
+  COVERS = [
+    { id: 'bedroom_medium', room: 'bedroom', name: 'Window', entity: 'cover.shelly_2pm_shutter_bedroom_medium' },
+    { id: 'diningroom_big', room: 'dining', name: 'Big window', entity: 'cover.shelly_2pm_shutter_diningroom_big' },
+    { id: 'livingroom_medium', room: 'living', name: 'Medium', entity: 'cover.shelly_2pm_shutter_livingroom_medium' },
+    { id: 'livingroom_small', room: 'living', name: 'Small', entity: 'cover.shelly_2pm_shutter_livingroom_small' },
+    { id: 'office_big_left', room: 'office', name: 'Big left', entity: 'cover.shelly_2pm_shutter_office_big_left' },
+    { id: 'office_big_right', room: 'office', name: 'Big right', entity: 'cover.shelly_2pm_shutter_office_big_right' },
+    { id: 'office_small', room: 'office', name: 'Small', entity: 'cover.shelly_2pm_shutter_office_small' }
+  ];
+
+  ROOMS = [
+    { id: 'bedroom', name: 'Bedroom' },
+    { id: 'dining', name: 'Dining room' },
+    { id: 'living', name: 'Living room' },
+    { id: 'office', name: 'Office' }
+  ];
+
+  SCENES = [
+    { id: 'morning', name: 'Morning', desc: 'All up', glyph: '\u2600', pos: () => 100 },
+    { id: 'half', name: 'Half', desc: 'All at 50%', glyph: '\u25D2', pos: () => 50 },
+    { id: 'privacy', name: 'Privacy', desc: 'Nearly down', glyph: '\u25D5', pos: () => 20 },
+    { id: 'night', name: 'Night', desc: 'All down', glyph: '\u263E', pos: () => 0 }
+  ];
+
+  state = {
+    detailRoom: null,
+    covers: {
+      bedroom_medium: { pos: 100, target: 100 },
+      diningroom_big: { pos: 100, target: 100 },
+      livingroom_medium: { pos: 50, target: 50 },
+      livingroom_small: { pos: 100, target: 100 },
+      office_big_left: { pos: 0, target: 0 },
+      office_big_right: { pos: 0, target: 0 },
+      office_small: { pos: 100, target: 100 }
+    },
+    scene: null
+  };
+
+  componentDidMount() {
+    // Time-based tick: pos advances by real elapsed time, so even if renders
+    // are slow the shutters settle within the configured travel time.
+    this.lastTick = performance.now();
+    this.timer = setInterval(() => {
+      const now = performance.now();
+      const dt = (now - this.lastTick) / 1000;
+      this.lastTick = now;
+      const anyMoving = Object.values(this.state.covers).some((c) => Math.abs(c.pos - c.target) > 0.01);
+      if (!anyMoving) return;
+      const travel = Math.max(0.5, this.props.travelSeconds ?? 3);
+      const step = (100 / travel) * dt;
+      this.setState((s) => {
+        const covers = {};
+        for (const id in s.covers) {
+          const c = s.covers[id];
+          if (Math.abs(c.pos - c.target) <= step) covers[id] = { ...c, pos: c.target };
+          else covers[id] = { ...c, pos: c.pos + (c.target > c.pos ? step : -step) };
+        }
+        return { covers };
+      });
+    }, 250);
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); }
+
+  clamp(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+
+  setTargets(ids, target, scene) {
+    this.setState((s) => {
+      const covers = { ...s.covers };
+      ids.forEach((id) => { covers[id] = { ...covers[id], target }; });
+      return { covers, scene: scene ?? null };
+    });
+  }
+
+  stopCovers(ids) {
+    this.setState((s) => {
+      const covers = { ...s.covers };
+      ids.forEach((id) => { covers[id] = { ...covers[id], target: covers[id].pos }; });
+      return { covers, scene: null };
+    });
+  }
+
+  vDrag(id) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (y) => this.setTargetsImmediate(id, this.clamp((rect.bottom - y) / rect.height * 100));
+      go(e.clientY);
+      const mv = (ev) => go(ev.clientY);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  hDrag(id) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (x) => this.setTargetsImmediate(id, this.clamp((x - rect.left) / rect.width * 100));
+      go(e.clientX);
+      const mv = (ev) => go(ev.clientX);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  // While dragging, snap pos AND target so the shutter tracks the finger; releasing leaves it in place.
+  setTargetsImmediate(id, pct) {
+    this.setState((s) => ({ covers: { ...s.covers, [id]: { pos: pct, target: pct } }, scene: null }));
+  }
+
+  statusOf(c) {
+    const moving = Math.abs(c.pos - c.target) > 0.01;
+    if (moving) return c.target > c.pos ? 'Opening\u2026' : 'Closing\u2026';
+    if (c.pos >= 99) return 'Open';
+    if (c.pos <= 1) return 'Closed';
+    return 'Partly open';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const showPct = this.props.showPercent ?? false;
+
+    const coverVals = (def) => {
+      const c = s.covers[def.id];
+      const moving = Math.abs(c.pos - c.target) > 0.01;
+      const word = this.statusOf(c);
+      const pos = Math.round(c.pos);
+      return {
+        name: def.name,
+        nameUpper: def.name.toUpperCase(),
+        entity: def.entity,
+        statusWord: word,
+        statusUpper: word.toUpperCase().replace('\u2026', ''),
+        pctText: showPct ? ' \u00B7 ' + pos + '%' : '',
+        shutterH: (100 - pos) + '%',
+        fillW: pos + '%',
+        moving,
+        stopOp: moving ? '1' : '.25',
+        statusColor: moving ? 'var(--acc)' : 'rgba(255,255,255,.45)',
+        statusColorPaper: moving ? '#c85a3a' : '#a89e85',
+        statusColorC: moving ? 'var(--acc)' : 'rgba(255,255,255,.35)',
+        ulmStatusColor: moving ? '#3D5AFE' : '#9AA0AE',
+        ulmStatusColorD: moving ? '#7C90FF' : '#8B8F9B',
+        open: () => this.setTargets([def.id], 100),
+        close: () => this.setTargets([def.id], 0),
+        stop: () => this.stopCovers([def.id]),
+        dragV: this.vDrag(def.id),
+        dragH: this.hDrag(def.id)
+      };
+    };
+
+    const rooms = this.ROOMS.map((room) => {
+      const defs = this.COVERS.filter((c) => c.room === room.id);
+      const ids = defs.map((d) => d.id);
+      const states = ids.map((id) => s.covers[id]);
+      const anyMoving = states.some((c) => Math.abs(c.pos - c.target) > 0.01);
+      const allOpen = states.every((c) => c.pos >= 99);
+      const allClosed = states.every((c) => c.pos <= 1);
+      const nOpen = states.filter((c) => c.pos > 1).length;
+      let statusText;
+      if (anyMoving) statusText = 'Moving\u2026';
+      else if (allOpen) statusText = defs.length > 1 ? 'All open' : 'Open';
+      else if (allClosed) statusText = defs.length > 1 ? 'All closed' : 'Closed';
+      else statusText = defs.length > 1 ? nOpen + ' of ' + defs.length + ' open' : 'Partly open';
+      return {
+        name: room.name,
+        nameUpper: room.name.toUpperCase(),
+        statusText,
+        statusUpper: statusText.toUpperCase().replace('\u2026', ''),
+        statusColorC: anyMoving ? 'var(--acc)' : 'rgba(255,255,255,.35)',
+        dot: allClosed ? 'var(--off)' : 'var(--acc)',
+        tileBg: allClosed ? '#fff' : 'color-mix(in oklab, #c85a3a 8%, white)',
+        stopOp: anyMoving ? '1' : '.25',
+        ulmIconBg: allClosed ? 'rgba(112,118,134,.15)' : 'rgba(61,90,254,.15)',
+        ulmIconColor: allClosed ? '#707686' : '#3D5AFE',
+        ulmStatusColor: anyMoving ? '#3D5AFE' : '#9AA0AE',
+        ulmIconBgD: allClosed ? 'rgba(255,255,255,.08)' : 'rgba(61,90,254,.28)',
+        ulmIconColorD: allClosed ? '#9AA0AE' : '#7C90FF',
+        ulmStatusColorD: anyMoving ? '#7C90FF' : '#8B8F9B',
+        openDetail: () => this.setState({ detailRoom: room.id }),
+        openAll: () => this.setTargets(ids, 100),
+        closeAll: () => this.setTargets(ids, 0),
+        stopAll: () => this.stopCovers(ids),
+        covers: defs.map(coverVals)
+      };
+    });
+
+    const allIds = this.COVERS.map((c) => c.id);
+    const scenes = this.SCENES.map((sc, i) => ({
+      idx: '0' + (i + 1),
+      name: sc.name,
+      nameUpper: sc.name.toUpperCase(),
+      desc: sc.desc,
+      descUpper: sc.desc.toUpperCase(),
+      glyph: sc.glyph,
+      ring: s.scene === sc.id ? 'var(--acc)' : 'rgba(127,127,127,.15)',
+      chipBorder: s.scene === sc.id ? '#c85a3a' : '#d9d0ba',
+      chipBg: s.scene === sc.id ? 'color-mix(in oklab, #c85a3a 10%, white)' : '#fff',
+      marker: s.scene === sc.id ? '\u25CF' : '',
+      ulmRing: s.scene === sc.id ? '#3D5AFE' : 'rgba(0,0,0,0)',
+      apply: () => this.setTargets(allIds, sc.pos(), sc.id)
+    }));
+
+    const all = Object.values(s.covers);
+    const nMoving = all.filter((c) => Math.abs(c.pos - c.target) > 0.01).length;
+    const nOpen = all.filter((c) => c.pos > 1).length;
+    let summaryText;
+    if (nMoving) summaryText = nMoving + ' moving\u2026';
+    else if (nOpen === all.length) summaryText = 'All open';
+    else if (nOpen === 0) summaryText = 'All closed';
+    else summaryText = nOpen + ' of ' + all.length + ' open';
+
+    const detail = s.detailRoom ? rooms[this.ROOMS.findIndex((r) => r.id === s.detailRoom)] : null;
+
+    return {
+      rooms, scenes, summaryText,
+      summaryUpper: summaryText.toUpperCase().replace('\u2026', ''),
+      allUp: () => this.setTargets(allIds, 100),
+      allDown: () => this.setTargets(allIds, 0),
+      allStop: () => this.stopCovers(allIds),
+      anyMovingOp: nMoving ? '1' : '.35',
+      showDetail: !!detail,
+      detail,
+      closeDetail: () => this.setState({ detailRoom: null }),
+      eatClick: (e) => e.stopPropagation()
+    };
+  }
+}
+</script>
+</body>
+</html>

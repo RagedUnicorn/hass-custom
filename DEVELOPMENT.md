@@ -87,7 +87,7 @@ Notes:
    [naming note](README.md#hass-custom)).
 2. Add a side-effect import in [`src/main.ts`](src/main.ts) and mention the
    card in its console banner.
-3. Document the card in its own `docs/<element-name>.md` and link it from the
+3. Document the card in its own `docs/<element-name>/<element-name>.md` and link it from the
    [README's card list](README.md#cards).
 4. Add a mock-harness mount and a Playwright spec — see [TEST.md](TEST.md).
 

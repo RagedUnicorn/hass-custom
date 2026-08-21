@@ -9,6 +9,9 @@ card takes the status sensor as its anchor and treats everything else as
 optional — each entity you leave out simply drops its row, so the card is
 useful with `entity` alone and gains detail as you wire more in.
 
+[`examples/washer-dashboard.yaml`](../../examples/washer-dashboard.yaml) is a
+ready-to-paste dashboard for this card.
+
 ```yaml
 type: custom:ru-washer-card
 title: Laundry

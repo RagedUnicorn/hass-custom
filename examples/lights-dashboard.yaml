@@ -1,0 +1,46 @@
+# A Lights dashboard built around ru-lights-card.
+#
+# HOW TO USE
+#   Settings → Dashboards → + Add dashboard → New dashboard from scratch.
+#   Open it, pencil icon → three-dot menu → "Raw configuration editor",
+#   then replace everything with this file and Save.
+#
+# WHY A DEFAULT (MASONRY) VIEW
+#   Unlike ru-tv-card (see media-dashboard.yaml), the lights card has no wide
+#   breakpoint — it is a phone-first compact card. Masonry's ~500px column
+#   cap is exactly its sweet spot, so no panel view tricks are needed.
+#
+# ENTITY IDS
+#   The light and scene ids below are placeholders — replace them with your
+#   own (Settings → Devices & services → Entities, domains `light`/`scene`).
+#   Rooms and lights are free-form; non-dimmable lights get a plain toggle
+#   automatically, and dropping the `scenes` block hides the scenes panel.
+
+views:
+  - title: Lights
+    path: lights
+    icon: mdi:lightbulb-group
+    cards:
+      - type: custom:ru-lights-card
+        title: Lights
+        rooms:
+          - name: Kitchen
+            lights:
+              - entity: light.hue_bulb_kitchen_1
+                name: Bulb 1
+              - entity: light.hue_bulb_kitchen_2
+                name: Bulb 2
+          - name: Living room
+            lights:
+              - entity: light.hue_lightstrip_livingroom
+                name: Strip
+          - name: Bedroom
+            lights:
+              - entity: light.hue_bulb_bedroom
+                name: Ceiling
+        scenes: # optional — panel hidden when omitted
+          - entity: scene.relax
+            gradient: "linear-gradient(90deg,#ff9a4d,#ff5a3d)"
+          - entity: scene.focus
+            name: Focus # optional, defaults to friendly_name
+            gradient: "linear-gradient(90deg,#dff3ff,#8fd0ff)"

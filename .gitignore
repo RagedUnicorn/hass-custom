@@ -13,6 +13,4 @@ node_modules/
 
 # Generated output — vite build, playwright test artifacts and reports
 generated/
-
-# Design mocks — local sync of the Claude Design project, not tracked
-design/
+.playwright-mcp/
