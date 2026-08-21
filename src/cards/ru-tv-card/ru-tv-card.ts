@@ -590,8 +590,8 @@ export class RuTvCard extends LitElement {
           @pointerdown=${() =>
             this._stepPress(() => this._volumeStep(volume, service))}
           @pointerup=${() => this._holdStop()}
-          @pointerleave=${() => this._stepLeave()}
-          @pointercancel=${() => this._stepLeave()}
+          @pointerleave=${(e: PointerEvent) => this._stepLeave(e)}
+          @pointercancel=${() => this._stepCancel()}
           @click=${() =>
             this._stepClick(() => this._volumeStep(volume, service))}
         >
@@ -634,8 +634,8 @@ export class RuTvCard extends LitElement {
         @pointerdown=${() =>
           this._stepPress(() => this._nudgeVolume(volume, dir))}
         @pointerup=${() => this._holdStop()}
-        @pointerleave=${() => this._stepLeave()}
-        @pointercancel=${() => this._stepLeave()}
+        @pointerleave=${(e: PointerEvent) => this._stepLeave(e)}
+        @pointercancel=${() => this._stepCancel()}
         @click=${() => this._stepClick(() => this._nudgeVolume(volume, dir))}
       >
         ${glyph}
@@ -836,8 +836,8 @@ export class RuTvCard extends LitElement {
             KB_HOLD_REPEAT_MS
           )}
         @pointerup=${() => this._holdStop()}
-        @pointerleave=${() => this._stepLeave()}
-        @pointercancel=${() => this._stepLeave()}
+        @pointerleave=${(e: PointerEvent) => this._stepLeave(e)}
+        @pointercancel=${() => this._stepCancel()}
         @click=${() =>
           this._stepClick(() => this._remoteCommand("KEYCODE_DEL"))}
       >
@@ -1011,8 +1011,18 @@ export class RuTvCard extends LitElement {
     step();
   }
 
-  /** Pointer left the button — no click will follow, so also drop the flag. */
-  private _stepLeave(): void {
+  /** Pointerleave means "no click will follow" only while a button is still
+   * pressed (mouse dragged off mid-hold). A finger lifting off a touchscreen
+   * also fires pointerleave — after pointerup but *before* the trailing
+   * click — with no buttons down; the flag must survive that or the click
+   * lands as a second step. */
+  private _stepLeave(event: PointerEvent): void {
+    this._holdStop();
+    if (event.buttons !== 0) this._stepPointerFired = false;
+  }
+
+  /** Press aborted (touch became a scroll, pointer lost) — no click follows. */
+  private _stepCancel(): void {
     this._holdStop();
     this._stepPointerFired = false;
   }

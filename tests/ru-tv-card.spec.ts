@@ -437,6 +437,45 @@ test("holding a volume stepper repeats the step", async ({ page }) => {
   ).toBe(ups.length);
 });
 
+test.describe("touch taps on the volume steppers", () => {
+  // A touch tap fires pointerdown → pointerup → pointerleave → click (the
+  // pointer leaves the screen after lift, so the leave precedes the trailing
+  // click). The leave used to drop the click-swallow flag, so every tap
+  // stepped twice; only a still-pressed leave may drop it.
+  test.use({ hasTouch: true, viewport: { width: 1100, height: 1000 } });
+
+  test("one tap is exactly one step", async ({ page }) => {
+    await openHarness(page);
+
+    await page.locator(`${STEPPERS} .vol-step`).nth(1).tap();
+    await expect
+      .poll(() =>
+        calls(page).then(
+          (log) => log.filter((call) => call.service === "volume_up").length
+        )
+      )
+      .toBe(1);
+    // No trailing click sneaks in a second one.
+    await page.waitForTimeout(300);
+    expect(
+      (await calls(page)).filter((call) => call.service === "volume_up").length
+    ).toBe(1);
+
+    await page.locator(`${WIDE} .vol-nudge`).nth(1).tap();
+    await expect
+      .poll(() =>
+        calls(page).then(
+          (log) => log.filter((call) => call.service === "volume_set").length
+        )
+      )
+      .toBe(1);
+    await page.waitForTimeout(300);
+    expect(
+      (await calls(page)).filter((call) => call.service === "volume_set").length
+    ).toBe(1);
+  });
+});
+
 test.describe("volume nudges (−/+ beside the slider)", () => {
   // Pinned so both Playwright projects run these identically — the reveal is
   // driven by the controls row's own width (nested container query), so the
