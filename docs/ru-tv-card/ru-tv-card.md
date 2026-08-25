@@ -7,8 +7,7 @@ remote panel — a ring d-pad (rim = directions, center = OK, like a physical
 remote) with Back / Home keys below and every press echoed in the panel
 header.
 
-Android TVs surface in HA as two media players — the Android TV Remote one
-(power, foreground app, volume steps) and the Google Cast one (track title,
+Android TVs surface in HA as two media players — the Android TV Remote one (power, foreground app, volume steps) and the Google Cast one (track title,
 position, seek, volume level). The card spans both; every control is
 feature-detected from `supported_features`, so a config with only `entity`
 still renders a sensible card.
@@ -30,7 +29,7 @@ remote_entity: remote.tv_livingroom         # optional, androidtv_remote remote
 volume_entity: media_player.tv_bravia       # optional, e.g. braviatv → real volume slider
 volume_mode: steppers                       # optional: auto (default) | slider | steppers
 source_entity: media_player.tv_bravia       # optional, e.g. braviatv → input-switch chips
-skip_seconds: [10, 30]                      # optional seek jumps, [back, forward]
+skip_seconds: [ 10, 30 ]                      # optional seek jumps, [back, forward]
 apps: # optional app launcher (chips; larger tiles when the card is wide)
   - name: Netflix
     icon: mdi:netflix # optional: mdi:/ru: icon ref or an image URL
@@ -65,20 +64,20 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
 
 ## Options
 
-| Option          | Type   | Default       | Description                                                        |
-| --------------- | ------ | ------------- | ------------------------------------------------------------------ |
-| `title`         | string | `Media`       | Card title                                                         |
-| `entity`        | string | **required**  | The TV's `media_player.*` entity (power, app, volume steps)        |
-| `name`          | string | friendly name | Device name shown on the card                                      |
-| `media_entity`  | string | —             | Cast-style `media_player.*` → now-playing, seek, transport         |
-| `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                   |
-| `keyboard`      | bool   | `false`       | On-screen QWERTY (wide layout only; needs `remote_entity`)         |
-| `keyboard_mode` | string | `text`        | How keys type: `text` (IME channel) or `keycode` (raw key events)  |
-| `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)            |
-| `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)              |
-| `volume_step`   | number | `5`           | Percent per −/+ press beside the volume slider (1–25)              |
-| `source_entity` | string | —             | `media_player.*` the input chips target (e.g. braviatv)            |
-| `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                    |
+| Option          | Type   | Default       | Description                                                                                    |
+|-----------------|--------|---------------|------------------------------------------------------------------------------------------------|
+| `title`         | string | `Media`       | Card title                                                                                     |
+| `entity`        | string | **required**  | The TV's `media_player.*` entity (power, app, volume steps)                                    |
+| `name`          | string | friendly name | Device name shown on the card                                                                  |
+| `media_entity`  | string | —             | Cast-style `media_player.*` → now-playing, seek, transport                                     |
+| `remote_entity` | string | —             | `remote.*` entity → remote panel + app launching                                               |
+| `keyboard`      | bool   | `false`       | On-screen QWERTY (wide layout only; needs `remote_entity`)                                     |
+| `keyboard_mode` | string | `text`        | How keys type: `text` (IME channel) or `keycode` (raw key events)                              |
+| `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)                                        |
+| `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)                                          |
+| `volume_step`   | number | `5`           | Percent per −/+ press beside the volume slider (1–25)                                          |
+| `source_entity` | string | —             | `media_player.*` the input chips target (e.g. braviatv)                                        |
+| `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                                                |
 | `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id`/`source` |
 
 ## Behavior notes
@@ -87,8 +86,7 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
   `media_entity` reports a track with a duration; the playback position ticks
   live between HA updates. Seek, play/pause and previous/next are each
   feature-detected and dropped when unsupported.
-- Seeking: drag the bar for coarse scrubbing or use the skip buttons
-  (`skip_seconds`) for precise jumps; quick repeated skips stack. After a
+- Seeking: drag the bar for coarse scrubbing or use the skip buttons (`skip_seconds`) for precise jumps; quick repeated skips stack. After a
   seek the bar holds the target position until the TV confirms it — a cast
   device re-reports its position seconds later, and snapping back to the
   stale value in between would look like the seek failed.
@@ -100,8 +98,7 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
   devices, so stepped key presses are all such TVs support. Steppers show
   the current level between the buttons and repeat while held.
 - In slider mode, −/+ buttons appear beside the slider when the row is wide
-  enough for them; each press moves the level by `volume_step` percent
-  (default 5) and repeats while held.
+  enough for them; each press moves the level by `volume_step` percent (default 5) and repeats while held.
 - Sony Bravia (Android/Google TV): the native
   [Sony Bravia TV](https://www.home-assistant.io/integrations/braviatv/)
   integration talks to Sony's REST API, where absolute volume-set genuinely
@@ -111,8 +108,7 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
   without `volume_mode: steppers`. Keep `media_entity` (cast) for the
   now-playing block: the Bravia API has no seek. A configured `volume_entity`
   is authoritative: while it's unavailable the volume row renders disabled
-  instead of silently rerouting commands to the cast/androidtv entities
-  (whose volume-set an Android 12+ TV ignores).
+  instead of silently rerouting commands to the cast/androidtv entities (whose volume-set an Android 12+ TV ignores).
 - Sound system attached (soundbar/AVR over HDMI ARC): the Bravia API can only
   set the TV-speaker target, which is mute/unused in that setup — the volume
   OSD moves but the audible volume doesn't. Point `volume_entity` at the sound
@@ -134,8 +130,7 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
   — see the [community deep-link guide](https://community.home-assistant.io/t/android-tv-remote-app-links-deep-linking-guide/567921)).
   HA also accepts a plain package name (e.g. `com.plexapp.android`) since
   2024.6, but some TVs — Sony Google TVs among them — silently ignore it:
-  the call wakes the TV yet no app opens. Test an `activity` with the TV
-  *on* via Developer Tools → Actions before blaming the card. A chip
+  the call wakes the TV yet no app opens. Test an `activity` with the TV *on* via Developer Tools → Actions before blaming the card. A chip
   highlights when its `app_id` matches the TV's foreground app (or its
   `name` matches the cast app name) — `app_id` stays the package name;
   find it by opening the app on the TV and reading the entity's `app_id`
@@ -189,19 +184,18 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
     to stay off. With IME *on*, TVs swallow letter key events (digits
     sneak through as channel keys), which is how a half-working keyboard
     usually announces a mode mismatch.
-  Backspace and enter go as `KEYCODE_DEL`/`KEYCODE_ENTER` in both modes.
-  Needs `remote_entity`; wide layout only — a phone-width column has no
-  room for forty keys. Tip: `remote.send_command` with
-  `command: "text:stranger things"` types a whole string at once — handy
-  in scripts.
+    Backspace and enter go as `KEYCODE_DEL`/`KEYCODE_ENTER` in both modes.
+    Needs `remote_entity`; wide layout only — a phone-width column has no
+    room for forty keys. Tip: `remote.send_command` with
+    `command: "text:stranger things"` types a whole string at once — handy
+    in scripts.
 - An unavailable TV renders grayed out with disabled controls; while the TV is
   off the media/remote sections dim.
 - The card adapts to the width it is given. From about 640px it puts the remote
   panel beside the media panel instead of below it, and a card without a remote
   splits its playback controls and app chips into two columns. The app launcher
   also grows from small chips into a grid of larger tiles — icon above the
-  label — sized to however many columns fit. This follows the
-  **card's own** width, not the browser window's — a card in a narrow dashboard
+  label — sized to however many columns fit. This follows the **card's own** width, not the browser window's — a card in a narrow dashboard
   column stays in the compact layout even on a wide screen, and the same card in
   a panel-view dashboard or on a wall tablet goes wide. Nothing to configure.
 - On a very wide screen an uncapped card stretches the seek and volume bars

@@ -24,19 +24,18 @@ pm10_entity: sensor.bedroom_dyson_purifier_pm10              # optional
 
 ## Options
 
-| Option              | Type   | Default        | Description                                            |
-| ------------------- | ------ | -------------- | ------------------------------------------------------ |
-| `title`             | string | `Air`          | Card title                                             |
-| `entity`            | string | **required**   | The purifier's `fan.*` entity                          |
-| `name`              | string | friendly name  | Device name shown on the card                          |
-| `night_mode_entity` | string | —              | `switch.*` for the device's night mode → Night chip    |
-| `pm25_entity`       | string | —              | PM2.5 `sensor.*` (µg/m³) → air quality panel           |
-| `pm10_entity`       | string | —              | PM10 `sensor.*` (µg/m³) → air quality panel            |
+| Option              | Type   | Default       | Description                                         |
+|---------------------|--------|---------------|-----------------------------------------------------|
+| `title`             | string | `Air`         | Card title                                          |
+| `entity`            | string | **required**  | The purifier's `fan.*` entity                       |
+| `name`              | string | friendly name | Device name shown on the card                       |
+| `night_mode_entity` | string | —             | `switch.*` for the device's night mode → Night chip |
+| `pm25_entity`       | string | —             | PM2.5 `sensor.*` (µg/m³) → air quality panel        |
+| `pm10_entity`       | string | —             | PM10 `sensor.*` (µg/m³) → air quality panel         |
 
 ## Behavior notes
 
-- The speed ticks map onto the fan's `percentage` in `percentage_step` steps
-  (capped at 10 ticks); tapping one sends `fan.set_percentage`, which switches
+- The speed ticks map onto the fan's `percentage` in `percentage_step` steps (capped at 10 ticks); tapping one sends `fan.set_percentage`, which switches
   the fan to manual. The speed section only renders for fans that report a
   percentage, the oscillation row only for fans that report `oscillating`.
 - The Auto chip binds to the fan's auto-like preset (`fan.set_preset_mode`)

@@ -28,7 +28,7 @@ rooms:
     lights:
       - entity: light.hue_lightstrip_livingroom
         name: Strip
-scenes:                             # optional — panel hidden when omitted
+scenes: # optional — panel hidden when omitted
   - entity: scene.relax
     gradient: "linear-gradient(90deg,#ff9a4d,#ff5a3d)"
   - entity: scene.focus
@@ -39,7 +39,7 @@ scenes:                             # optional — panel hidden when omitted
 ## Options
 
 | Option   | Type   | Default      | Description                                                    |
-| -------- | ------ | ------------ | -------------------------------------------------------------- |
+|----------|--------|--------------|----------------------------------------------------------------|
 | `title`  | string | `Lights`     | Card title                                                     |
 | `rooms`  | list   | **required** | Rooms, each with `name` and `lights`                           |
 | `scenes` | list   | —            | Scene entities, each `entity` + optional `name` and `gradient` |

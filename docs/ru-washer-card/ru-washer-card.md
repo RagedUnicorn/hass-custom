@@ -42,26 +42,26 @@ presets:
 
 ## Options
 
-| Option                | Type   | Default      | Description                                                       |
-| --------------------- | ------ | ------------ | ----------------------------------------------------------------- |
-| `title`               | string | `Laundry`    | Card title                                                        |
-| `entity`              | string | **required** | The appliance's enum status `sensor.*`                            |
-| `name`                | string | friendly name | Device name shown on the card                                    |
-| `device_id`           | string | —            | Miele device id — required when `presets` are set                 |
-| `power_entity`        | string | —            | `switch.*` → power toggle                                         |
-| `start_entity`        | string | —            | `button.*` → Start control                                        |
-| `pause_entity`        | string | —            | `button.*` → Pause control                                        |
-| `stop_entity`         | string | —            | `button.*` → Stop control                                         |
-| `program_entity`      | string | —            | `sensor.*` → programme name                                       |
-| `phase_entity`        | string | —            | `sensor.*` → programme phase                                      |
-| `remaining_entity`    | string | —            | `sensor.*` minutes → countdown fallback                           |
-| `elapsed_entity`      | string | —            | `sensor.*` minutes → progress                                     |
-| `finish_entity`       | string | —            | timestamp `sensor.*` → per-second countdown + "Finishes HH:MM"    |
-| `door_entity`         | string | —            | `binary_sensor.*` → door indicator                                |
-| `mobile_start_entity` | string | —            | `binary_sensor.*` → explains a refused remote start               |
-| `spin_speed_entity`   | string | —            | `sensor.*` rpm → readout chip                                     |
-| `temperature_entity`  | string | —            | `sensor.*` °C → readout chip                                      |
-| `presets`             | list   | —            | Programme chips: `name` + `program_id`, optional `icon`/`program`/`spin`/`temperature` |
+| Option                | Type   | Default       | Description                                                                            |
+|-----------------------|--------|---------------|----------------------------------------------------------------------------------------|
+| `title`               | string | `Laundry`     | Card title                                                                             |
+| `entity`              | string | **required**  | The appliance's enum status `sensor.*`                                                 |
+| `name`                | string | friendly name | Device name shown on the card                                                          |
+| `device_id`           | string | —             | Miele device id — required when `presets` are set                                      |
+| `power_entity`        | string | —             | `switch.*` → power toggle                                                              |
+| `start_entity`        | string | —             | `button.*` → Start control                                                             |
+| `pause_entity`        | string | —             | `button.*` → Pause control                                                             |
+| `stop_entity`         | string | —             | `button.*` → Stop control                                                              |
+| `program_entity`      | string | —             | `sensor.*` → programme name                                                            |
+| `phase_entity`        | string | —             | `sensor.*` → programme phase                                                           |
+| `remaining_entity`    | string | —             | `sensor.*` minutes → countdown fallback                                                |
+| `elapsed_entity`      | string | —             | `sensor.*` minutes → progress                                                          |
+| `finish_entity`       | string | —             | timestamp `sensor.*` → per-second countdown + "Finishes HH:MM"                         |
+| `door_entity`         | string | —             | `binary_sensor.*` → door indicator                                                     |
+| `mobile_start_entity` | string | —             | `binary_sensor.*` → explains a refused remote start                                    |
+| `spin_speed_entity`   | string | —             | `sensor.*` rpm → readout chip                                                          |
+| `temperature_entity`  | string | —             | `sensor.*` °C → readout chip                                                           |
+| `presets`             | list   | —             | Programme chips: `name` + `program_id`, optional `icon`/`program`/`spin`/`temperature` |
 
 ## Behavior notes
 

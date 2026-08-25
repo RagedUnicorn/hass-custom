@@ -4,8 +4,7 @@ A shutters view card: summary header, global up/down/stop chips, a
 two-column grid of room tiles
 with status and controls, position presets, and a tap-to-open drilldown with
 drag-to-position shutter targets per cover. The drilldown is a viewport-level
-overlay — a bottom sheet on narrow screens, a centered dialog on wide ones
-(closes on scrim tap, ✕, or Escape).
+overlay — a bottom sheet on narrow screens, a centered dialog on wide ones (closes on scrim tap, ✕, or Escape).
 
 The [design mock](ru-shutters-card.html) this card implements sits beside this
 page (render it with `npm run dev` at
@@ -34,7 +33,7 @@ rooms:
 ## Options
 
 | Option         | Type   | Default      | Description                                            |
-| -------------- | ------ | ------------ | ------------------------------------------------------ |
+|----------------|--------|--------------|--------------------------------------------------------|
 | `title`        | string | `Shutters`   | Card title                                             |
 | `rooms`        | list   | **required** | Rooms, each with `name`, optional `icon`, and `covers` |
 | `show_percent` | bool   | `false`      | Append the numeric position to status words            |

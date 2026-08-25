@@ -26,7 +26,7 @@ The suite starts its own vite server on `:5199` (or reuses a running one)
 and runs every spec in two viewport projects, because the drilldown renders
 as a bottom sheet on narrow screens and a centered dialog on wide ones.
 
-Card-*width* behavior is tested differently. `ru-tv-card`'s wide layout is
+Card- *width* behavior is tested differently. `ru-tv-card`'s wide layout is
 driven by a container query on the card itself, not by the viewport, so
 `dev/harness.html` mounts a deliberately wide `#card-tv-wide` alongside the
 400px-capped `#card-tv` and the spec pins its own viewport. The assertion is

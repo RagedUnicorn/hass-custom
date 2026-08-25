@@ -9,8 +9,7 @@ entity: sensor.hub
 icon: ru:matter
 ```
 
-Or set it as an entity's icon under **Settings → Devices & services → Entities →
-(entity) → Settings → Icon** by typing `ru:zigbee`.
+Or set it as an entity's icon under **Settings → Devices & services → Entities → (entity) → Settings → Icon** by typing `ru:zigbee`.
 
 > Custom icons render everywhere `<ha-icon>` is used, but they do **not** appear
 > in the icon-picker dropdown — you type the full `prefix:name` yourself.
@@ -23,8 +22,7 @@ Or set it as an entity's icon under **Settings → Devices & services → Entiti
 
 A Lovelace **resource** — which is what both installs in the
 [README](../README.md#install) register — only loads inside a **dashboard**.
-Config pages such as **Settings → Areas → Labels**, **Areas**, or an entity's
-**Icon** field live outside Lovelace, so the `ru:` icon set is often not
+Config pages such as **Settings → Areas → Labels**, **Areas**, or an entity's **Icon** field live outside Lovelace, so the `ru:` icon set is often not
 registered there yet and `ru:matter` / `ru:zigbee` render blank (they only
 resolve if you happened to open a dashboard first in the same browser session).
 
@@ -45,7 +43,7 @@ Restart Home Assistant and hard-refresh the browser (Ctrl/Cmd + Shift + R).
 ## Included icons
 
 | Icon                | Source              | Notes                                      |
-| ------------------- | ------------------- | ------------------------------------------ |
+|---------------------|---------------------|--------------------------------------------|
 | `ru:matter`         | Matter logo         | rendered monochrome (theme `currentColor`) |
 | `ru:zigbee`         | Zigbee logo         | official Zigbee brand mark                 |
 | `ru:philips-hue`    | Philips Hue logo    | official Philips Hue wordmark              |

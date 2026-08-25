@@ -42,8 +42,8 @@ step in the loop.
 1. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
    (the Resources entry only appears with **Advanced mode** enabled in your
    user profile).
-   - URL: `http://<your-pc>:5173/src/main.ts`
-   - Type: **JavaScript Module**
+  - URL: `http://<your-pc>:5173/src/main.ts`
+  - Type: **JavaScript Module**
 2. Hard-refresh the browser (Ctrl+Shift+R). The purple `hass-custom` banner in
    the browser console confirms the dev bundle loaded and lists the registered
    icon sets and cards.

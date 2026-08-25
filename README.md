@@ -14,7 +14,7 @@ It ships two things in a single bundle:
   quality readout, `ru-tv-card`, an Android TV media + remote card, and
   `ru-washer-card`, a Miele washing machine card.
 
-Everything ships under the `ru` namespace (**R**aged**U**nicorn): icon sets as
+Everything ships under the `ru` namespace (**R**aged **U**nicorn): icon sets as
 `ru:*`, card elements as `ru-*`. All Lovelace cards share one global custom
 element registry across every installed plugin, so the prefix keeps generic
 names like `shutters-card` from colliding with someone else's card.
@@ -65,8 +65,8 @@ resource automatically.
    [release](../../releases) (or build it yourself, see
    [DEVELOPMENT.md](DEVELOPMENT.md)) and copy it to `config/www/hass-custom.js`.
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/hass-custom.js`
-   - Type: **JavaScript Module**
+  - URL: `/local/hass-custom.js`
+  - Type: **JavaScript Module**
 3. Reload the frontend.
 
 ## Icons
