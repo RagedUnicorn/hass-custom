@@ -1,5 +1,7 @@
 # hass-custom
 
+![hass-custom](docs/hass_custom_banner.svg)
+
 Custom **frontend** resources for [Home Assistant](https://www.home-assistant.io/),
 distributed through [HACS](https://hacs.xyz/) as a **Plugin (Dashboard)** repository.
 
