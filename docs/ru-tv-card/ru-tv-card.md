@@ -28,7 +28,7 @@ media_entity: media_player.tv_livingroom_2  # optional, cast media player
 remote_entity: remote.tv_livingroom         # optional, androidtv_remote remote
 volume_entity: media_player.tv_bravia       # optional, e.g. braviatv → real volume slider
 volume_mode: steppers                       # optional: auto (default) | slider | steppers
-source_entity: media_player.tv_bravia       # optional, e.g. braviatv → input-switch chips
+source_entity: media_player.tv_bravia       # optional, e.g. braviatv → input-switch + app-title chips
 skip_seconds: [ 10, 30 ]                      # optional seek jumps, [back, forward]
 apps: # optional app launcher (chips; larger tiles when the card is wide)
   - name: Netflix
@@ -46,11 +46,11 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
     color: "#1DB954"
     activity: com.spotify.tv.android
     app_id: com.spotify.tv.android
-  - name: Plex
-    icon: ru:plex
-    color: "#E5A00D"
-    activity: com.plexapp.android
-    app_id: com.plexapp.android
+  - name: Jellyfin
+    icon: ru:jellyfin
+    color: "#00A4DC"
+    source_app: Jellyfin # launched by title through source_entity (braviatv)
+    app_id: org.jellyfin.androidtv
   - name: Twitch
     icon: ru:twitch
     color: "#9146FF"
@@ -76,9 +76,9 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
 | `volume_entity` | string | —             | `media_player.*` the volume row targets (e.g. braviatv)                                        |
 | `volume_mode`   | string | `auto`        | Volume UI: `auto`, `slider` or `steppers` (see below)                                          |
 | `volume_step`   | number | `5`           | Percent per −/+ press beside the volume slider (1–25)                                          |
-| `source_entity` | string | —             | `media_player.*` the input chips target (e.g. braviatv)                                        |
+| `source_entity` | string | —             | `media_player.*` the input and `source_app` chips target (e.g. braviatv)                       |
 | `skip_seconds`  | list   | `[10, 30]`    | Seek skip amounts in seconds, `[back, forward]`                                                |
-| `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id`/`source` |
+| `apps`          | list   | —             | Launcher chips, each `name` + optional `icon`/`icon_dark`/`color`/`activity`/`app_id`/`source`/`source_app` |
 
 ## Behavior notes
 
@@ -155,6 +155,16 @@ apps: # optional app launcher (chips; larger tiles when the card is wide)
   current `source`. `source` wins when a chip also has an `activity`. CEC
   nicety: a PS5 with "Enable Turning On PS5 Through HDMI" on wakes up when
   the TV switches to its input.
+- A chip with a `source_app` launches an app through `source_entity`
+  instead of the remote: it calls `media_player.play_media` with
+  `media_content_type: app` and the app's title (falling back to
+  `entity`). This is the fix for apps without a deep link on TVs that
+  ignore package-name activities — on a Sony Bravia, the braviatv
+  integration starts any installed app by the title it lists under
+  Media → the TV → Apps (e.g. `Jellyfin`; matched case-insensitively). Keep
+  `app_id` for the highlight. `source_app` wins over `activity`, `source`
+  wins over both. On an off TV the chip wakes it first and launches once it
+  reports on.
 - A chip's `icon` is either an icon ref (`mdi:youtube`, `ru:shelly`, or any
   installed icon set) rendered monochrome and tinted with the app's `color`,
   or an image URL (put files in HA's `www/` folder and reference them as

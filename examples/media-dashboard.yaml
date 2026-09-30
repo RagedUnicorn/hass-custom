@@ -85,11 +85,14 @@ views:
                 color: "#1DB954"
                 activity: spotify://
                 app_id: com.spotify.tv.android
-              - name: Plex
-                icon: ru:plex
-                color: "#E5A00D"
-                activity: plex://
-                app_id: com.plexapp.android
+              - name: Jellyfin
+                icon: ru:jellyfin
+                color: "#00A4DC"
+                # Jellyfin registers no deep link, and this Bravia ignores
+                # package-name launches — so launch it by title through the
+                # braviatv entity (source_entity) instead of the remote.
+                source_app: Jellyfin
+                app_id: org.jellyfin.androidtv
               - name: Twitch
                 icon: ru:twitch
                 color: "#9146FF"

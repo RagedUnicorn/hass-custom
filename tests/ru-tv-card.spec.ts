@@ -16,7 +16,8 @@
  * key-press steps on the androidtv entity), #card-tv-bravia
  * (volume_entity + source_entity media_player.tv_bravia, a braviatv-like
  * player at 35% whose volume_set is absolute, on HDMI 1 of HDMI 1…4; adds
- * a PlayStation chip with source "HDMI 3"), #card-tv-wide (identical
+ * a PlayStation chip with source "HDMI 3" and a Jellyfin chip with
+ * source_app "Jellyfin"), #card-tv-wide (identical
  * config to #card-tv, but in a 900px mount so its container query trips and
  * it renders the side-by-side layout) and #card-tv-narrow (identical config
  * again, in a 320px mount that keeps the controls row below the volume-nudge
@@ -704,6 +705,30 @@ test("a source chip switches the TV input via select_source and highlights", asy
     ]);
   // The mock flips the bravia entity's source attribute → chip highlights.
   await expect(chip).toHaveClass(/active/);
+});
+
+test("a source_app chip launches the app by title via play_media on source_entity", async ({
+  page,
+}) => {
+  const chip = page.locator(`${BRAVIA_CARD} .app`, { hasText: "Jellyfin" });
+  // An app launched this way needs no activity, and never touches the remote.
+  await chip.scrollIntoViewIfNeeded();
+  await expect(chip).toBeEnabled();
+
+  await chip.click();
+  await expect
+    .poll(() => calls(page))
+    .toEqual([
+      {
+        domain: "media_player",
+        service: "play_media",
+        data: {
+          entity_id: BRAVIA,
+          media_content_type: "app",
+          media_content_id: "Jellyfin",
+        },
+      },
+    ]);
 });
 
 test("ring d-pad and keys send remote commands and echo the press", async ({

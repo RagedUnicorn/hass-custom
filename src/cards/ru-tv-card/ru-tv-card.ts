@@ -684,7 +684,8 @@ export class RuTvCard extends LitElement {
               queued
                 ? "pending"
                 : ""}"
-              ?disabled=${!view.available || (!app.activity && !app.source)}
+              ?disabled=${!view.available ||
+              (!app.activity && !app.source && !app.sourceApp)}
               @click=${() => this._launchApp(configApps[index])}
             >
               ${app.icon
@@ -1064,6 +1065,7 @@ export class RuTvCard extends LitElement {
       !wakeInFlight &&
       app.activity &&
       !app.source &&
+      !app.source_app &&
       remoteEntity &&
       this.hass?.states[remoteEntity]?.state === "off"
     ) {
@@ -1083,8 +1085,11 @@ export class RuTvCard extends LitElement {
   }
 
   /** A `source` chip switches TV input via select_source (braviatv exposes
-   * HDMI inputs); otherwise remote.turn_on's `activity` launches apps on
-   * androidtv_remote, falling back to play_media on the main media player.
+   * HDMI inputs); a `source_app` chip launches the app by title via
+   * play_media on the same entity (braviatv's app launch, for TVs that
+   * ignore package-name activities); otherwise remote.turn_on's `activity`
+   * launches apps on androidtv_remote, falling back to play_media on the
+   * main media player.
    * Called with the TV confirmed on, or — remote branch only — confirmed
    * off, where remote.turn_on's POWER prefix wakes it; see _launchApp. */
   private _sendLaunch(app: TvAppConfig): void {
@@ -1093,6 +1098,14 @@ export class RuTvCard extends LitElement {
         this._config?.source_entity ?? this._config!.entity,
         "select_source",
         { source: app.source }
+      );
+      return;
+    }
+    if (app.source_app) {
+      this._player(
+        this._config?.source_entity ?? this._config!.entity,
+        "play_media",
+        { media_content_type: "app", media_content_id: app.source_app }
       );
       return;
     }

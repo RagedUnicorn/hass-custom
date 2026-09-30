@@ -28,6 +28,8 @@ export interface TvAppView {
   activity: string | null;
   /** TV input the chip selects instead of launching an app, or null. */
   source: string | null;
+  /** App title launched through `source_entity` (braviatv), or null. */
+  sourceApp: string | null;
   active: boolean;
 }
 
@@ -298,6 +300,7 @@ export function buildTvView(
     icon: (darkMode ? (app.icon_dark ?? app.icon) : app.icon) ?? null,
     activity: app.activity ?? null,
     source: app.source ?? null,
+    sourceApp: app.source_app ?? null,
     active:
       on &&
       ((app.app_id !== undefined && appIds.has(app.app_id)) ||

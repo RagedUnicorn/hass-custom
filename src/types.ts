@@ -159,6 +159,12 @@ export interface TvAppConfig {
    * that entity's source_list, e.g. "HDMI 3"). Wins over `activity`; the
    * chip highlights while it matches the entity's `source` attribute. */
   source?: string;
+  /** App to launch through `source_entity` instead of the remote — its title
+   * as the braviatv integration lists it (Media → the TV → Apps, e.g.
+   * "Jellyfin"), passed to media_player.play_media with media_content_type
+   * `app`. For TVs that ignore remote.turn_on's package-name launch. Wins
+   * over `activity`; `source` wins over it. */
+  source_app?: string;
 }
 
 export interface TvCardConfig {

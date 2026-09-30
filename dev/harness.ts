@@ -376,7 +376,8 @@ tvSteppersCard.setConfig({
 
 // Same TV with the braviatv entity as volume_entity — the Sony Bravia setup
 // where absolute volume_set works through the native REST integration — and
-// as source_entity, with a PlayStation chip switching to its HDMI input.
+// as source_entity, with a PlayStation chip switching to its HDMI input and
+// a Jellyfin chip launching through braviatv's app launch (source_app).
 const tvBraviaCard = document.createElement("ru-tv-card") as LovelaceCard;
 tvBraviaCard.setConfig({
   type: "custom:ru-tv-card",
@@ -393,6 +394,13 @@ tvBraviaCard.setConfig({
       color: "#0070D1",
       icon: "mdi:sony-playstation",
       source: "HDMI 3",
+    },
+    {
+      name: "Jellyfin",
+      color: "#00A4DC",
+      icon: "ru:jellyfin",
+      source_app: "Jellyfin",
+      app_id: "org.jellyfin.androidtv",
     },
   ],
 });
