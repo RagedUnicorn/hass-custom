@@ -62,6 +62,13 @@ const ICON_SETS: Record<string, Record<string, IconDefinition>> = {
       path: "M256 70H148l108 186-108 186h108l108-186z",
       viewBox: "0 0 512 512",
     },
+    // Jellyfin brand logo (source: assets/jellyfin.svg; the asset's two
+    // gradient-filled paths — outer ring and inner triangle — are merged and
+    // rendered monochrome).
+    jellyfin: {
+      path: "M256 0C188.3 0-29.8 395.4 3.4 462.2s472.3 66 505.2 0S323.8 0 256 0m165.6 404.3c-21.6 43.2-309.3 43.8-331.1 0S211.7 101.4 256 101.4 443.2 361 421.6 404.3M256 196.2c-22.4 0-94.8 131.3-83.8 153.4s156.8 21.9 167.7 0-61.3-153.4-83.9-153.4",
+      viewBox: "0 0 512 512",
+    },
     // Twitch brand logo (source: assets/twitch.svg; the asset's nested group
     // transforms are baked into the coordinates).
     twitch: {

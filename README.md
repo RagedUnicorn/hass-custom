@@ -38,6 +38,8 @@ names like `shutters-card` from colliding with someone else's card.
   &nbsp;&nbsp;
   <img src="assets/plex.svg" alt="ru:plex icon" width="64" height="64">
   &nbsp;&nbsp;
+  <img src="assets/jellyfin.svg" alt="ru:jellyfin icon" width="64" height="64">
+  &nbsp;&nbsp;
   <img src="assets/twitch.svg" alt="ru:twitch icon" width="64" height="64">
   &nbsp;&nbsp;
   <img src="assets/playstation5.svg" alt="ru:playstation5 icon" width="64" height="64">

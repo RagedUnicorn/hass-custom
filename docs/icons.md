@@ -52,6 +52,7 @@ Restart Home Assistant and hard-refresh the browser (Ctrl/Cmd + Shift + R).
 | `ru:youtube`        | YouTube logo        | play-button mark, tinted via `color`       |
 | `ru:spotify`        | Spotify logo        | official Spotify brand mark                |
 | `ru:plex`           | Plex logo           | chevron mark (background dropped)          |
+| `ru:jellyfin`       | Jellyfin logo       | official Jellyfin brand mark (monochrome)  |
 | `ru:twitch`         | Twitch logo         | official Twitch brand mark                 |
 | `ru:playstation5`   | PlayStation 5 logo  | PS5 wordmark                               |
 
