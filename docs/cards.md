@@ -9,6 +9,7 @@ Each card has its own documentation page with a full YAML example, every config 
 | [`ru-purifier-card`](ru-purifier-card/ru-purifier-card.md) | Air purifier control with speed ticks, mode chips and a PM2.5/PM10 air quality panel     |
 | [`ru-tv-card`](ru-tv-card/ru-tv-card.md)                   | Android TV media + remote: now-playing, volume, app launcher, ring d-pad, keyboard       |
 | [`ru-washer-card`](ru-washer-card/ru-washer-card.md)       | Miele washing machine: programme, live countdown, Start/Pause/Stop, programme presets    |
+| [`ru-doors-card`](ru-doors-card/ru-doors-card.md)          | Door contact sensors colored by state and presence: green, yellow (home), red (away)     |
 
 Common to all cards:
 

@@ -197,7 +197,16 @@ const mock = new MockHass(
       spin: 1400,
       temperature: 40,
     },
-  ]
+  ],
+  [
+    { entity: "binary_sensor.workshop_door", name: "Workshop Door" },
+    {
+      entity: "binary_sensor.workshop_safe_door",
+      name: "Workshop Safe Door",
+      open: true,
+    },
+  ],
+  [{ entity: "person.me", name: "Me", state: "home" }]
 );
 
 const card = document.createElement("ru-shutters-card") as LovelaceCard;
@@ -461,6 +470,19 @@ washerCard.setConfig({
   ],
 });
 
+// One door closed, the safe open, the person home: green + yellow out of the
+// box; tests flip the person away for red. The safe uses a custom icon.
+const doorsCard = document.createElement("ru-doors-card") as LovelaceCard;
+doorsCard.setConfig({
+  type: "custom:ru-doors-card",
+  title: "Doors",
+  presence_entity: "person.me",
+  doors: [
+    { entity: "binary_sensor.workshop_door" },
+    { entity: "binary_sensor.workshop_safe_door", icon: "mdi:safe" },
+  ],
+});
+
 // Identical to tvCard, but mounted in a 900px-wide slot so the card's own
 // container query trips and it renders the side-by-side layout. Same config on
 // purpose: the layout difference must come from the width alone.
@@ -501,6 +523,7 @@ mock.onChange((hass) => {
   tvWideCard.hass = hass;
   tvNarrowCard.hass = hass;
   washerCard.hass = hass;
+  doorsCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -515,6 +538,7 @@ document.getElementById("card-tv-bravia")!.appendChild(tvBraviaCard);
 document.getElementById("card-tv-wide")!.appendChild(tvWideCard);
 document.getElementById("card-tv-narrow")!.appendChild(tvNarrowCard);
 document.getElementById("card-washer")!.appendChild(washerCard);
+document.getElementById("card-doors")!.appendChild(doorsCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -572,6 +596,8 @@ export interface Harness {
       available?: boolean;
     }
   ): void;
+  setDoor(entity: string, patch: { open?: boolean; available?: boolean }): void;
+  setPerson(entity: string, state: string): void;
   setTravelMs(ms: number): void;
   setReactionMs(ms: number): void;
   reset(): void;
@@ -596,6 +622,8 @@ window.__harness = {
   setSensor: (entity, value) => mock.setSensor(entity, value),
   setMediaPlayer: (entity, patch) => mock.setMediaPlayer(entity, patch),
   setWasher: (base, patch) => mock.setWasher(base, patch),
+  setDoor: (entity, patch) => mock.setDoor(entity, patch),
+  setPerson: (entity, state) => mock.setPerson(entity, state),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   setReactionMs: (ms) => mock.setReactionMs(ms),
   reset: () => mock.reset(),

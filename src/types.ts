@@ -7,6 +7,8 @@
 export interface HassEntity {
   entity_id: string;
   state: string;
+  /** ISO timestamp of the last state change. */
+  last_changed?: string;
   attributes: {
     friendly_name?: string;
     current_position?: number;
@@ -276,6 +278,28 @@ export interface WasherCardConfig {
   temperature_entity?: string;
   /** Programme chips. Needs `device_id`. */
   presets?: WasherPresetConfig[];
+}
+
+// --- ru-doors-card config ----------------------------------------------------
+
+export interface DoorConfig {
+  /** binary_sensor.* contact (on = open). */
+  entity: string;
+  /** Defaults to the entity's friendly_name. */
+  name?: string;
+  /** mdi:* icon ref rendered via <ha-icon>. Defaults to mdi:door-closed /
+   * mdi:door-open by state. */
+  icon?: string;
+}
+
+export interface DoorsCardConfig {
+  type: string;
+  title?: string;
+  /** person.* (or device_tracker.*) deciding "home": an open door is yellow
+   * while it reads `home`, red otherwise — a zone name, not_home or unknown
+   * all count as away. */
+  presence_entity: string;
+  doors: DoorConfig[];
 }
 
 // --- globals the HA frontend looks at ----------------------------------------

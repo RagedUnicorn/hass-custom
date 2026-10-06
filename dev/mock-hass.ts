@@ -18,6 +18,10 @@
  * Media player semantics follow src/cards/ru-tv-card/tv-state.ts: playback
  * position is reported with media_position_updated_at and extrapolated by
  * the card; volume_level is 0…1. Remotes only log their service calls.
+ * Doors are door-class contact binary_sensors (on = open) that stamp
+ * last_changed on every flip; people are person.* entities whose state is
+ * home / not_home / a zone name — both settable directly via setDoor /
+ * setPerson, as nothing in HA moves them by service call.
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
@@ -125,6 +129,22 @@ export interface MockWasherSpec {
   doorOpen?: boolean;
   /** Miele's remote-start interlock. Default true (armed). */
   mobileStart?: boolean;
+}
+
+/** A door contact sensor: binary_sensor.* with device_class door. */
+export interface MockDoorSpec {
+  entity: string;
+  name: string;
+  /** Initial open state. Default false (closed). */
+  open?: boolean;
+}
+
+/** A person.* entity — the presence source for ru-doors-card. */
+export interface MockPersonSpec {
+  entity: string;
+  name: string;
+  /** Initial state: "home", "not_home" or a zone name. Default "home". */
+  state?: string;
 }
 
 export interface MockSensorSpec {
@@ -255,6 +275,19 @@ interface WasherState {
   available: boolean;
 }
 
+interface DoorState {
+  spec: MockDoorSpec;
+  open: boolean;
+  available: boolean;
+  /** ISO timestamp of the last open/close flip. */
+  lastChanged: string;
+}
+
+interface PersonState {
+  spec: MockPersonSpec;
+  state: string;
+}
+
 export class MockHass {
   /** Every callService invocation, in order — assert on this in tests. */
   readonly calls: ServiceCall[] = [];
@@ -276,6 +309,10 @@ export class MockHass {
   private remotes = new Map<string, RemoteState>();
 
   private washers = new Map<string, WasherState>();
+
+  private doors = new Map<string, DoorState>();
+
+  private people = new Map<string, PersonState>();
 
   private darkMode = false;
 
@@ -299,13 +336,16 @@ export class MockHass {
     private sensorSpecs: MockSensorSpec[] = [],
     private mediaPlayerSpecs: MockMediaPlayerSpec[] = [],
     private remoteSpecs: MockRemoteSpec[] = [],
-    private washerSpecs: MockWasherSpec[] = []
+    private washerSpecs: MockWasherSpec[] = [],
+    private doorSpecs: MockDoorSpec[] = [],
+    private personSpecs: MockPersonSpec[] = []
   ) {
     this.resetCovers();
     this.resetLights();
     this.resetFans();
     this.resetMedia();
     this.resetWashers();
+    this.resetDoors();
     this.snapshot = this.buildSnapshot();
     setInterval(() => this.tick(), TICK_MS);
   }
@@ -426,6 +466,7 @@ export class MockHass {
     this.resetFans();
     this.resetMedia();
     this.resetWashers();
+    this.resetDoors();
     this.publish();
   }
 
@@ -443,6 +484,44 @@ export class MockHass {
         available: true,
       });
     }
+  }
+
+  private resetDoors(): void {
+    // A fixed stamp, not "now": relative "since" texts stay deterministic.
+    const stamp = new Date(Date.now() - 12 * 60_000).toISOString();
+    this.doors.clear();
+    for (const spec of this.doorSpecs) {
+      this.doors.set(spec.entity, {
+        spec,
+        open: spec.open ?? false,
+        available: true,
+        lastChanged: stamp,
+      });
+    }
+    this.people.clear();
+    for (const spec of this.personSpecs) {
+      this.people.set(spec.entity, { spec, state: spec.state ?? "home" });
+    }
+  }
+
+  /** Open/close a door (stamps last_changed) or drop it unavailable. */
+  setDoor(entity: string, patch: { open?: boolean; available?: boolean }): void {
+    const door = this.doors.get(entity);
+    if (!door) return;
+    if (patch.open !== undefined && patch.open !== door.open) {
+      door.open = patch.open;
+      door.lastChanged = new Date().toISOString();
+    }
+    if (patch.available !== undefined) door.available = patch.available;
+    this.publish();
+  }
+
+  /** Move a person: "home", "not_home", a zone name, or "unknown". */
+  setPerson(entity: string, state: string): void {
+    const person = this.people.get(entity);
+    if (!person) return;
+    person.state = state;
+    this.publish();
   }
 
   /** Directly set washer state without logging a service call. */
@@ -978,6 +1057,21 @@ export class MockHass {
     }
     for (const washer of this.washers.values()) {
       Object.assign(states, this.buildWasherEntities(washer));
+    }
+    for (const door of this.doors.values()) {
+      states[door.spec.entity] = {
+        entity_id: door.spec.entity,
+        state: door.available ? (door.open ? "on" : "off") : "unavailable",
+        last_changed: door.lastChanged,
+        attributes: { friendly_name: door.spec.name, device_class: "door" },
+      };
+    }
+    for (const person of this.people.values()) {
+      states[person.spec.entity] = {
+        entity_id: person.spec.entity,
+        state: person.state,
+        attributes: { friendly_name: person.spec.name },
+      };
     }
     for (const remote of this.remotes.values()) {
       // A linked remote reports its player's power — androidtv_remote backs
