@@ -302,6 +302,26 @@ export interface DoorsCardConfig {
   doors: DoorConfig[];
 }
 
+// --- ru-last-seen-card config ------------------------------------------------
+
+export interface LastSeenEntityConfig {
+  /** Timestamp sensor.* whose state is an ISO time — e.g. Zigbee2MQTT's
+   * sensor.<device>_last_seen (needs advanced.last_seen: ISO_8601). */
+  entity: string;
+  /** Defaults to the entity's friendly_name. */
+  name?: string;
+}
+
+export interface LastSeenCardConfig {
+  type: string;
+  title?: string;
+  /** Hours since last seen before a row turns yellow. Default 2. */
+  warn_after_hours?: number;
+  /** Hours since last seen before a row turns red. Default 24. */
+  alert_after_hours?: number;
+  entities: LastSeenEntityConfig[];
+}
+
 // --- globals the HA frontend looks at ----------------------------------------
 
 export interface CustomIconsetResult {

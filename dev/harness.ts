@@ -206,7 +206,13 @@ const mock = new MockHass(
       open: true,
     },
   ],
-  [{ entity: "person.me", name: "Me", state: "home" }]
+  [{ entity: "person.me", name: "Me", state: "home" }],
+  [
+    { entity: "sensor.front_door_last_seen", name: "Front Door", ageMinutes: 5 },
+    { entity: "sensor.back_door_last_seen", name: "Back Door", ageMinutes: 5 * 60 },
+    { entity: "sensor.cellar_last_seen", name: "Cellar", ageMinutes: 2 * 24 * 60 },
+    { entity: "sensor.attic_last_seen", name: "Attic" },
+  ]
 );
 
 const card = document.createElement("ru-shutters-card") as LovelaceCard;
@@ -483,6 +489,34 @@ doorsCard.setConfig({
   ],
 });
 
+// One row per freshness at the default thresholds (2 h / 24 h): fresh 5 min,
+// stale 5 h, dead 2 d, and an unavailable sensor.
+const LAST_SEEN_ENTITIES = [
+  { entity: "sensor.front_door_last_seen" },
+  { entity: "sensor.back_door_last_seen" },
+  { entity: "sensor.cellar_last_seen" },
+  { entity: "sensor.attic_last_seen", name: "Attic sensor" },
+];
+const lastSeenCard = document.createElement("ru-last-seen-card") as LovelaceCard;
+lastSeenCard.setConfig({
+  type: "custom:ru-last-seen-card",
+  title: "Last seen",
+  entities: LAST_SEEN_ENTITIES,
+});
+
+// Same entities, stricter thresholds: the 5 h-old row must read red here
+// (alert after 4 h) while it reads yellow on the default card above.
+const lastSeenStrictCard = document.createElement(
+  "ru-last-seen-card"
+) as LovelaceCard;
+lastSeenStrictCard.setConfig({
+  type: "custom:ru-last-seen-card",
+  title: "Last seen (strict)",
+  warn_after_hours: 1,
+  alert_after_hours: 4,
+  entities: LAST_SEEN_ENTITIES,
+});
+
 // Identical to tvCard, but mounted in a 900px-wide slot so the card's own
 // container query trips and it renders the side-by-side layout. Same config on
 // purpose: the layout difference must come from the width alone.
@@ -524,6 +558,8 @@ mock.onChange((hass) => {
   tvNarrowCard.hass = hass;
   washerCard.hass = hass;
   doorsCard.hass = hass;
+  lastSeenCard.hass = hass;
+  lastSeenStrictCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -539,6 +575,10 @@ document.getElementById("card-tv-wide")!.appendChild(tvWideCard);
 document.getElementById("card-tv-narrow")!.appendChild(tvNarrowCard);
 document.getElementById("card-washer")!.appendChild(washerCard);
 document.getElementById("card-doors")!.appendChild(doorsCard);
+document.getElementById("card-last-seen")!.appendChild(lastSeenCard);
+document
+  .getElementById("card-last-seen-strict")!
+  .appendChild(lastSeenStrictCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -598,6 +638,7 @@ export interface Harness {
   ): void;
   setDoor(entity: string, patch: { open?: boolean; available?: boolean }): void;
   setPerson(entity: string, state: string): void;
+  setTimestamp(entity: string, iso: string | null): void;
   setTravelMs(ms: number): void;
   setReactionMs(ms: number): void;
   reset(): void;
@@ -624,6 +665,7 @@ window.__harness = {
   setWasher: (base, patch) => mock.setWasher(base, patch),
   setDoor: (entity, patch) => mock.setDoor(entity, patch),
   setPerson: (entity, state) => mock.setPerson(entity, state),
+  setTimestamp: (entity, iso) => mock.setTimestamp(entity, iso),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   setReactionMs: (ms) => mock.setReactionMs(ms),
   reset: () => mock.reset(),

@@ -14,8 +14,9 @@ It ships two things in a single bundle:
   control card, `ru-lights-card`, a room-grouped light control card with
   scenes, `ru-purifier-card`, an air purifier control card with air
   quality readout, `ru-tv-card`, an Android TV media + remote card,
-  `ru-washer-card`, a Miele washing machine card, and `ru-doors-card`, door
-  contact sensors colored by state and presence.
+  `ru-washer-card`, a Miele washing machine card, `ru-doors-card`, door
+  contact sensors colored by state and presence, and `ru-last-seen-card`,
+  device health by how long ago each device last reported.
 
 Everything ships under the `ru` namespace (**R**aged **U**nicorn): icon sets as
 `ru:*`, card elements as `ru-*`. All Lovelace cards share one global custom

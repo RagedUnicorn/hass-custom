@@ -22,6 +22,9 @@
  * last_changed on every flip; people are person.* entities whose state is
  * home / not_home / a zone name — both settable directly via setDoor /
  * setPerson, as nothing in HA moves them by service call.
+ * Timestamp sensors (e.g. Zigbee2MQTT *_last_seen) hold an ISO time as their
+ * state, set relative to page load via ageMinutes or directly via
+ * setTimestamp; null makes them unavailable.
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
@@ -145,6 +148,14 @@ export interface MockPersonSpec {
   name: string;
   /** Initial state: "home", "not_home" or a zone name. Default "home". */
   state?: string;
+}
+
+/** A timestamp sensor whose state is an ISO time (e.g. *_last_seen). */
+export interface MockTimestampSpec {
+  entity: string;
+  name: string;
+  /** Initial age in minutes before page load. Omit for unavailable. */
+  ageMinutes?: number;
 }
 
 export interface MockSensorSpec {
@@ -283,6 +294,12 @@ interface DoorState {
   lastChanged: string;
 }
 
+interface TimestampState {
+  spec: MockTimestampSpec;
+  /** ISO time, or null for unavailable. */
+  iso: string | null;
+}
+
 interface PersonState {
   spec: MockPersonSpec;
   state: string;
@@ -314,6 +331,8 @@ export class MockHass {
 
   private people = new Map<string, PersonState>();
 
+  private timestamps = new Map<string, TimestampState>();
+
   private darkMode = false;
 
   private travelMs = 600;
@@ -338,7 +357,8 @@ export class MockHass {
     private remoteSpecs: MockRemoteSpec[] = [],
     private washerSpecs: MockWasherSpec[] = [],
     private doorSpecs: MockDoorSpec[] = [],
-    private personSpecs: MockPersonSpec[] = []
+    private personSpecs: MockPersonSpec[] = [],
+    private timestampSpecs: MockTimestampSpec[] = []
   ) {
     this.resetCovers();
     this.resetLights();
@@ -502,6 +522,24 @@ export class MockHass {
     for (const spec of this.personSpecs) {
       this.people.set(spec.entity, { spec, state: spec.state ?? "home" });
     }
+    this.timestamps.clear();
+    for (const spec of this.timestampSpecs) {
+      this.timestamps.set(spec.entity, {
+        spec,
+        iso:
+          spec.ageMinutes === undefined
+            ? null
+            : new Date(Date.now() - spec.ageMinutes * 60_000).toISOString(),
+      });
+    }
+  }
+
+  /** Set a timestamp sensor to an ISO time, or null for unavailable. */
+  setTimestamp(entity: string, iso: string | null): void {
+    const ts = this.timestamps.get(entity);
+    if (!ts) return;
+    ts.iso = iso;
+    this.publish();
   }
 
   /** Open/close a door (stamps last_changed) or drop it unavailable. */
@@ -1064,6 +1102,13 @@ export class MockHass {
         state: door.available ? (door.open ? "on" : "off") : "unavailable",
         last_changed: door.lastChanged,
         attributes: { friendly_name: door.spec.name, device_class: "door" },
+      };
+    }
+    for (const ts of this.timestamps.values()) {
+      states[ts.spec.entity] = {
+        entity_id: ts.spec.entity,
+        state: ts.iso ?? "unavailable",
+        attributes: { friendly_name: ts.spec.name, device_class: "timestamp" },
       };
     }
     for (const person of this.people.values()) {
