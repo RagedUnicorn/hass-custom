@@ -77,9 +77,11 @@ rooms: # same rooms as the full card
   single `light.turn_on` with `brightness_pct` on release (dragging to zero
   sends `light.turn_off`).
 - Room status shows on-count and average brightness (`2 of 3 on · 80%`).
-- Lights that expose an `effect_list` (light strips) get effect chips in the
-  drilldown plus a preview bar tinted from the light's current color; the
-  entity's active effect is highlighted.
+- A room whose lights expose an `effect_list` (light strips, Hue bulbs) gets
+  one effects panel in the drilldown: every effect any of them offers, once,
+  plus a preview bar tinted from the first lit light's color. A chip sets the
+  effect on every light in the room that offers it; it is highlighted while
+  every lit light offering it runs it.
 - Scenes activate via `scene.turn_on`. The highlight ring marks the most
   recently activated configured scene (from HA's scene activation timestamps),
   so it can outlive manual light changes — HA has no true "active scene" state.

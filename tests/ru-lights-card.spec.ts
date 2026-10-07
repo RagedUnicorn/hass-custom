@@ -3,7 +3,8 @@
  * (dev/harness.html). Service effects are asserted through the harness call
  * log (window.__harness.calls); nothing here touches a real Home Assistant.
  *
- * Harness fixture: Kitchen (2 bulbs on at 80% + 1 off), Bedroom (1 off +
+ * Harness fixture: Kitchen (2 bulbs on at 80% + 1 off; Candle/Fireplace
+ * effects on all three, Sparkle on bulb 3), Bedroom (1 off +
  * 1 UNAVAILABLE), Living room (strip on at 65% with Static/Flow/Pulse
  * effects, Flow active), Office (1 on at 100%), Entry (1 NON-DIMMABLE, off);
  * scenes Relax / Focus / Movie / Everything.
@@ -232,6 +233,43 @@ test.describe("drilldown", () => {
       });
     // The mock applies the effect, so the active chip follows.
     await expect(page.locator(`${CARD} .sheet .effect.active`)).toHaveText("Pulse");
+  });
+
+  test("a room shows one effects panel, merged across its lights", async ({
+    page,
+  }) => {
+    // Kitchen: bulbs 1+2 offer Candle/Fireplace, bulb 3 also Sparkle.
+    await room(page, "Kitchen").locator(".room-row").click();
+    await expect(page.locator(`${CARD} .sheet .effects`)).toHaveCount(1);
+    const chips = page.locator(`${CARD} .sheet .effect`);
+    await expect(chips).toHaveText(["Candle", "Fireplace", "Sparkle"]);
+    await expect(page.locator(`${CARD} .sheet .effect.active`)).toHaveCount(0);
+
+    await chips.filter({ hasText: "Candle" }).click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "light",
+        service: "turn_on",
+        data: {
+          entity_id: ["light.kitchen_1", "light.kitchen_2", "light.kitchen_3"],
+          effect: "Candle",
+        },
+      });
+    // Every lit light offering Candle now runs it, so the chip lights up.
+    await expect(page.locator(`${CARD} .sheet .effect.active`)).toHaveText(
+      "Candle"
+    );
+
+    // Sparkle reaches only the bulb offering it.
+    await chips.filter({ hasText: "Sparkle" }).click();
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "light",
+        service: "turn_on",
+        data: { entity_id: ["light.kitchen_3"], effect: "Sparkle" },
+      });
   });
 
   test("non-dimmable light gets a toggle but no drag bar", async ({ page }) => {

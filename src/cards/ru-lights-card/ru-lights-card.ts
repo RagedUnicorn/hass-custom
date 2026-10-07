@@ -19,6 +19,7 @@ import type {
 } from "../../types";
 import {
   activeScene,
+  buildRoomEffects,
   buildRoomView,
   sceneName,
   summaryText,
@@ -355,9 +356,7 @@ export class RuLightsCard extends LitElement {
       <div class="panel bulbs">
         ${room.lights.map((light) => this._renderBulb(light))}
       </div>
-      ${room.lights
-        .filter((light) => light.effectList.length > 0)
-        .map((light) => this._renderEffects(light))}
+      ${this._renderEffects(room)}
     `;
   }
 
@@ -429,24 +428,27 @@ export class RuLightsCard extends LitElement {
     `;
   }
 
-  private _renderEffects(light: LightView): TemplateResult {
-    const preview = light.rgbColor
-      ? `rgb(${light.rgbColor.slice(0, 3).join(",")})`
+  /** One effects panel for the whole room — a room of identical Hue bulbs
+   * would otherwise stack the same list once per bulb. A chip sets the effect
+   * on every light in the room that offers it. */
+  private _renderEffects(room: RoomView): TemplateResult | typeof nothing {
+    const view = buildRoomEffects(room);
+    if (!view) return nothing;
+    const preview = view.previewRgb
+      ? `rgb(${view.previewRgb.slice(0, 3).join(",")})`
       : undefined;
     return html`
       <div class="panel effects">
         <div
-          class="effect-preview ${light.on ? "" : "off"}"
-          style=${styleMap(
-            light.on && preview ? { background: preview } : {}
-          )}
+          class="effect-preview ${view.anyOn ? "" : "off"}"
+          style=${styleMap(view.anyOn && preview ? { background: preview } : {})}
         ></div>
         <div class="effect-chips">
-          ${light.effectList.map(
+          ${view.effects.map(
             (effect) => html`
               <button
-                class="effect ${light.currentEffect === effect ? "active" : ""}"
-                @click=${() => this._setEffect(light, effect)}
+                class="effect ${view.active.has(effect) ? "active" : ""}"
+                @click=${() => this._setEffect(view.capable, effect)}
               >
                 ${effect}
               </button>
@@ -590,8 +592,15 @@ export class RuLightsCard extends LitElement {
     );
   }
 
-  private _setEffect(light: LightView, effect: string): void {
-    this._call("turn_on", [light.entity], { effect });
+  /** Every light of the room offering the effect, in one call. */
+  private _setEffect(lights: LightView[], effect: string): void {
+    this._call(
+      "turn_on",
+      lights
+        .filter((light) => light.effectList.includes(effect))
+        .map((light) => light.entity),
+      { effect }
+    );
   }
 
   private _applyScene(scene: SceneConfig): void {

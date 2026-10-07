@@ -163,3 +163,43 @@ export function sceneName(hass: HomeAssistant, scene: SceneConfig): string {
     scene.entity
   );
 }
+
+/** A room's single effects panel — one for the room, not one per light. */
+export interface RoomEffectsView {
+  /** Available lights exposing an effect_list; what a chip tap targets. */
+  capable: LightView[];
+  /** Every effect any of them offers, deduplicated, first-seen order. */
+  effects: string[];
+  /** Effects every lit light offering them is currently running. */
+  active: Set<string>;
+  /** Color of the first lit light reporting one, for the preview bar. */
+  previewRgb: number[] | null;
+  /** Whether any of the capable lights is on. */
+  anyOn: boolean;
+}
+
+export function buildRoomEffects(room: RoomView): RoomEffectsView | null {
+  const capable = room.lights.filter(
+    (light) => light.available && light.effectList.length > 0
+  );
+  if (capable.length === 0) return null;
+
+  const effects = [...new Set(capable.flatMap((light) => light.effectList))];
+  const lit = capable.filter((light) => light.on);
+  const active = new Set(
+    effects.filter((effect) => {
+      const running = lit.filter((light) => light.effectList.includes(effect));
+      return (
+        running.length > 0 &&
+        running.every((light) => light.currentEffect === effect)
+      );
+    })
+  );
+  return {
+    capable,
+    effects,
+    active,
+    previewRgb: lit.find((light) => light.rgbColor)?.rgbColor ?? null,
+    anyOn: lit.length > 0,
+  };
+}

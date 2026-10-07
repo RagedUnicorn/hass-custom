@@ -52,9 +52,28 @@ const mock = new MockHass(
     },
   ],
   [
-    { entity: "light.kitchen_1", name: "Bulb 1", on: true, brightness: 80 },
-    { entity: "light.kitchen_2", name: "Bulb 2", on: true, brightness: 80 },
-    { entity: "light.kitchen_3", name: "Bulb 3", brightness: 60 },
+    // The kitchen bulbs carry overlapping Hue-style effect lists, so the
+    // drilldown has one room panel to merge them into.
+    {
+      entity: "light.kitchen_1",
+      name: "Bulb 1",
+      on: true,
+      brightness: 80,
+      effectList: ["Candle", "Fireplace"],
+    },
+    {
+      entity: "light.kitchen_2",
+      name: "Bulb 2",
+      on: true,
+      brightness: 80,
+      effectList: ["Candle", "Fireplace"],
+    },
+    {
+      entity: "light.kitchen_3",
+      name: "Bulb 3",
+      brightness: 60,
+      effectList: ["Candle", "Fireplace", "Sparkle"],
+    },
     { entity: "light.bedroom_1", name: "Bulb 1", brightness: 50 },
     { entity: "light.bedroom_2", name: "Bulb 2", available: false },
     {
