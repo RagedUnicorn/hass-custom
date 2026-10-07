@@ -11,6 +11,7 @@ Each card has its own documentation page with a full YAML example, every config 
 | [`ru-washer-card`](ru-washer-card/ru-washer-card.md)       | Miele washing machine: programme, live countdown, Start/Pause/Stop, programme presets    |
 | [`ru-doors-card`](ru-doors-card/ru-doors-card.md)          | Door contact sensors colored by state and presence: green, yellow (home), red (away)     |
 | [`ru-last-seen-card`](ru-last-seen-card/ru-last-seen-card.md) | Device health by last-seen age: green recently, yellow after hours, red after a day   |
+| [`ru-nav-card`](ru-nav-card/ru-nav-card.md)                | Floating dock of dashboard views for kiosk-mode dashboards, made for a sticky view footer |
 
 Common to all cards:
 

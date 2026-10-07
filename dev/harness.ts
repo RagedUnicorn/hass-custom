@@ -517,6 +517,22 @@ lastSeenStrictCard.setConfig({
   entities: LAST_SEEN_ENTITIES,
 });
 
+// Two mounts of one config: a 360px slot for the compact dock (icons only)
+// and a 720px slot for the wide one (every label). The first route is the
+// harness page itself, so it starts highlighted; the rest are fake paths the
+// card pushes without a reload. Settings is admin-only.
+const NAV_ROUTES = [
+  { path: "/dev/harness.html", name: "Main", icon: "mdi:home-variant-outline" },
+  { path: "/dev/nav/lights", name: "Lights", icon: "mdi:lightbulb-group-outline" },
+  { path: "/dev/nav/climate", name: "Climate", icon: "mdi:window-shutter" },
+  { path: "/dev/nav/media", name: "Media", icon: "mdi:television-play" },
+  { path: "/dev/nav/settings", name: "Settings", icon: "mdi:cog-outline", admin_only: true },
+];
+const navCard = document.createElement("ru-nav-card") as LovelaceCard;
+navCard.setConfig({ type: "custom:ru-nav-card", routes: NAV_ROUTES });
+const navWideCard = document.createElement("ru-nav-card") as LovelaceCard;
+navWideCard.setConfig({ type: "custom:ru-nav-card", routes: NAV_ROUTES });
+
 // Identical to tvCard, but mounted in a 900px-wide slot so the card's own
 // container query trips and it renders the side-by-side layout. Same config on
 // purpose: the layout difference must come from the width alone.
@@ -560,6 +576,8 @@ mock.onChange((hass) => {
   doorsCard.hass = hass;
   lastSeenCard.hass = hass;
   lastSeenStrictCard.hass = hass;
+  navCard.hass = hass;
+  navWideCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -579,6 +597,8 @@ document.getElementById("card-last-seen")!.appendChild(lastSeenCard);
 document
   .getElementById("card-last-seen-strict")!
   .appendChild(lastSeenStrictCard);
+document.getElementById("card-nav")!.appendChild(navCard);
+document.getElementById("card-nav-wide")!.appendChild(navWideCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -600,6 +620,7 @@ document.getElementById("reset")!.addEventListener("click", () => mock.reset());
 export interface Harness {
   calls: ServiceCall[];
   setDarkMode(dark: boolean): void;
+  setAdmin(admin: boolean): void;
   setPosition(entity: string, position: number): void;
   setLight(entity: string, patch: { on?: boolean; brightness?: number }): void;
   setFan(
@@ -656,6 +677,7 @@ window.__harness = {
     mock.setDarkMode(dark);
     applyPageTheme(dark);
   },
+  setAdmin: (admin) => mock.setAdmin(admin),
   setPosition: (entity, position) => mock.setPosition(entity, position),
   setLight: (entity, patch) => mock.setLight(entity, patch),
   setFan: (entity, patch) => mock.setFan(entity, patch),

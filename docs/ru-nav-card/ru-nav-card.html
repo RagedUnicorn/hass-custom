@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/common.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — navigation dock card, exploration 1</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Same minimalist palette as the other cards, blue accent. A floating pill of dashboard views for kiosk-mode dashboards, where HA's own view tabs are hidden. It lives in a sections view's sticky footer, so the card only draws the pill; HA keeps it at the bottom. Narrow: icons only, the active view also shows its label. Wide: every view shows icon and label. Tap a view to move the highlight.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Floating dock — compact and wide, light + dark</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a COMPACT LIGHT ============ -->
+<div class="dv-opt" id="1a" data-screen-label="1a Compact dock">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Compact (narrow card, phone footer) — icons only, the active view keeps its label</div>
+  <div class="dv-card" style="width:390px">
+    <div style="background:#F5F6FA;padding:40px 12px 22px;display:flex;justify-content:center;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+      <div style="display:flex;gap:4px;padding:6px;border-radius:999px;background:#fff;box-shadow:0 8px 28px rgba(35,40,54,.14)">
+        <sc-for list="{{ items }}" as="i" hint-placeholder-count="6">
+          <div onClick="{{ i.set }}" style="display:flex;align-items:center;gap:7px;height:48px;padding:0 11px;border-radius:999px;background:{{ i.bg }};color:{{ i.col }};font-size:13px;font-weight:600;cursor:pointer"><i class="{{ i.icon }}" style="font-size:22px"></i><sc-if value="{{ i.on }}" hint-placeholder-val="{{ false }}"><span>{{ i.name }}</span></sc-if></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b COMPACT DARK ============ -->
+<div class="dv-opt" id="1b" data-screen-label="1b Compact dock dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dark variant of <a class="dv-oid" href="#1a">1a</a> — same layout and shared state</div>
+  <div class="dv-card" style="width:390px">
+    <div style="background:#1A1B1E;padding:40px 12px 22px;display:flex;justify-content:center;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+      <div style="display:flex;gap:4px;padding:6px;border-radius:999px;background:#242529;box-shadow:0 8px 28px rgba(0,0,0,.5)">
+        <sc-for list="{{ itemsDark }}" as="i" hint-placeholder-count="6">
+          <div onClick="{{ i.set }}" style="display:flex;align-items:center;gap:7px;height:48px;padding:0 11px;border-radius:999px;background:{{ i.bg }};color:{{ i.col }};font-size:13px;font-weight:600;cursor:pointer"><i class="{{ i.icon }}" style="font-size:22px"></i><sc-if value="{{ i.on }}" hint-placeholder-val="{{ false }}"><span>{{ i.name }}</span></sc-if></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1c WIDE LIGHT ============ -->
+<div class="dv-opt" id="1c" data-screen-label="1c Wide dock">
+  <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Wide (tablet / desktop footer) — icon and label on every view</div>
+  <div class="dv-card" style="width:760px">
+    <div style="background:#F5F6FA;padding:40px 12px 22px;display:flex;justify-content:center;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+      <div style="display:flex;gap:4px;padding:6px;border-radius:999px;background:#fff;box-shadow:0 8px 28px rgba(35,40,54,.14)">
+        <sc-for list="{{ items }}" as="i" hint-placeholder-count="6">
+          <div onClick="{{ i.set }}" style="display:flex;align-items:center;gap:7px;height:48px;padding:0 14px;border-radius:999px;background:{{ i.bg }};color:{{ i.col }};font-size:13px;font-weight:600;cursor:pointer"><i class="{{ i.icon }}" style="font-size:22px"></i><span>{{ i.name }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1d WIDE DARK ============ -->
+<div class="dv-opt" id="1d" data-screen-label="1d Wide dock dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Dark variant of <a class="dv-oid" href="#1c">1c</a></div>
+  <div class="dv-card" style="width:760px">
+    <div style="background:#1A1B1E;padding:40px 12px 22px;display:flex;justify-content:center;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif">
+      <div style="display:flex;gap:4px;padding:6px;border-radius:999px;background:#242529;box-shadow:0 8px 28px rgba(0,0,0,.5)">
+        <sc-for list="{{ itemsDark }}" as="i" hint-placeholder-count="6">
+          <div onClick="{{ i.set }}" style="display:flex;align-items:center;gap:7px;height:48px;padding:0 14px;border-radius:999px;background:{{ i.bg }};color:{{ i.col }};font-size:13px;font-weight:600;cursor:pointer"><i class="{{ i.icon }}" style="font-size:22px"></i><span>{{ i.name }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "add a badge dot for a view that needs attention" · "admin-only cog at the end" · "slightly smaller on phones"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { active: 0 }; }
+  renderVals() {
+    const views = [
+      ['Main', 'mdi-home-variant-outline'],
+      ['Lights', 'mdi-lightbulb-group-outline'],
+      ['Climate', 'mdi-window-shutter'],
+      ['Media', 'mdi-television-play'],
+      ['Security', 'mdi-shield-home-outline'],
+      ['Misc', 'mdi-washing-machine']
+    ];
+    const make = (dark) => views.map(([name, icon], idx) => {
+      const on = idx === this.state.active;
+      return {
+        name, on, icon: 'mdi ' + icon,
+        bg: on ? (dark ? '#7C90FF' : '#3D5AFE') : 'transparent',
+        col: on ? (dark ? '#1A1B1E' : '#FFFFFF') : (dark ? '#8B8F9B' : '#8A90A0'),
+        set: () => this.setState({ active: idx })
+      };
+    });
+    return { items: make(false), itemsDark: make(true) };
+  }
+}
+</script>
+</body>
+</html>

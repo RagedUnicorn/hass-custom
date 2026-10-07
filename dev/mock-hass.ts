@@ -335,6 +335,9 @@ export class MockHass {
 
   private darkMode = false;
 
+  /** hass.user.is_admin — gates admin_only nav routes. */
+  private admin = true;
+
   private travelMs = 600;
 
   /** Simulated TV reaction lag for power/seek; 0 = instant. */
@@ -382,6 +385,11 @@ export class MockHass {
 
   setDarkMode(dark: boolean): void {
     this.darkMode = dark;
+    this.publish();
+  }
+
+  setAdmin(admin: boolean): void {
+    this.admin = admin;
     this.publish();
   }
 
@@ -481,6 +489,7 @@ export class MockHass {
   reset(): void {
     this.calls.length = 0;
     this.reactionMs = 0;
+    this.admin = true;
     this.resetCovers();
     this.resetLights();
     this.resetFans();
@@ -1151,6 +1160,7 @@ export class MockHass {
     return {
       states,
       themes: { darkMode: this.darkMode },
+      user: { is_admin: this.admin },
       callService: this.callService,
     };
   }

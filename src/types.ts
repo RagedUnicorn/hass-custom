@@ -52,6 +52,8 @@ export interface HassEntity {
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: { darkMode?: boolean };
+  /** The logged-in user; only `is_admin` is read. */
+  user?: { is_admin?: boolean };
   callService(
     domain: string,
     service: string,
@@ -320,6 +322,24 @@ export interface LastSeenCardConfig {
   /** Hours since last seen before a row turns red. Default 24. */
   alert_after_hours?: number;
   entities: LastSeenEntityConfig[];
+}
+
+// --- ru-nav-card config -------------------------------------------------------
+
+export interface NavRouteConfig {
+  /** App path to open, e.g. /home-dashboard/lights. Also decides which entry
+   * is highlighted: the one whose path matches the current location. */
+  path: string;
+  name: string;
+  icon: string;
+  /** Only shown to admin users — e.g. a way back into the settings on a
+   * kiosk-mode dashboard. */
+  admin_only?: boolean;
+}
+
+export interface NavCardConfig {
+  type: string;
+  routes: NavRouteConfig[];
 }
 
 // --- globals the HA frontend looks at ----------------------------------------

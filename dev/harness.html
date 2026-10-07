@@ -58,6 +58,17 @@
         width: 100%;
         max-width: 320px;
       }
+      /* ru-nav-card shows every label once its OWN width reaches 600px, so
+         one slot stays compact and one is wide enough for the labels (on the
+         desktop project — the 390px mobile viewport keeps both compact). */
+      #card-nav {
+        width: 100%;
+        max-width: 360px;
+      }
+      #card-nav-wide {
+        width: 100%;
+        max-width: 720px;
+      }
     </style>
   </head>
   <body>
@@ -77,6 +88,8 @@
     <div id="card-doors"></div>
     <div id="card-last-seen"></div>
     <div id="card-last-seen-strict"></div>
+    <div id="card-nav"></div>
+    <div id="card-nav-wide"></div>
     <script type="module" src="./harness.ts"></script>
   </body>
 </html>
