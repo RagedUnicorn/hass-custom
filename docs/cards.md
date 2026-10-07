@@ -12,6 +12,7 @@ Each card has its own documentation page with a full YAML example, every config 
 | [`ru-doors-card`](ru-doors-card/ru-doors-card.md)          | Door contact sensors colored by state and presence: green, yellow (home), red (away)     |
 | [`ru-last-seen-card`](ru-last-seen-card/ru-last-seen-card.md) | Device health by last-seen age: green recently, yellow after hours, red after a day   |
 | [`ru-nav-card`](ru-nav-card/ru-nav-card.md)                | Floating dock of dashboard views for kiosk-mode dashboards, made for a sticky view footer |
+| [`ru-actions-card`](ru-actions-card/ru-actions-card.md)    | One-tap tiles for whole-home actions, each with a live status line about its target |
 
 Common to all cards:
 

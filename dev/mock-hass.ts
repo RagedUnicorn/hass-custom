@@ -338,6 +338,10 @@ export class MockHass {
   /** hass.user.is_admin — gates admin_only nav routes. */
   private admin = true;
 
+  private registryEntities: HomeAssistant["entities"];
+
+  private registryDevices: HomeAssistant["devices"];
+
   private travelMs = 600;
 
   /** Simulated TV reaction lag for power/seek; 0 = instant. */
@@ -390,6 +394,17 @@ export class MockHass {
 
   setAdmin(admin: boolean): void {
     this.admin = admin;
+    this.publish();
+  }
+
+  /** hass.entities / hass.devices — the registry slices cards resolve
+   * label and area targets against. Static fixture data, set once. */
+  setRegistry(
+    entities: HomeAssistant["entities"],
+    devices: HomeAssistant["devices"]
+  ): void {
+    this.registryEntities = entities;
+    this.registryDevices = devices;
     this.publish();
   }
 
@@ -1161,6 +1176,8 @@ export class MockHass {
       states,
       themes: { darkMode: this.darkMode },
       user: { is_admin: this.admin },
+      entities: this.registryEntities,
+      devices: this.registryDevices,
       callService: this.callService,
     };
   }

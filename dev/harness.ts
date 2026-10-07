@@ -301,6 +301,60 @@ const LIGHTS_CONFIG = {
 };
 lightsCard.setConfig(LIGHTS_CONFIG);
 
+// Quick actions over the same fixture. The registry gives the label and area
+// targets something to resolve: t_shutter sits on four cover DEVICES (three
+// open, one closed); the office area comes once through a device and once on
+// the entity itself (both closed).
+mock.setRegistry(
+  {
+    "cover.bedroom_medium": { entity_id: "cover.bedroom_medium", device_id: "dev_bedroom" },
+    "cover.diningroom_big": { entity_id: "cover.diningroom_big", device_id: "dev_dining" },
+    "cover.livingroom_medium": { entity_id: "cover.livingroom_medium", device_id: "dev_living" },
+    "cover.office_big_left": { entity_id: "cover.office_big_left", device_id: "dev_office" },
+    "cover.office_big_right": { entity_id: "cover.office_big_right", area_id: "office" },
+  },
+  {
+    dev_bedroom: { labels: ["t_shutter"] },
+    dev_dining: { labels: ["t_shutter"] },
+    dev_living: { labels: ["t_shutter"] },
+    dev_office: { labels: ["t_shutter"], area_id: "office" },
+  }
+);
+const actionsCard = document.createElement("ru-actions-card") as LovelaceCard;
+actionsCard.setConfig({
+  type: "custom:ru-actions-card",
+  title: "Quick actions",
+  actions: [
+    {
+      name: "Shutters down",
+      icon: "mdi:window-shutter",
+      action: "cover.close_cover",
+      target: { label_id: "t_shutter" },
+    },
+    {
+      name: "Office closed",
+      icon: "mdi:desk",
+      action: "cover.close_cover",
+      target: { area_id: "office" },
+    },
+    {
+      name: "All lights off",
+      icon: "mdi:lightbulb-group-off-outline",
+      tone: "amber",
+      action: "light.turn_off",
+      target: { entity_id: "all" },
+    },
+    {
+      name: "Movie",
+      icon: "mdi:movie-open",
+      tone: "green",
+      action: "scene.turn_on",
+      target: { entity_id: "scene.movie" },
+      subtitle: "Dim and close",
+    },
+  ],
+});
+
 // Identical to card / lightsCard, but mounted in 1040px slots so their own
 // container queries trip the wide list | pane layout. Same config on purpose:
 // the layout difference must come from the width alone.
@@ -615,6 +669,7 @@ mock.onChange((hass) => {
   lightsWideCard.hass = hass;
   lightsCompactCard.hass = hass;
   shuttersCompactCard.hass = hass;
+  actionsCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -642,6 +697,7 @@ document.getElementById("card-lights-compact")!.appendChild(lightsCompactCard);
 document
   .getElementById("card-shutters-compact")!
   .appendChild(shuttersCompactCard);
+document.getElementById("card-actions")!.appendChild(actionsCard);
 
 // --- page chrome --------------------------------------------------------------
 

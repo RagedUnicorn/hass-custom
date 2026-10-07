@@ -49,11 +49,27 @@ export interface HassEntity {
   };
 }
 
+export interface HassEntityRegistryEntry {
+  entity_id: string;
+  device_id?: string | null;
+  area_id?: string | null;
+  labels?: string[];
+}
+
+export interface HassDeviceRegistryEntry {
+  area_id?: string | null;
+  labels?: string[];
+}
+
 export interface HomeAssistant {
   states: Record<string, HassEntity>;
   themes?: { darkMode?: boolean };
   /** The logged-in user; only `is_admin` is read. */
   user?: { is_admin?: boolean };
+  /** Entity registry (display entries) — read to resolve label/area targets. */
+  entities?: Record<string, HassEntityRegistryEntry>;
+  /** Device registry — an entity inherits its device's labels and area. */
+  devices?: Record<string, HassDeviceRegistryEntry>;
   callService(
     domain: string,
     service: string,
@@ -350,6 +366,36 @@ export interface NavRouteConfig {
 export interface NavCardConfig {
   type: string;
   routes: NavRouteConfig[];
+}
+
+// --- ru-actions-card config ---------------------------------------------------
+
+/** Tile tint: the cards' blue accent, the lights' amber, or a status color. */
+export type ActionTone = "accent" | "amber" | "green" | "red";
+
+/** Same keys as an action's `target:` in HA. */
+export interface ActionTarget {
+  entity_id?: string | string[];
+  label_id?: string | string[];
+  area_id?: string | string[];
+}
+
+export interface ActionConfig {
+  name: string;
+  icon: string;
+  tone?: ActionTone;
+  /** The action to perform, `domain.service` — e.g. cover.close_cover. */
+  action: string;
+  target?: ActionTarget;
+  data?: Record<string, unknown>;
+  /** Fixed status line; by default it is derived from the target. */
+  subtitle?: string;
+}
+
+export interface ActionsCardConfig {
+  type: string;
+  title?: string;
+  actions: ActionConfig[];
 }
 
 // --- globals the HA frontend looks at ----------------------------------------
