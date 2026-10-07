@@ -533,7 +533,7 @@ export const cardStyles = css`
 
   .mini-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
     gap: 8px;
     padding: 14px;
   }

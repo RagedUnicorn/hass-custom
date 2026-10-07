@@ -113,6 +113,13 @@ export class RuShuttersCard extends LitElement {
     this._drag = {};
   }
 
+  /** Sections views: fill the section — the card adapts to the width it is
+   * given (container queries), so a partial default would only squeeze it. A
+   * dashboard's own grid_options on the card still win. */
+  getGridOptions(): { columns: "full" } {
+    return { columns: "full" };
+  }
+
   getCardSize(): number {
     return 3 + 2 * (this._config?.rooms.length ?? 0);
   }

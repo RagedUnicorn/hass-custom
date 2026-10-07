@@ -104,6 +104,13 @@ export class RuWasherCard extends LitElement {
     this._warned.clear();
   }
 
+  /** Sections views: fill the section — the card adapts to the width it is
+   * given (container queries), so a partial default would only squeeze it. A
+   * dashboard's own grid_options on the card still win. */
+  getGridOptions(): { columns: "full" } {
+    return { columns: "full" };
+  }
+
   getCardSize(): number {
     return 4 + (this._config?.presets?.length ? 2 : 0);
   }
