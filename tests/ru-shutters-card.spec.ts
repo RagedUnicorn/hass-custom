@@ -341,3 +341,46 @@ test.describe("wide layout", () => {
       });
   });
 });
+
+test.describe("compact layout", () => {
+  // #card-shutters-compact: the same config with layout: compact and
+  // navigation_path /dev/nav/climate, in a wide (1040px) slot.
+  const COMPACT = "#card-shutters-compact ru-shutters-card";
+
+  function mini(page: Page, name: string) {
+    return page.locator(`${COMPACT} .mini`, {
+      has: page.locator(".mini-name", { hasText: name }),
+    });
+  }
+
+  test("renders one mini window per room at its average position", async ({
+    page,
+  }) => {
+    await expect(page.locator(`${COMPACT} .mini`)).toHaveCount(4);
+    await expect(page.locator(`${COMPACT} .rooms`)).toHaveCount(0);
+    // Living room: medium at 50%, small unavailable (left out of the mean).
+    await expect(mini(page, "Living room").locator(".mini-status")).toHaveText(
+      "50%"
+    );
+    // Office: two at 0%, the small one reports no position.
+    await expect(mini(page, "Office").locator(".mini-status")).toHaveText(
+      "Closed"
+    );
+  });
+
+  test("tapping a room opens its drilldown as an overlay, even when wide", async ({
+    page,
+  }) => {
+    await mini(page, "Office").click();
+    const sheet = page.locator(`${COMPACT} .sheet`);
+    await expect(sheet).toBeVisible();
+    await expect(sheet.locator(".sheet-name")).toHaveText("Office");
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+  });
+
+  test("the header opens navigation_path", async ({ page }) => {
+    await page.locator(`${COMPACT} .header.link`).click();
+    expect(new URL(page.url()).pathname).toBe("/dev/nav/climate");
+  });
+});

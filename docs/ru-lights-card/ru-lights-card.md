@@ -43,6 +43,27 @@ scenes: # optional — panel hidden when omitted
 | `title`  | string | `Lights`     | Card title                                                     |
 | `rooms`  | list   | **required** | Rooms, each with `name` and `lights`                           |
 | `scenes` | list   | —            | Scene entities, each `entity` + optional `name` and `gradient` |
+| `layout` | string | `full`       | `compact` for a one-panel summary (see below)                  |
+| `navigation_path` | string | — | Compact layout: the header opens this path, e.g. `/home-dashboard/lights` |
+
+### Compact layout
+
+`layout: compact` turns the card into a summary for a dashboard's main view:
+the header with the on-count, then one chip per room — amber with its average
+brightness while lit, grey when off. Tapping a chip toggles the room. With a
+`navigation_path`, tapping the header opens that path (typically the view
+holding the full card). The [compact design mock](../common/compact-cards.html)
+shows it.
+
+```yaml
+type: custom:ru-lights-card
+layout: compact
+navigation_path: /home-dashboard/lights
+rooms: # same rooms as the full card
+  - name: Kitchen
+    lights:
+      - entity: light.kitchen_1
+```
 
 ## Behavior notes
 

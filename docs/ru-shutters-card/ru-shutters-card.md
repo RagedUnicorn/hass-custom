@@ -38,6 +38,8 @@ rooms:
 | `rooms`        | list   | **required** | Rooms, each with `name`, optional `icon`, and `covers` |
 | `show_percent` | bool   | `false`      | Append the numeric position to status words            |
 | `presets`      | list   | 4 built-ins  | Position presets, each `name` + `icon` + `position`    |
+| `layout`       | string | `full`       | `compact` for a one-panel summary (see below)          |
+| `navigation_path` | string | —         | Compact layout: the header opens this path, e.g. `/home-dashboard/climate` |
 
 The default presets are Morning (100), Half (50), Privacy (20) and Night (0).
 Override the whole list to change them:
@@ -50,6 +52,25 @@ presets:
   - name: Movie
     icon: mdi:movie-open
     position: 10
+```
+
+### Compact layout
+
+`layout: compact` turns the card into a summary for a dashboard's main view:
+the header with the open-count, then a small window per room at the average
+position of its covers (`Open`, `Closed`, or the percentage). Tapping a window
+opens that room's drilldown — always as an overlay, since the compact card
+has no side pane. With a `navigation_path`, tapping the header opens that
+path. The [compact design mock](../common/compact-cards.html) shows it.
+
+```yaml
+type: custom:ru-shutters-card
+layout: compact
+navigation_path: /home-dashboard/climate
+rooms: # same rooms as the full card
+  - name: Bedroom
+    covers:
+      - entity: cover.bedroom
 ```
 
 ## Behavior notes

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/common.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.cc{--bg:#F5F6FA;--panel:#fff;--text:#3B3B3B;--muted:#9AA0AE;--amber:#FFA723;--amberbg:rgba(255,167,35,.18);--amberink:#B26A00;--glow:rgba(255,167,35,.8);--track:#F1F2F6;--dotoff:#C3C8D4;--chev:#C3C8D4;--accent:#3D5AFE;--win1:#EDF2F7;--win2:#E4EAF1;--sl1:#C6CDDB;--sl2:#B7BFCF;--label:#8A90A0;background:var(--bg);padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif}
+.cc.dk{--bg:#1A1B1E;--panel:#242529;--text:#E8E9ED;--muted:#8B8F9B;--amber:#FFC65C;--amberbg:rgba(255,167,35,.22);--amberink:#FFC65C;--glow:rgba(255,198,92,.8);--track:rgba(255,255,255,.07);--dotoff:#4A4E59;--chev:#4A4E59;--accent:#7C90FF;--win1:#2A3A63;--win2:#1B2540;--sl1:#4A4F5C;--sl2:#3F4450;--label:#8B8F9B}
+.ch{display:flex;align-items:baseline;justify-content:space-between;padding:0 4px;cursor:pointer}
+.ct{font-size:17px;font-weight:700;color:var(--text)}
+.cs{display:flex;align-items:center;gap:2px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.cs.on{color:var(--amberink)}
+.cv{color:var(--chev);font-size:16px;margin-left:2px}
+.cp{background:var(--panel);border-radius:20px;padding:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:999px;background:var(--track);font-size:12.5px;font-weight:600;color:var(--text)}
+.chip .d{width:8px;height:8px;border-radius:4px;background:var(--dotoff)}
+.chip.lit{background:var(--amberbg);color:var(--amberink)}
+.chip.lit .d{background:var(--amber);box-shadow:0 0 8px var(--glow)}
+.mg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mw{display:flex;flex-direction:column;align-items:center;gap:5px}
+.win{position:relative;width:100%;height:64px;border-radius:12px;background:linear-gradient(var(--win1),var(--win2));overflow:hidden}
+.sl{position:absolute;left:0;right:0;top:0;background:repeating-linear-gradient(var(--sl1) 0 5px,var(--sl2) 5px 10px);border-bottom:3px solid var(--accent)}
+.wn{font-size:10.5px;font-weight:600;color:var(--label);white-space:nowrap}
+.ws{font-size:10.5px;font-weight:500;color:var(--muted)}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — compact light and shutter cards</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:760px">A summary layout of the light and shutter cards for a dashboard's main view. Same palette, one panel each. Lights: a chip per room, amber with its brightness while lit; a tap toggles the room. Shutters: a small window per room at its average position; a tap opens that room's drilldown. The header (title, summary, chevron) opens the full view when a navigation path is set.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Compact layout — light + dark</span></div>
+<div class="dv-opts">
+<sc-for list="{{ variants }}" as="v" hint-placeholder-count="4">
+<div class="dv-opt" id="{{ v.id }}" data-screen-label="{{ v.label }}">
+  <div class="dv-olabel"><a class="dv-oid" href="{{ v.href }}">{{ v.id }}</a>{{ v.label }}</div>
+  <div class="dv-card" style="width:360px">
+    <div class="{{ v.cls }}">
+      <sc-if value="{{ v.lights }}" hint-placeholder-val="{{ true }}">
+        <div class="ch"><div class="ct">Lights</div><div class="cs on">4 on<span class="cv">›</span></div></div>
+        <div class="cp"><div class="chips">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="8"><div class="{{ c.cls }}"><span class="d"></span>{{ c.text }}</div></sc-for>
+        </div></div>
+      </sc-if>
+      <sc-if value="{{ v.shutters }}" hint-placeholder-val="{{ false }}">
+        <div class="ch"><div class="ct">Shutters</div><div class="cs">2 of 7 open<span class="cv">›</span></div></div>
+        <div class="cp"><div class="mg">
+          <sc-for list="{{ windows }}" as="w" hint-placeholder-count="4"><div class="mw"><div class="win"><div class="sl" style="{{ w.slat }}"></div></div><div class="wn">{{ w.name }}</div><div class="ws">{{ w.status }}</div></div></sc-for>
+        </div></div>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+<p class="dv-next">Try next: "show the scenes as a row under the chips" · "one window per shutter instead of per room"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const chips = [['Kitchen', 80], ['Bedroom', 0], ['Dressing room', 0], ['Living room', 45], ['Office', 0], ['Entry', 0], ['Closet', 0], ['Wardrobe', 0]]
+      .map(([name, pct]) => ({ text: pct ? name + ' ' + pct + '%' : name, cls: pct ? 'chip lit' : 'chip' }));
+    const windows = [['Bedroom', 100, 'Open'], ['Dining room', 100, 'Open'], ['Living room', 40, '40%'], ['Office', 0, 'Closed']]
+      .map(([name, open, status]) => ({ name, status, slat: { height: (100 - open) + '%' } }));
+    return {
+      chips, windows,
+      variants: [
+        { id: '1a', href: '#1a', label: 'Lights, compact', cls: 'cc', lights: true, shutters: false },
+        { id: '1b', href: '#1b', label: 'Dark variant of 1a', cls: 'cc dk', lights: true, shutters: false },
+        { id: '1c', href: '#1c', label: 'Shutters, compact', cls: 'cc', lights: false, shutters: true },
+        { id: '1d', href: '#1d', label: 'Dark variant of 1c', cls: 'cc dk', lights: false, shutters: true }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -311,6 +311,27 @@ shuttersWideCard.setConfig(SHUTTERS_CONFIG);
 const lightsWideCard = document.createElement("ru-lights-card") as LovelaceCard;
 lightsWideCard.setConfig(LIGHTS_CONFIG);
 
+// The same configs again as compact summaries (layout: compact), each with a
+// navigation_path to a fake path the header pushes without a reload. The
+// shutters one sits in a wide slot on purpose: its drilldown must still open
+// as an overlay there, since a compact card has no pane.
+const lightsCompactCard = document.createElement(
+  "ru-lights-card"
+) as LovelaceCard;
+lightsCompactCard.setConfig({
+  ...LIGHTS_CONFIG,
+  layout: "compact",
+  navigation_path: "/dev/nav/lights",
+});
+const shuttersCompactCard = document.createElement(
+  "ru-shutters-card"
+) as LovelaceCard;
+shuttersCompactCard.setConfig({
+  ...SHUTTERS_CONFIG,
+  layout: "compact",
+  navigation_path: "/dev/nav/climate",
+});
+
 const purifierCard = document.createElement(
   "ru-purifier-card"
 ) as LovelaceCard;
@@ -592,6 +613,8 @@ mock.onChange((hass) => {
   navWideCard.hass = hass;
   shuttersWideCard.hass = hass;
   lightsWideCard.hass = hass;
+  lightsCompactCard.hass = hass;
+  shuttersCompactCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -615,6 +638,10 @@ document.getElementById("card-nav")!.appendChild(navCard);
 document.getElementById("card-nav-wide")!.appendChild(navWideCard);
 document.getElementById("card-shutters-wide")!.appendChild(shuttersWideCard);
 document.getElementById("card-lights-wide")!.appendChild(lightsWideCard);
+document.getElementById("card-lights-compact")!.appendChild(lightsCompactCard);
+document
+  .getElementById("card-shutters-compact")!
+  .appendChild(shuttersCompactCard);
 
 // --- page chrome --------------------------------------------------------------
 

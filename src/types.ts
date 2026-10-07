@@ -88,9 +88,16 @@ export interface PresetConfig {
   position: number;
 }
 
+/** `full` (default) is the whole card; `compact` is a one-panel summary for a
+ * dashboard's main view. */
+export type CardLayout = "full" | "compact";
+
 export interface ShuttersCardConfig {
   type: string;
   title?: string;
+  layout?: CardLayout;
+  /** Compact layout: the header opens this path (e.g. the full view). */
+  navigation_path?: string;
   show_percent?: boolean;
   rooms: RoomConfig[];
   presets?: PresetConfig[];
@@ -118,6 +125,9 @@ export interface SceneConfig {
 export interface LightsCardConfig {
   type: string;
   title?: string;
+  layout?: CardLayout;
+  /** Compact layout: the header opens this path (e.g. the full view). */
+  navigation_path?: string;
   rooms: LightRoomConfig[];
   scenes?: SceneConfig[];
 }

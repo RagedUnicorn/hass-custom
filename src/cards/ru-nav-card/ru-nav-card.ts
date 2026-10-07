@@ -14,20 +14,16 @@
  */
 
 import { LitElement, html, nothing, type TemplateResult } from "lit";
+import { navigate, normalizePath } from "../../navigate";
 import type { HomeAssistant, NavCardConfig, NavRouteConfig } from "../../types";
 import { cardStyles } from "./styles";
 
 const CARD_TYPE = "ru-nav-card";
 
-/** "/a/b/" and "/a/b" are the same view. */
-function normalize(path: string): string {
-  return path.length > 1 ? path.replace(/\/+$/, "") : path;
-}
-
 /** A route is active on its own path and on anything below it (subviews). */
 export function isActive(route: string, location: string): boolean {
-  const target = normalize(route);
-  const current = normalize(location);
+  const target = normalizePath(route);
+  const current = normalizePath(location);
   return current === target || current.startsWith(`${target}/`);
 }
 
@@ -124,21 +120,12 @@ export class RuNavCard extends LitElement {
         data-path=${route.path}
         aria-label=${route.name}
         aria-current=${active ? "page" : "false"}
-        @click=${() => this._navigate(route.path)}
+        @click=${() => navigate(route.path)}
       >
         <ha-icon .icon=${route.icon}></ha-icon>
         <span class="label">${route.name}</span>
       </button>
     `;
-  }
-
-  /** The same pushState + location-changed pair HA's own navigate() uses. */
-  private _navigate(path: string): void {
-    if (normalize(path) === normalize(window.location.pathname)) return;
-    window.history.pushState(null, "", path);
-    window.dispatchEvent(
-      new CustomEvent("location-changed", { detail: { replace: false } })
-    );
   }
 }
 

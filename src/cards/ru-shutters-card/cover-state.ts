@@ -162,3 +162,31 @@ export function presetActive(
     )
   );
 }
+
+/** A room's mini window in the compact layout: one position for the room. */
+export interface RoomSummary {
+  /** Mean openness of the position-reporting covers (0 closed … 100 open),
+   * or null when none reports one. */
+  position: number | null;
+  /** "Open" / "Closed" / "40%" / "Moving…" / "Unavailable". */
+  text: string;
+}
+
+export function roomSummary(room: RoomView): RoomSummary {
+  const positions = room.active
+    .map((cover) => cover.position)
+    .filter((position): position is number => position !== null);
+  const position = positions.length
+    ? Math.round(positions.reduce((sum, p) => sum + p, 0) / positions.length)
+    : null;
+
+  let text: string;
+  if (room.active.length === 0) text = "Unavailable";
+  else if (room.anyMoving) text = "Moving…";
+  else if (position === null) text = room.allClosed ? "Closed" : "Open";
+  else if (position >= 99) text = "Open";
+  else if (position <= 1) text = "Closed";
+  else text = `${position}%`;
+
+  return { position, text };
+}

@@ -10,6 +10,7 @@
 import { LitElement, html, nothing } from "lit";
 import type { TemplateResult } from "lit";
 
+import { navigate } from "../../navigate";
 import type {
   HomeAssistant,
   PresetConfig,
@@ -18,6 +19,7 @@ import type {
 import {
   buildRoomView,
   presetActive,
+  roomSummary,
   summaryText,
   type CoverView,
   type RoomView,
@@ -82,6 +84,17 @@ export class RuShuttersCard extends LitElement {
         }
       }
     }
+    if (config.layout && !["full", "compact"].includes(config.layout)) {
+      throw new Error(`${CARD_TYPE}: "layout" must be "full" or "compact"`);
+    }
+    if (
+      config.navigation_path !== undefined &&
+      !config.navigation_path.startsWith("/")
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "navigation_path" must start with "/", e.g. /home-dashboard/climate`
+      );
+    }
     for (const preset of config.presets ?? []) {
       if (
         !preset.name ||
@@ -138,6 +151,7 @@ export class RuShuttersCard extends LitElement {
     const anyMoving = rooms.some((room) => room.anyMoving);
     const detail =
       this._detailRoom !== null ? rooms[this._detailRoom] : undefined;
+    if (config.layout === "compact") return this._renderCompact(rooms, detail);
 
     return html`
       <div class="card">
@@ -181,6 +195,59 @@ export class RuShuttersCard extends LitElement {
           ${this._renderPane(rooms[this._paneRoom] ?? rooms[0])}
         </div>
 
+        ${detail ? this._renderDetail(detail) : nothing}
+      </div>
+    `;
+  }
+
+  /** Compact layout (Compact Cards mock): one panel with a small window per
+   * room at its average position — a tap opens that room's drilldown — under
+   * a header that opens navigation_path. */
+  private _renderCompact(
+    rooms: RoomView[],
+    detail: RoomView | undefined
+  ): TemplateResult {
+    const config = this._config!;
+    const path = config.navigation_path;
+    const heading = html`
+      <div class="title">${config.title ?? "Shutters"}</div>
+      <div class="summary">
+        ${summaryText(rooms)}${path
+          ? html`<span class="header-chevron">›</span>`
+          : nothing}
+      </div>
+    `;
+
+    return html`
+      <div class="card compact">
+        ${path
+          ? html`<button class="header link" @click=${() => navigate(path)}>
+              ${heading}
+            </button>`
+          : html`<div class="header">${heading}</div>`}
+        <div class="panel mini-grid">
+          ${rooms.map((room, index) => {
+            const summary = roomSummary(room);
+            const closedPct =
+              summary.position === null
+                ? room.allClosed
+                  ? 100
+                  : 0
+                : 100 - summary.position;
+            return html`
+              <button
+                class="mini ${room.active.length === 0 ? "unavailable" : ""}"
+                @click=${() => (this._detailRoom = index)}
+              >
+                <div class="mini-window">
+                  <div class="slats" style="height: ${closedPct}%"></div>
+                </div>
+                <div class="mini-name">${room.config.name}</div>
+                <div class="mini-status">${summary.text}</div>
+              </button>
+            `;
+          })}
+        </div>
         ${detail ? this._renderDetail(detail) : nothing}
       </div>
     `;

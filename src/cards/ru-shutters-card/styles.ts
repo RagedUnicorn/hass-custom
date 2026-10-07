@@ -501,6 +501,82 @@ export const cardStyles = css`
     color: var(--ru-shutters-text);
   }
 
+  /* --- compact layout (layout: compact) ------------------------------------ */
+
+  .card.compact {
+    padding: 16px 16px 18px;
+    gap: 12px;
+  }
+
+  .card.compact .title {
+    font-size: 17px;
+  }
+
+  /* With a navigation_path the header is a button that opens it. */
+  .header.link {
+    width: 100%;
+    text-align: start;
+    background: none;
+    padding: 0 4px;
+  }
+
+  .card.compact .summary {
+    display: flex;
+    align-items: center;
+  }
+
+  .header-chevron {
+    margin-left: 4px;
+    font-size: 16px;
+    color: var(--ru-shutters-chevron);
+  }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 0;
+    background: none;
+  }
+
+  .mini-window {
+    position: relative;
+    width: 100%;
+    height: 64px;
+    border-radius: 12px;
+    background: linear-gradient(
+      180deg,
+      var(--ru-shutters-window-top),
+      var(--ru-shutters-window-bottom)
+    );
+    overflow: hidden;
+  }
+
+  .mini-name {
+    max-width: 100%;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--ru-shutters-button-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mini-status {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ru-shutters-text-muted);
+  }
+
   /* --- wide layout ------------------------------------------------------------ */
 
   /* Given room, the drilldown moves inline: room list left, the selected
@@ -528,7 +604,9 @@ export const cardStyles = css`
       box-shadow: inset 0 0 0 2px var(--ru-shutters-accent);
     }
 
-    .scrim {
+    /* Only beside a pane: the compact layout has no .split, so its
+       drilldown stays an overlay at any width. */
+    .split ~ .scrim {
       display: none;
     }
   }

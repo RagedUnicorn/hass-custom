@@ -11,6 +11,7 @@ import { LitElement, html, nothing } from "lit";
 import type { TemplateResult } from "lit";
 import { styleMap } from "lit/directives/style-map.js";
 
+import { navigate } from "../../navigate";
 import type {
   HomeAssistant,
   LightsCardConfig,
@@ -77,6 +78,17 @@ export class RuLightsCard extends LitElement {
         }
       }
     }
+    if (config.layout && !["full", "compact"].includes(config.layout)) {
+      throw new Error(`${CARD_TYPE}: "layout" must be "full" or "compact"`);
+    }
+    if (
+      config.navigation_path !== undefined &&
+      !config.navigation_path.startsWith("/")
+    ) {
+      throw new Error(
+        `${CARD_TYPE}: "navigation_path" must start with "/", e.g. /home-dashboard/lights`
+      );
+    }
     for (const scene of config.scenes ?? []) {
       if (!scene.entity || !scene.entity.startsWith("scene.")) {
         throw new Error(
@@ -129,6 +141,7 @@ export class RuLightsCard extends LitElement {
 
     const config = this._config;
     const rooms = config.rooms.map((room) => buildRoomView(this.hass!, room));
+    if (config.layout === "compact") return this._renderCompact(rooms);
     const detail =
       this._detailRoom !== null ? rooms[this._detailRoom] : undefined;
 
@@ -172,6 +185,48 @@ export class RuLightsCard extends LitElement {
           ${this._renderPane(rooms[this._paneRoom] ?? rooms[0])}
         </div>
         ${detail ? this._renderDetail(detail) : nothing}
+      </div>
+    `;
+  }
+
+  /** Compact layout (Compact Cards mock): one panel of room chips — a tap
+   * toggles the room — under a header that opens navigation_path. */
+  private _renderCompact(rooms: RoomView[]): TemplateResult {
+    const config = this._config!;
+    const anyOn = rooms.some((room) => room.anyOn);
+    const path = config.navigation_path;
+    const heading = html`
+      <div class="title">${config.title ?? "Lights"}</div>
+      <div class="summary ${anyOn ? "on" : ""}">
+        ${summaryText(rooms)}${path
+          ? html`<span class="header-chevron">›</span>`
+          : nothing}
+      </div>
+    `;
+
+    return html`
+      <div class="card compact">
+        ${path
+          ? html`<button class="header link" @click=${() => navigate(path)}>
+              ${heading}
+            </button>`
+          : html`<div class="header">${heading}</div>`}
+        <div class="panel room-chips">
+          ${rooms.map((room) => {
+            const unavailable = room.active.length === 0;
+            const pct = room.anyOn ? room.avgBrightness : 0;
+            return html`
+              <button
+                class="room-chip ${room.anyOn ? "on" : ""}"
+                ?disabled=${unavailable}
+                @click=${() => this._toggleRoom(room)}
+              >
+                <span class="chip-dot ${room.anyOn ? "on" : ""}"></span>
+                ${room.config.name}${pct ? ` ${pct}%` : ""}
+              </button>
+            `;
+          })}
+        </div>
       </div>
     `;
   }

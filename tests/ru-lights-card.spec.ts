@@ -381,3 +381,46 @@ test.describe("wide layout", () => {
       ]);
   });
 });
+
+test.describe("compact layout", () => {
+  // #card-lights-compact: the same config with layout: compact and
+  // navigation_path /dev/nav/lights.
+  const COMPACT = "#card-lights-compact ru-lights-card";
+
+  function chip(page: Page, name: string) {
+    return page.locator(`${COMPACT} .room-chip`, { hasText: name });
+  }
+
+  test("renders one chip per room, lit rooms with their brightness", async ({
+    page,
+  }) => {
+    await expect(page.locator(`${COMPACT} .room-chip`)).toHaveCount(5);
+    await expect(page.locator(`${COMPACT} .rooms`)).toHaveCount(0);
+    await expect(chip(page, "Kitchen")).toHaveClass(/\bon\b/);
+    await expect(chip(page, "Kitchen")).toContainText("Kitchen 80%");
+    await expect(chip(page, "Entry")).not.toHaveClass(/\bon\b/);
+    await expect(page.locator(`${COMPACT} .summary`)).toContainText(
+      "4 of 7 lights on"
+    );
+  });
+
+  test("tapping a chip toggles the room", async ({ page }) => {
+    await chip(page, "Kitchen").click();
+    await expect
+      .poll(() => calls(page))
+      .toEqual([
+        {
+          domain: "light",
+          service: "turn_off",
+          data: {
+            entity_id: ["light.kitchen_1", "light.kitchen_2", "light.kitchen_3"],
+          },
+        },
+      ]);
+  });
+
+  test("the header opens navigation_path", async ({ page }) => {
+    await page.locator(`${COMPACT} .header.link`).click();
+    expect(new URL(page.url()).pathname).toBe("/dev/nav/lights");
+  });
+});

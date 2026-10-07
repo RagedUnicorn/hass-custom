@@ -572,6 +572,67 @@ export const cardStyles = css`
     color: var(--ru-lights-text);
   }
 
+  /* --- compact layout (layout: compact) ------------------------------------ */
+
+  .card.compact {
+    padding: 16px 16px 18px;
+    gap: 12px;
+  }
+
+  .card.compact .title {
+    font-size: 17px;
+  }
+
+  /* With a navigation_path the header is a button that opens it. */
+  .header.link {
+    width: 100%;
+    text-align: start;
+  }
+
+  .card.compact .summary {
+    display: flex;
+    align-items: center;
+  }
+
+  .card.compact .summary.on {
+    color: var(--ru-lights-effect-active-color);
+  }
+
+  .header-chevron {
+    margin-left: 4px;
+    font-size: 16px;
+    color: var(--ru-lights-chevron);
+  }
+
+  .room-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 14px;
+  }
+
+  .room-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--ru-lights-track);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ru-lights-text);
+  }
+
+  .room-chip.on {
+    background: var(--ru-lights-accent-bg);
+    color: var(--ru-lights-effect-active-color);
+  }
+
+  .room-chip .chip-dot.on {
+    box-shadow: 0 0 8px var(--ru-lights-glow);
+  }
+
   /* --- wide layout ------------------------------------------------------------ */
 
   /* Given room, the drilldown moves inline: room list left, the selected
@@ -599,7 +660,8 @@ export const cardStyles = css`
       box-shadow: inset 0 0 0 2px var(--ru-lights-accent);
     }
 
-    .scrim {
+    /* Only beside a pane — the compact layout has no .split. */
+    .split ~ .scrim {
       display: none;
     }
   }
