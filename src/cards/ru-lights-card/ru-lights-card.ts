@@ -35,6 +35,7 @@ export class RuLightsCard extends LitElement {
     hass: { attribute: false },
     _config: { state: true },
     _detailRoom: { state: true },
+    _paneRoom: { state: true },
     _drag: { state: true },
   };
 
@@ -44,6 +45,10 @@ export class RuLightsCard extends LitElement {
 
   /** Index into config.rooms of the open drilldown, or null when closed. */
   private _detailRoom: number | null = null;
+
+  /** Index into config.rooms shown in the wide layout's detail pane. Unlike
+   * _detailRoom it never closes — the pane always shows a room. */
+  private _paneRoom = 0;
 
   /** Live values (drag key → 0..100) of dims in progress. */
   private _drag: Record<string, number> = {};
@@ -82,6 +87,7 @@ export class RuLightsCard extends LitElement {
     }
     this._config = config;
     this._detailRoom = null;
+    this._paneRoom = 0;
     this._drag = {};
   }
 
@@ -142,34 +148,51 @@ export class RuLightsCard extends LitElement {
           </button>
         </div>
 
-        <div class="rooms">
-          ${rooms.map((room, index) => this._renderRoom(room, index))}
-        </div>
+        <!-- Narrow, .split is a plain column and the pane is hidden; wide
+             (container query in styles.ts) it becomes list | pane and the
+             drilldown overlay is hidden instead. Both always render, so the
+             layout switch is pure CSS. -->
+        <div class="split">
+          <div class="list">
+            <div class="rooms">
+              ${rooms.map((room, index) => this._renderRoom(room, index))}
+            </div>
 
-        ${config.scenes?.length
-          ? html`
-              <div class="panel">
-                <div class="panel-title">Scenes</div>
-                <div class="scene-grid">
-                  ${config.scenes.map((scene) => this._renderScene(scene))}
-                </div>
-              </div>
-            `
-          : nothing}
+            ${config.scenes?.length
+              ? html`
+                  <div class="panel">
+                    <div class="panel-title">Scenes</div>
+                    <div class="scene-grid">
+                      ${config.scenes.map((scene) => this._renderScene(scene))}
+                    </div>
+                  </div>
+                `
+              : nothing}
+          </div>
+          ${this._renderPane(rooms[this._paneRoom] ?? rooms[0])}
+        </div>
         ${detail ? this._renderDetail(detail) : nothing}
       </div>
     `;
   }
 
+  /** Tapping a room opens the drilldown (narrow) and fills the pane (wide). */
+  private _selectRoom(index: number): void {
+    this._detailRoom = index;
+    this._paneRoom = index;
+  }
+
   private _renderRoom(room: RoomView, index: number): TemplateResult {
     const unavailable = room.active.length === 0;
+    // Only the wide layout draws the selection (styles.ts).
+    const selected = index === this._paneRoom ? "selected" : "";
     const key = `room:${index}`;
     const fill =
       this._drag[key] ?? (room.anyOn ? room.avgBrightness || 100 : 0);
 
     return html`
-      <div class="room ${unavailable ? "unavailable" : ""}">
-        <div class="room-row" @click=${() => (this._detailRoom = index)}>
+      <div class="room ${unavailable ? "unavailable" : ""} ${selected}">
+        <div class="room-row" @click=${() => this._selectRoom(index)}>
           <button
             class="dot-circle ${room.anyOn ? "" : "off"}"
             ?disabled=${unavailable}
@@ -222,47 +245,76 @@ export class RuLightsCard extends LitElement {
   }
 
   private _renderDetail(room: RoomView): TemplateResult {
-    const unavailable = room.active.length === 0;
     return html`
       <div class="scrim" @click=${this._closeDetail}>
         <div class="sheet" @click=${(e: Event) => e.stopPropagation()}>
-          <div class="sheet-header">
-            <div class="dot-circle large ${room.anyOn ? "" : "off"}">
-              <div class="dot"></div>
-            </div>
-            <div class="sheet-title">
-              <div class="sheet-name">${room.config.name}</div>
-              <div class="room-status ${room.anyOn ? "on" : ""}">
-                ${room.statusText}
-              </div>
-            </div>
-            <button class="close" @click=${this._closeDetail}>✕</button>
-          </div>
+          ${this._renderDetailHeader(room, true)}
+          <div class="sheet-body">${this._renderDetailBody(room)}</div>
+          ${this._renderDetailActions(room)}
+        </div>
+      </div>
+    `;
+  }
 
-          <div class="sheet-body">
-            <div class="panel bulbs">
-              ${room.lights.map((light) => this._renderBulb(light))}
-            </div>
-            ${room.lights
-              .filter((light) => light.effectList.length > 0)
-              .map((light) => this._renderEffects(light))}
-          </div>
+  /** The wide layout's inline drilldown: the sheet's content, no close. */
+  private _renderPane(room: RoomView): TemplateResult {
+    return html`
+      <div class="pane">
+        ${this._renderDetailHeader(room, false)}
+        ${this._renderDetailBody(room)} ${this._renderDetailActions(room)}
+      </div>
+    `;
+  }
 
-          <div class="sheet-actions">
-            <button
-              ?disabled=${unavailable}
-              @click=${() => this._callLights(room, "turn_on")}
-            >
-              <span class="chip-dot on"></span>All on
-            </button>
-            <button
-              ?disabled=${unavailable}
-              @click=${() => this._callLights(room, "turn_off")}
-            >
-              <span class="chip-dot"></span>All off
-            </button>
+  private _renderDetailHeader(
+    room: RoomView,
+    closable: boolean
+  ): TemplateResult {
+    return html`
+      <div class="sheet-header">
+        <div class="dot-circle large ${room.anyOn ? "" : "off"}">
+          <div class="dot"></div>
+        </div>
+        <div class="sheet-title">
+          <div class="sheet-name">${room.config.name}</div>
+          <div class="room-status ${room.anyOn ? "on" : ""}">
+            ${room.statusText}
           </div>
         </div>
+        ${closable
+          ? html`<button class="close" @click=${this._closeDetail}>✕</button>`
+          : nothing}
+      </div>
+    `;
+  }
+
+  private _renderDetailBody(room: RoomView): TemplateResult {
+    return html`
+      <div class="panel bulbs">
+        ${room.lights.map((light) => this._renderBulb(light))}
+      </div>
+      ${room.lights
+        .filter((light) => light.effectList.length > 0)
+        .map((light) => this._renderEffects(light))}
+    `;
+  }
+
+  private _renderDetailActions(room: RoomView): TemplateResult {
+    const unavailable = room.active.length === 0;
+    return html`
+      <div class="sheet-actions">
+        <button
+          ?disabled=${unavailable}
+          @click=${() => this._callLights(room, "turn_on")}
+        >
+          <span class="chip-dot on"></span>All on
+        </button>
+        <button
+          ?disabled=${unavailable}
+          @click=${() => this._callLights(room, "turn_off")}
+        >
+          <span class="chip-dot"></span>All off
+        </button>
       </div>
     `;
   }

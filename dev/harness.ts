@@ -216,7 +216,7 @@ const mock = new MockHass(
 );
 
 const card = document.createElement("ru-shutters-card") as LovelaceCard;
-card.setConfig({
+const SHUTTERS_CONFIG = {
   type: "custom:ru-shutters-card",
   title: "Shutters",
   rooms: [
@@ -245,9 +245,10 @@ card.setConfig({
       ],
     },
   ],
-});
+};
+card.setConfig(SHUTTERS_CONFIG);
 const lightsCard = document.createElement("ru-lights-card") as LovelaceCard;
-lightsCard.setConfig({
+const LIGHTS_CONFIG = {
   type: "custom:ru-lights-card",
   title: "Lights",
   rooms: [
@@ -297,7 +298,18 @@ lightsCard.setConfig({
       gradient: "linear-gradient(90deg,#fff3d6,#ffd98a)",
     },
   ],
-});
+};
+lightsCard.setConfig(LIGHTS_CONFIG);
+
+// Identical to card / lightsCard, but mounted in 1040px slots so their own
+// container queries trip the wide list | pane layout. Same config on purpose:
+// the layout difference must come from the width alone.
+const shuttersWideCard = document.createElement(
+  "ru-shutters-card"
+) as LovelaceCard;
+shuttersWideCard.setConfig(SHUTTERS_CONFIG);
+const lightsWideCard = document.createElement("ru-lights-card") as LovelaceCard;
+lightsWideCard.setConfig(LIGHTS_CONFIG);
 
 const purifierCard = document.createElement(
   "ru-purifier-card"
@@ -578,6 +590,8 @@ mock.onChange((hass) => {
   lastSeenStrictCard.hass = hass;
   navCard.hass = hass;
   navWideCard.hass = hass;
+  shuttersWideCard.hass = hass;
+  lightsWideCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -599,6 +613,8 @@ document
   .appendChild(lastSeenStrictCard);
 document.getElementById("card-nav")!.appendChild(navCard);
 document.getElementById("card-nav-wide")!.appendChild(navWideCard);
+document.getElementById("card-shutters-wide")!.appendChild(shuttersWideCard);
+document.getElementById("card-lights-wide")!.appendChild(lightsWideCard);
 
 // --- page chrome --------------------------------------------------------------
 

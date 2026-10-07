@@ -29,6 +29,11 @@ export const cardStyles = css`
       sans-serif;
 
     display: block;
+
+    /* Size-query container for the wide layout at the end of this file. It
+       does not trap the position: fixed drilldown scrim — fixed still
+       resolves against the viewport inside an inline-size container. */
+    container: ru-shutters / inline-size;
   }
 
   /* Dark palette — applied when HA is in dark mode (the card reflects
@@ -131,6 +136,21 @@ export const cardStyles = css`
 
   .dim {
     opacity: 0.35;
+  }
+
+  /* --- list + pane --------------------------------------------------------- */
+
+  /* Narrow: one column, the pane hidden (the drilldown is the overlay). */
+  .split,
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .pane {
+    display: none;
   }
 
   /* --- rooms (2-column grid of compact tiles) ------------------------------ */
@@ -479,5 +499,43 @@ export const cardStyles = css`
     font-size: 12.5px;
     font-weight: 600;
     color: var(--ru-shutters-text);
+  }
+
+  /* --- wide layout ------------------------------------------------------------ */
+
+  /* Given room, the drilldown moves inline: room list left, the selected
+     room's windows right, and the overlay never shows. Keyed off the card's
+     own width (Shutter Cards Wide mock). */
+  @container ru-shutters (min-width: 720px) {
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .pane .sheet-header {
+      padding: 0 4px;
+    }
+
+    .room.selected {
+      box-shadow: inset 0 0 0 2px var(--ru-shutters-accent);
+    }
+
+    .scrim {
+      display: none;
+    }
+  }
+
+  @container ru-shutters (min-width: 1000px) {
+    .rooms {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 `;

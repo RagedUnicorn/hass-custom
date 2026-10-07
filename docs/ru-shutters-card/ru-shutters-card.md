@@ -54,6 +54,11 @@ presets:
 
 ## Behavior notes
 
+- Given room (720px or more of its own width), the card splits in two: the
+  room list on the left and the selected room's drilldown beside it as a
+  pane, so nothing pops up. Tapping a room selects it; the first room is
+  selected until then. From 1000px the room grid gets a third column. The
+  [wide design mock](ru-shutters-card-wide.html) shows this layout.
 - Positions read as words (Open / Closed / Partly open / Opening… / Closing…);
   numbers only appear with `show_percent: true`.
 - Dragging a shutter target in the drilldown follows your finger and sends a

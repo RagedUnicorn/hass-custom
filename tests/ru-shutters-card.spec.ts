@@ -9,7 +9,7 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
-const CARD = "ru-shutters-card";
+const CARD = "#card ru-shutters-card";
 
 async function openHarness(page: Page): Promise<void> {
   await page.goto("/dev/harness.html");
@@ -137,7 +137,7 @@ test.describe("drilldown", () => {
 
     await room(page, "Office").locator(".room-row").click();
     await expect(sheet).toBeVisible();
-    await expect(page.locator(`${CARD} .sheet-name`)).toHaveText("Office");
+    await expect(page.locator(`${CARD} .sheet .sheet-name`)).toHaveText("Office");
     await page.locator(`${CARD} .close`).click();
     await expect(sheet).toBeHidden();
 
@@ -173,7 +173,7 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Office").locator(".room-row").click();
-    const window_ = page.locator(`${CARD} .target .window`).first();
+    const window_ = page.locator(`${CARD} .sheet .target .window`).first();
     const box = (await window_.boundingBox())!;
 
     // Drag from the middle to 25% from the bottom → position ≈ 25.
@@ -198,7 +198,7 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Office").locator(".room-row").click();
-    const targets = page.locator(`${CARD} .target`);
+    const targets = page.locator(`${CARD} .sheet .target`);
     await expect(targets).toHaveCount(3);
     const positionless = targets.nth(2); // office_small
     await expect(positionless.locator(".window")).toHaveCount(0);
@@ -209,7 +209,7 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Living room").locator(".room-row").click();
-    const unavailable = page.locator(`${CARD} .target.unavailable`);
+    const unavailable = page.locator(`${CARD} .sheet .target.unavailable`);
     await expect(unavailable).toHaveCount(1);
     await expect(unavailable.locator(".target-status")).toHaveText(
       "Unavailable"
@@ -275,5 +275,69 @@ test.describe("dark mode", () => {
 
     await page.evaluate(() => window.__harness.setDarkMode(false));
     await expect(card).not.toHaveAttribute("dark");
+  });
+});
+
+test.describe("wide layout", () => {
+  // #card-shutters-wide holds the same config in a 1040px slot; its own
+  // container query splits it into list | pane. The 390px mobile viewport
+  // never gives it that room.
+  const WIDE = "#card-shutters-wide ru-shutters-card";
+
+  function wideRoom(page: Page, name: string) {
+    return page.locator(`${WIDE} .room`, {
+      has: page.locator(".room-name", { hasText: name }),
+    });
+  }
+
+  test.beforeEach(({}, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile-chromium",
+      "the 390px viewport keeps the wide slot below the 720px split width"
+    );
+  });
+
+  test("the narrow card keeps the pane hidden", async ({ page }) => {
+    await expect(page.locator(`${CARD} .pane`)).toBeHidden();
+  });
+
+  test("the pane shows the first room until another is tapped", async ({
+    page,
+  }) => {
+    const pane = page.locator(`${WIDE} .pane`);
+    await expect(pane).toBeVisible();
+    await expect(pane.locator(".sheet-name")).toHaveText("Bedroom");
+    await expect(pane.locator(".close")).toHaveCount(0);
+    await expect(wideRoom(page, "Bedroom")).toHaveClass(/\bselected\b/);
+  });
+
+  test("tapping a room fills the pane instead of opening the overlay", async ({
+    page,
+  }) => {
+    await wideRoom(page, "Office").locator(".room-row").click();
+    await expect(page.locator(`${WIDE} .pane .sheet-name`)).toHaveText(
+      "Office"
+    );
+    await expect(page.locator(`${WIDE} .pane .target`)).toHaveCount(3);
+    await expect(wideRoom(page, "Office")).toHaveClass(/\bselected\b/);
+    await expect(wideRoom(page, "Bedroom")).not.toHaveClass(/\bselected\b/);
+    await expect(page.locator(`${WIDE} .sheet`)).toBeHidden();
+  });
+
+  test("the pane's controls act on the selected room", async ({ page }) => {
+    await wideRoom(page, "Office").locator(".room-row").click();
+    await page
+      .locator(`${WIDE} .pane .target`)
+      .first()
+      .locator(".target-buttons button")
+      .first()
+      .click(); // ▲ on office_big_left
+    await expect
+      .poll(() => calls(page))
+      .toContainEqual({
+        domain: "cover",
+        service: "open_cover",
+        data: { entity_id: ["cover.office_big_left"] },
+      });
   });
 });

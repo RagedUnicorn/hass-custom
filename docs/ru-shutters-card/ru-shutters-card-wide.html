@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/common.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-direction:column;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.sw2{--bg:#F5F6FA;--panel:#fff;--text:#3B3B3B;--muted:#9AA0AE;--accent:#3D5AFE;--accentbg:rgba(61,90,254,.15);--track:#F1F2F6;--btn:#8A90A0;--stop:#F54436;--chev:#C3C8D4;--win1:#EDF2F7;--win2:#E4EAF1;--sl1:#C6CDDB;--sl2:#B7BFCF;background:var(--bg);padding:20px 16px 24px;display:flex;flex-direction:column;gap:14px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif}
+.sw2.dk{--bg:#1A1B1E;--panel:#242529;--text:#E8E9ED;--muted:#8B8F9B;--accent:#7C90FF;--accentbg:rgba(61,90,254,.28);--track:rgba(255,255,255,.07);--btn:#8B8F9B;--stop:#FF6B5E;--chev:#4A4E59;--win1:#2A3A63;--win2:#1B2540;--sl1:#4A4F5C;--sl2:#3F4450}
+.h{display:flex;align-items:baseline;justify-content:space-between;padding:0 4px}
+.t{font-size:22px;font-weight:700;color:var(--text)}
+.s{font-size:12.5px;font-weight:500;color:var(--muted)}
+.chips{display:flex;gap:8px;padding:0 2px}
+.chip{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:var(--panel);font-size:12px;font-weight:600;color:var(--text)}
+.gu{color:var(--accent);font-size:10px}
+.gs{color:var(--stop);font-size:10px}
+.split{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:start}
+.list{display:flex;flex-direction:column;gap:14px;min-width:0}
+.rooms{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.room{background:var(--panel);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:9px}
+.room.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.ic{width:30px;height:30px;border-radius:15px;background:var(--accentbg);flex:none;position:relative}
+.ic::after{content:'';position:absolute;left:9px;top:9px;width:12px;height:12px;border-radius:3px;border:2px solid var(--accent);box-sizing:border-box}
+.ic.lg{width:42px;height:42px;border-radius:21px}
+.ic.lg::after{left:13px;top:13px;width:16px;height:16px}
+.rt{flex:1;min-width:0}
+.rn{font-size:12.5px;font-weight:700;color:var(--text)}
+.rs{font-size:10.5px;font-weight:500;color:var(--muted);margin-top:1px}
+.chev{color:var(--chev);font-size:16px}
+.ud{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.b{height:28px;border-radius:9px;background:var(--track);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--btn)}
+.b.st{color:var(--stop)}
+.pnl{background:var(--panel);border-radius:20px;padding:16px 14px}
+.pt{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px}
+.pg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pr{display:flex;flex-direction:column;align-items:center;gap:7px}
+.pi{width:38px;height:38px;border-radius:19px;background:var(--accentbg);border:2px solid transparent}
+.pn{font-size:11px;font-weight:600;color:var(--text)}
+.pane{display:flex;flex-direction:column;gap:14px;min-width:0}
+.ph{display:flex;align-items:center;gap:12px;padding:0 4px}
+.phn{font-size:16px;font-weight:700;color:var(--text)}
+.phs{font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+.tg{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;padding:16px 8px}
+.tc{display:flex;flex-direction:column;align-items:center;gap:7px}
+.win{position:relative;width:64px;height:170px;border-radius:16px;background:linear-gradient(var(--win1),var(--win2));overflow:hidden}
+.sl{position:absolute;left:0;right:0;top:0;background:repeating-linear-gradient(var(--sl1) 0 5px,var(--sl2) 5px 10px);border-bottom:3px solid var(--accent)}
+.tn{font-size:12px;font-weight:700;color:var(--text)}
+.ts{font-size:10.5px;font-weight:500;color:var(--muted)}
+.tb{display:flex;gap:4px}
+.tb .b{width:34px;height:30px}
+.acts{display:flex;gap:8px}
+.act{flex:1;height:42px;border-radius:14px;background:var(--panel);display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--text)}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — shutter card, wide layout</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:760px">Companion to Shutter Cards (option 2a). Same palette and components — when the card is given room, the room list moves left and the selected room's draggable windows sit beside it as a pane instead of a popup. Tapping a room selects it (outlined in blue); the first room is selected until then.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Wide layout — room list + detail pane</span></div>
+<pre style="margin:0 0 20px;padding:10px 12px;background:rgba(0,0,0,.04);border-radius:6px;font:11px/1.5 ui-monospace,Menlo,monospace;color:rgba(0,0,0,.55);white-space:pre-wrap;max-width:760px">Driven by a CSS container query on the card's own width: @container (min-width: 720px) splits list | pane; from 1000px the room grid goes to 3 columns. Below 720px the card is the phone layout and the drilldown stays a popup.</pre>
+<div class="dv-opts">
+<sc-for list="{{ variants }}" as="v" hint-placeholder-count="2">
+<div class="dv-opt" id="{{ v.id }}" data-screen-label="{{ v.label }}">
+  <div class="dv-olabel"><a class="dv-oid" href="{{ v.href }}">{{ v.id }}</a>{{ v.label }}</div>
+  <div class="dv-card" style="width:760px">
+    <div class="{{ v.cls }}">
+      <div class="h"><div class="t">Shutters</div><div class="s">2 of 7 open</div></div>
+      <div class="chips"><div class="chip"><span class="gu">▲</span>All up</div><div class="chip"><span class="gu">▼</span>All down</div><div class="chip"><span class="gs">■</span>Stop</div></div>
+      <div class="split">
+        <div class="list">
+          <div class="rooms">
+            <sc-for list="{{ rooms }}" as="r" hint-placeholder-count="4">
+              <div class="{{ r.cls }}">
+                <div class="row"><div class="ic"></div><div class="rt"><div class="rn">{{ r.name }}</div><div class="rs">{{ r.status }}</div></div><div class="chev">›</div></div>
+                <div class="ud"><div class="b">▲</div><div class="b st">■</div><div class="b">▼</div></div>
+              </div>
+            </sc-for>
+          </div>
+          <div class="pnl"><div class="pt">Presets</div><div class="pg">
+            <sc-for list="{{ presets }}" as="p" hint-placeholder-count="4">
+              <div class="pr"><div class="pi"></div><div class="pn">{{ p }}</div></div>
+            </sc-for>
+          </div></div>
+        </div>
+        <div class="pane">
+          <div class="ph"><div class="ic lg"></div><div class="rt"><div class="phn">Living room</div><div class="phs">Both at 40%</div></div></div>
+          <div class="pnl tg">
+            <sc-for list="{{ windows }}" as="w" hint-placeholder-count="2">
+              <div class="tc"><div class="win"><div class="sl" style="height:60%"></div></div><div class="tn">{{ w }}</div><div class="ts">40% open</div><div class="tb"><div class="b">▲</div><div class="b st">■</div><div class="b">▼</div></div></div>
+            </sc-for>
+          </div>
+          <div class="acts"><div class="act"><span class="gu">▲</span>All up</div><div class="act"><span class="gs">■</span>Stop</div><div class="act"><span class="gu">▼</span>All down</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+<p class="dv-next">Try next: "pane sticks while the room list scrolls" · "bigger windows when the pane is wide"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rooms = [['Bedroom', 'Open'], ['Dining room', 'Open'], ['Living room', 'Both at 40%'], ['Office', '3 closed']]
+      .map(([name, status], i) => ({ name, status, cls: i === 2 ? 'room sel' : 'room' }));
+    return {
+      rooms,
+      presets: ['Morning', 'Half', 'Privacy', 'Night'],
+      windows: ['Medium', 'Small'],
+      variants: [
+        { id: '1a', href: '#1a', label: 'Wide, light — Living room selected', cls: 'sw2' },
+        { id: '1b', href: '#1b', label: 'Wide, dark — same layout', cls: 'sw2 dk' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

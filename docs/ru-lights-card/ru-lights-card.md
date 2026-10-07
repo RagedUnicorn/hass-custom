@@ -46,6 +46,11 @@ scenes: # optional — panel hidden when omitted
 
 ## Behavior notes
 
+- Given room (720px or more of its own width), the card splits in two: the
+  room list on the left and the selected room's drilldown beside it as a
+  pane, so nothing pops up. Tapping a room selects it; the first room is
+  selected until then. From 1000px the room grid gets a third column. The
+  [wide design mock](ru-lights-card-wide.html) shows this layout.
 - Tapping a room's dot toggles the whole room; tapping the row opens the
   drilldown. Dragging a slider or dimmer bar follows your finger and sends a
   single `light.turn_on` with `brightness_pct` on release (dragging to zero

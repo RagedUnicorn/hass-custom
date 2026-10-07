@@ -40,6 +40,7 @@ export class RuShuttersCard extends LitElement {
     hass: { attribute: false },
     _config: { state: true },
     _detailRoom: { state: true },
+    _paneRoom: { state: true },
     _drag: { state: true },
   };
 
@@ -49,6 +50,10 @@ export class RuShuttersCard extends LitElement {
 
   /** Index into config.rooms of the open drilldown, or null when closed. */
   private _detailRoom: number | null = null;
+
+  /** Index into config.rooms shown in the wide layout's detail pane. Unlike
+   * _detailRoom it never closes — the pane always shows a room. */
+  private _paneRoom = 0;
 
   /** Live positions (entity → 0..100) of drags in progress. */
   private _drag: Record<string, number> = {};
@@ -91,6 +96,7 @@ export class RuShuttersCard extends LitElement {
     }
     this._config = config;
     this._detailRoom = null;
+    this._paneRoom = 0;
     this._drag = {};
   }
 
@@ -155,15 +161,24 @@ export class RuShuttersCard extends LitElement {
           </button>
         </div>
 
-        <div class="rooms">
-          ${rooms.map((room, index) => this._renderRoom(room, index))}
-        </div>
+        <!-- Narrow, .split is a plain column and the pane is hidden; wide
+             (container query in styles.ts) it becomes list | pane and the
+             drilldown overlay is hidden instead. Both always render, so the
+             layout switch is pure CSS. -->
+        <div class="split">
+          <div class="list">
+            <div class="rooms">
+              ${rooms.map((room, index) => this._renderRoom(room, index))}
+            </div>
 
-        <div class="panel">
-          <div class="panel-title">Presets</div>
-          <div class="preset-grid">
-            ${presets.map((preset) => this._renderPreset(preset, rooms))}
+            <div class="panel">
+              <div class="panel-title">Presets</div>
+              <div class="preset-grid">
+                ${presets.map((preset) => this._renderPreset(preset, rooms))}
+              </div>
+            </div>
           </div>
+          ${this._renderPane(rooms[this._paneRoom] ?? rooms[0])}
         </div>
 
         ${detail ? this._renderDetail(detail) : nothing}
@@ -171,11 +186,19 @@ export class RuShuttersCard extends LitElement {
     `;
   }
 
+  /** Tapping a room opens the drilldown (narrow) and fills the pane (wide). */
+  private _selectRoom(index: number): void {
+    this._detailRoom = index;
+    this._paneRoom = index;
+  }
+
   private _renderRoom(room: RoomView, index: number): TemplateResult {
     const unavailable = room.active.length === 0;
+    // Only the wide layout draws the selection (styles.ts).
+    const selected = index === this._paneRoom ? "selected" : "";
     return html`
-      <div class="room ${unavailable ? "unavailable" : ""}">
-        <div class="room-row" @click=${() => (this._detailRoom = index)}>
+      <div class="room ${unavailable ? "unavailable" : ""} ${selected}">
+        <div class="room-row" @click=${() => this._selectRoom(index)}>
           <div class="icon-circle small ${room.allClosed || unavailable ? "closed" : ""}">
             <ha-icon
               .icon=${room.config.icon ?? "mdi:window-shutter"}
@@ -230,51 +253,67 @@ export class RuShuttersCard extends LitElement {
   }
 
   private _renderDetail(room: RoomView): TemplateResult {
-    const unavailable = room.active.length === 0;
     return html`
       <div class="scrim" @click=${this._closeDetail}>
         <div class="sheet" @click=${(e: Event) => e.stopPropagation()}>
-          <div class="sheet-header">
-            <div class="icon-circle ${room.allClosed || unavailable ? "closed" : ""}">
-              <ha-icon
-                .icon=${room.config.icon ?? "mdi:window-shutter"}
-              ></ha-icon>
-            </div>
-            <div class="sheet-title">
-              <div class="sheet-name">${room.config.name}</div>
-              <div class="room-status ${room.anyMoving ? "moving" : ""}">
-                ${room.statusText}
-              </div>
-            </div>
-            <button class="close" @click=${this._closeDetail}>✕</button>
-          </div>
+          ${this._renderDetailContent(room, true)}
+        </div>
+      </div>
+    `;
+  }
 
-          <div class="panel targets">
-            ${room.covers.map((cover) => this._renderTarget(cover))}
-          </div>
+  /** The wide layout's inline drilldown: the sheet's content, no close. */
+  private _renderPane(room: RoomView): TemplateResult {
+    return html`
+      <div class="pane">${this._renderDetailContent(room, false)}</div>
+    `;
+  }
 
-          <div class="sheet-actions">
-            <button
-              ?disabled=${unavailable}
-              @click=${() => this._callRoom(room, "open_cover")}
-            >
-              <span class="glyph-up">▲</span>All up
-            </button>
-            <button
-              class=${room.anyMoving ? "" : "dim"}
-              ?disabled=${unavailable}
-              @click=${() => this._callRoom(room, "stop_cover")}
-            >
-              <span class="glyph-stop">■</span>Stop
-            </button>
-            <button
-              ?disabled=${unavailable}
-              @click=${() => this._callRoom(room, "close_cover")}
-            >
-              <span class="glyph-down">▼</span>All down
-            </button>
+  private _renderDetailContent(
+    room: RoomView,
+    closable: boolean
+  ): TemplateResult {
+    const unavailable = room.active.length === 0;
+    return html`
+      <div class="sheet-header">
+        <div class="icon-circle ${room.allClosed || unavailable ? "closed" : ""}">
+          <ha-icon .icon=${room.config.icon ?? "mdi:window-shutter"}></ha-icon>
+        </div>
+        <div class="sheet-title">
+          <div class="sheet-name">${room.config.name}</div>
+          <div class="room-status ${room.anyMoving ? "moving" : ""}">
+            ${room.statusText}
           </div>
         </div>
+        ${closable
+          ? html`<button class="close" @click=${this._closeDetail}>✕</button>`
+          : nothing}
+      </div>
+
+      <div class="panel targets">
+        ${room.covers.map((cover) => this._renderTarget(cover))}
+      </div>
+
+      <div class="sheet-actions">
+        <button
+          ?disabled=${unavailable}
+          @click=${() => this._callRoom(room, "open_cover")}
+        >
+          <span class="glyph-up">▲</span>All up
+        </button>
+        <button
+          class=${room.anyMoving ? "" : "dim"}
+          ?disabled=${unavailable}
+          @click=${() => this._callRoom(room, "stop_cover")}
+        >
+          <span class="glyph-stop">■</span>Stop
+        </button>
+        <button
+          ?disabled=${unavailable}
+          @click=${() => this._callRoom(room, "close_cover")}
+        >
+          <span class="glyph-down">▼</span>All down
+        </button>
       </div>
     `;
   }

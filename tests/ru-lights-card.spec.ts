@@ -11,7 +11,7 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
-const CARD = "ru-lights-card";
+const CARD = "#card-lights ru-lights-card";
 
 async function openHarness(page: Page): Promise<void> {
   await page.goto("/dev/harness.html");
@@ -137,7 +137,7 @@ test.describe("drilldown", () => {
 
     await room(page, "Kitchen").locator(".room-row").click();
     await expect(sheet).toBeVisible();
-    await expect(page.locator(`${CARD} .sheet-name`)).toHaveText("Kitchen");
+    await expect(page.locator(`${CARD} .sheet .sheet-name`)).toHaveText("Kitchen");
     await page.locator(`${CARD} .close`).click();
     await expect(sheet).toBeHidden();
 
@@ -173,7 +173,7 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Kitchen").locator(".room-row").click();
-    const bar = page.locator(`${CARD} .bulb .bar`).first();
+    const bar = page.locator(`${CARD} .sheet .bulb .bar`).first();
     const box = (await bar.boundingBox())!;
 
     // Drag from the middle to 25% from the bottom → brightness ≈ 25.
@@ -194,7 +194,7 @@ test.describe("drilldown", () => {
 
   test("bulb toggles switch individual lights", async ({ page }) => {
     await room(page, "Kitchen").locator(".room-row").click();
-    const bulbs = page.locator(`${CARD} .bulb`);
+    const bulbs = page.locator(`${CARD} .sheet .bulb`);
 
     await bulbs.nth(0).locator(".toggle").click(); // kitchen_1 is on
     await bulbs.nth(2).locator(".toggle").click(); // kitchen_3 is off
@@ -218,9 +218,9 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Living room").locator(".room-row").click();
-    const chips = page.locator(`${CARD} .effect`);
+    const chips = page.locator(`${CARD} .sheet .effect`);
     await expect(chips).toHaveCount(3);
-    await expect(page.locator(`${CARD} .effect.active`)).toHaveText("Flow");
+    await expect(page.locator(`${CARD} .sheet .effect.active`)).toHaveText("Flow");
 
     await chips.filter({ hasText: "Pulse" }).click();
     await expect
@@ -231,12 +231,12 @@ test.describe("drilldown", () => {
         data: { entity_id: ["light.livingroom_strip"], effect: "Pulse" },
       });
     // The mock applies the effect, so the active chip follows.
-    await expect(page.locator(`${CARD} .effect.active`)).toHaveText("Pulse");
+    await expect(page.locator(`${CARD} .sheet .effect.active`)).toHaveText("Pulse");
   });
 
   test("non-dimmable light gets a toggle but no drag bar", async ({ page }) => {
     await room(page, "Entry").locator(".room-row").click();
-    const bulb = page.locator(`${CARD} .bulb`);
+    const bulb = page.locator(`${CARD} .sheet .bulb`);
     await expect(bulb).toHaveCount(1);
     await expect(bulb.locator(".bar")).toHaveCount(0);
     await expect(bulb.locator(".toggle")).toHaveCount(1);
@@ -246,7 +246,7 @@ test.describe("drilldown", () => {
     page,
   }) => {
     await room(page, "Bedroom").locator(".room-row").click();
-    const unavailable = page.locator(`${CARD} .bulb.unavailable`);
+    const unavailable = page.locator(`${CARD} .sheet .bulb.unavailable`);
     await expect(unavailable).toHaveCount(1);
     await expect(unavailable.locator(".bulb-status")).toHaveText("Unavailable");
     await expect(unavailable.locator(".toggle")).toBeDisabled();
@@ -315,5 +315,69 @@ test.describe("dark mode", () => {
 
     await page.evaluate(() => window.__harness.setDarkMode(false));
     await expect(card).not.toHaveAttribute("dark");
+  });
+});
+
+test.describe("wide layout", () => {
+  // #card-lights-wide holds the same config in a 1040px slot; its own
+  // container query splits it into list | pane. The 390px mobile viewport
+  // never gives it that room.
+  const WIDE = "#card-lights-wide ru-lights-card";
+
+  function wideRoom(page: Page, name: string) {
+    return page.locator(`${WIDE} .room`, {
+      has: page.locator(".room-name", { hasText: name }),
+    });
+  }
+
+  test.beforeEach(({}, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile-chromium",
+      "the 390px viewport keeps the wide slot below the 720px split width"
+    );
+  });
+
+  test("the narrow card keeps the pane hidden", async ({ page }) => {
+    await expect(page.locator(`${CARD} .pane`)).toBeHidden();
+  });
+
+  test("the pane shows the first room until another is tapped", async ({
+    page,
+  }) => {
+    const pane = page.locator(`${WIDE} .pane`);
+    await expect(pane).toBeVisible();
+    await expect(pane.locator(".sheet-name")).toHaveText("Kitchen");
+    await expect(pane.locator(".bulb")).toHaveCount(3);
+    await expect(pane.locator(".close")).toHaveCount(0);
+    await expect(wideRoom(page, "Kitchen")).toHaveClass(/\bselected\b/);
+  });
+
+  test("tapping a room fills the pane instead of opening the overlay", async ({
+    page,
+  }) => {
+    await wideRoom(page, "Living room").locator(".room-row").click();
+    await expect(page.locator(`${WIDE} .pane .sheet-name`)).toHaveText(
+      "Living room"
+    );
+    await expect(wideRoom(page, "Living room")).toHaveClass(/\bselected\b/);
+    await expect(wideRoom(page, "Kitchen")).not.toHaveClass(/\bselected\b/);
+    await expect(page.locator(`${WIDE} .sheet`)).toBeHidden();
+  });
+
+  test("the pane's controls act on the selected room", async ({ page }) => {
+    await page
+      .locator(`${WIDE} .pane .bulb`)
+      .nth(2)
+      .locator(".toggle")
+      .click(); // kitchen_3 is off
+    await expect
+      .poll(() => calls(page))
+      .toEqual([
+        {
+          domain: "light",
+          service: "turn_on",
+          data: { entity_id: ["light.kitchen_3"] },
+        },
+      ]);
   });
 });

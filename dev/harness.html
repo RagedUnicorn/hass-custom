@@ -69,6 +69,14 @@
         width: 100%;
         max-width: 720px;
       }
+      /* The shutters and lights cards split into list | pane on their OWN
+         width (720px+), so each gets a second, wide mount (desktop project
+         only — the 390px mobile viewport keeps them narrow). */
+      #card-shutters-wide,
+      #card-lights-wide {
+        width: 100%;
+        max-width: 1040px;
+      }
     </style>
   </head>
   <body>
@@ -90,6 +98,8 @@
     <div id="card-last-seen-strict"></div>
     <div id="card-nav"></div>
     <div id="card-nav-wide"></div>
+    <div id="card-shutters-wide"></div>
+    <div id="card-lights-wide"></div>
     <script type="module" src="./harness.ts"></script>
   </body>
 </html>
