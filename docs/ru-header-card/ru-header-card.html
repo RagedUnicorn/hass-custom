@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/common.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.hd-card{--bg:#F5F6FA;--panel:#fff;--text:#3B3B3B;--muted:#9AA0AE;--green:#1F9D5C;--grey:#9AA0AE;background:var(--bg);padding:16px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif}
+.hd-card.hd-dark{--bg:#1A1B1E;--panel:#242529;--text:#E8E9ED;--muted:#8B8F9B;--green:#4FD18F;--grey:#8B8F9B}
+.hd-title{font-size:26px;font-weight:700;letter-spacing:-0.01em;color:var(--text)}
+.hd-date{font-size:12.5px;font-weight:500;color:var(--muted);margin-top:2px}
+.hd-people{display:flex;flex-wrap:wrap;gap:8px}
+.hd-pill{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;background:var(--panel);font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap}
+.hd-dot{width:8px;height:8px;border-radius:50%}
+.hd-dot.hd-home{background:var(--green)}
+.hd-dot.hd-away{background:var(--grey)}
+.hd-state{font-weight:500;color:var(--muted)}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — dashboard header card, exploration 1</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:760px">The title of a dashboard's main view, for a sections view's header slot: the view's name, a live date and time line, and a presence pill per person — green dot when home, grey with the zone name or Away otherwise. Same flat palette as the cards; the pills wrap under the title when there is no room beside it.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Header — phone and wide, light + dark</span></div>
+<div class="dv-opts">
+<sc-for list="{{ variants }}" as="v" hint-placeholder-count="4">
+<div class="dv-opt" id="{{ v.id }}" data-screen-label="{{ v.label }}">
+  <div class="dv-olabel"><a class="dv-oid" href="{{ v.href }}">{{ v.id }}</a>{{ v.label }}</div>
+  <div class="dv-card" style="{{ v.width }}">
+    <div class="{{ v.cls }}">
+      <div><div class="hd-title">Home</div><div class="hd-date">Wed 7 Oct · 19:42</div></div>
+      <div class="hd-people">
+        <sc-for list="{{ v.people }}" as="p" hint-placeholder-count="2">
+          <div class="hd-pill"><span class="{{ p.dot }}"></span>{{ p.name }}<span class="hd-state">{{ p.state }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-for>
+</div>
+<p class="dv-next">Try next: "add the outside temperature" · "a greeting by time of day instead of the title"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    const one = [{ name: 'Michael', state: 'Home', dot: 'hd-dot hd-home' }];
+    const two = [{ name: 'Michael', state: 'Home', dot: 'hd-dot hd-home' }, { name: 'Guest', state: 'Work', dot: 'hd-dot hd-away' }];
+    return {
+      variants: [
+        { id: '1a', href: '#1a', label: 'Phone — one person, home', cls: 'hd-card', width: { width: '390px' }, people: one },
+        { id: '1b', href: '#1b', label: 'Dark variant of 1a', cls: 'hd-card hd-dark', width: { width: '390px' }, people: one },
+        { id: '1c', href: '#1c', label: 'Wide — two people, one in a zone', cls: 'hd-card', width: { width: '1040px' }, people: two },
+        { id: '1d', href: '#1d', label: 'Dark variant of 1c', cls: 'hd-card hd-dark', width: { width: '1040px' }, people: two }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

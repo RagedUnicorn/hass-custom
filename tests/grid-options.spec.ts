@@ -17,6 +17,7 @@ const CARDS = [
   "ru-last-seen-card",
   "ru-nav-card",
   "ru-actions-card",
+  "ru-header-card",
 ];
 
 test("every card fills its section by default", async ({ page }) => {

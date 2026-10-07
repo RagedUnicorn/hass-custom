@@ -1176,6 +1176,8 @@ export class MockHass {
       states,
       themes: { darkMode: this.darkMode },
       user: { is_admin: this.admin },
+      // A fixed profile so date/time lines render the same on any machine.
+      locale: { language: "en", date_format: "DMY", time_format: "24" },
       entities: this.registryEntities,
       devices: this.registryDevices,
       callService: this.callService,

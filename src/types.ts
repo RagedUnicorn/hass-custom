@@ -66,6 +66,14 @@ export interface HomeAssistant {
   themes?: { darkMode?: boolean };
   /** The logged-in user; only `is_admin` is read. */
   user?: { is_admin?: boolean };
+  /** The user's formatting settings (profile → language, date/time format). */
+  locale?: {
+    language?: string;
+    /** "language" | "system" | "DMY" | "MDY" | "YMD" */
+    date_format?: string;
+    /** "language" | "system" | "12" | "24" */
+    time_format?: string;
+  };
   /** Entity registry (display entries) — read to resolve label/area targets. */
   entities?: Record<string, HassEntityRegistryEntry>;
   /** Device registry — an entity inherits its device's labels and area. */
@@ -399,6 +407,24 @@ export interface ActionsCardConfig {
   type: string;
   title?: string;
   actions: ActionConfig[];
+}
+
+// --- ru-header-card config ----------------------------------------------------
+
+export interface HeaderPersonConfig {
+  /** person.* (or device_tracker.*) */
+  entity: string;
+  /** Defaults to the first word of the friendly name. */
+  name?: string;
+}
+
+export interface HeaderCardConfig {
+  type: string;
+  title: string;
+  /** Presence pills, one per person; plain entity ids or objects. */
+  people?: Array<string | HeaderPersonConfig>;
+  /** The live date and time line under the title. Default true. */
+  show_date?: boolean;
 }
 
 // --- globals the HA frontend looks at ----------------------------------------

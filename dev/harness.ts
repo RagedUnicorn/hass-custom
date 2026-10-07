@@ -374,6 +374,14 @@ actionsCard.setConfig({
   ],
 });
 
+// The view title: person.me (home) as the one presence pill.
+const headerCard = document.createElement("ru-header-card") as LovelaceCard;
+headerCard.setConfig({
+  type: "custom:ru-header-card",
+  title: "Home",
+  people: ["person.me"],
+});
+
 // Identical to card / lightsCard, but mounted in 1040px slots so their own
 // container queries trip the wide list | pane layout. Same config on purpose:
 // the layout difference must come from the width alone.
@@ -689,6 +697,7 @@ mock.onChange((hass) => {
   lightsCompactCard.hass = hass;
   shuttersCompactCard.hass = hass;
   actionsCard.hass = hass;
+  headerCard.hass = hass;
 });
 
 document.getElementById("card")!.appendChild(card);
@@ -717,6 +726,7 @@ document
   .getElementById("card-shutters-compact")!
   .appendChild(shuttersCompactCard);
 document.getElementById("card-actions")!.appendChild(actionsCard);
+document.getElementById("card-header")!.appendChild(headerCard);
 
 // --- page chrome --------------------------------------------------------------
 
