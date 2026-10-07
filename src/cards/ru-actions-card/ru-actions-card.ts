@@ -11,7 +11,7 @@
 
 import { LitElement, html, nothing, type TemplateResult } from "lit";
 import type { ActionConfig, ActionsCardConfig, HomeAssistant } from "../../types";
-import { resolveTargets, statusText } from "./action-state";
+import { resolveTargets, statusText, stopsWhenMoving } from "./action-state";
 import { cardStyles } from "./styles";
 
 const CARD_TYPE = "ru-actions-card";
@@ -110,24 +110,27 @@ export class RuActionsCard extends LitElement {
 
   private _renderTile(action: ActionConfig, index: number): TemplateResult {
     const domain = action.action.split(".")[0];
-    const status =
-      action.subtitle ??
-      statusText(
-        this.hass!,
-        domain,
-        resolveTargets(this.hass!, domain, action.target)
-      );
+    const targets = resolveTargets(this.hass!, domain, action.target);
+    // While its covers travel the tile turns into their stop button.
+    const stops = this._stops(action, targets);
+    const status = stops
+      ? "Tap to stop"
+      : (action.subtitle ?? statusText(this.hass!, domain, targets));
     const pending = this._pending.has(index);
 
     return html`
       <button
-        class="tile ${action.tone ?? "accent"} ${pending ? "pending" : ""}"
+        class="tile ${action.tone ?? "accent"} ${pending ? "pending" : ""} ${stops
+          ? "stopping"
+          : ""}"
         data-action=${action.action}
-        aria-label=${action.name}
+        aria-label=${stops ? `Stop ${action.name}` : action.name}
         aria-busy=${pending ? "true" : "false"}
         @click=${() => this._run(action, index)}
       >
-        <div class="icon-circle"><ha-icon .icon=${action.icon}></ha-icon></div>
+        <div class="icon-circle">
+          <ha-icon .icon=${stops ? "mdi:stop" : action.icon}></ha-icon>
+        </div>
         <div class="text">
           <div class="name">${action.name}</div>
           ${status ? html`<div class="status">${status}</div>` : nothing}
@@ -136,16 +139,29 @@ export class RuActionsCard extends LitElement {
     `;
   }
 
-  /** Target keys go into the service data, which HA accepts as the target. */
+  private _stops(action: ActionConfig, targets: string[]): boolean {
+    return stopsWhenMoving(
+      this.hass!,
+      action.action,
+      targets,
+      action.stop_when_moving ?? true
+    );
+  }
+
+  /** Target keys go into the service data, which HA accepts as the target.
+   * A tile whose covers are travelling stops them instead (same target). */
   private async _run(action: ActionConfig, index: number): Promise<void> {
     if (!this.hass || this._pending.has(index)) return;
-    const [domain, service] = action.action.split(".");
+    const [domain, actionService] = action.action.split(".");
+    let service = actionService;
+    let data: Record<string, unknown> = { ...action.data, ...action.target };
+    if (this._stops(action, resolveTargets(this.hass, domain, action.target))) {
+      service = "stop_cover";
+      data = { ...action.target };
+    }
     this._pending = new Set(this._pending).add(index);
     try {
-      await this.hass.callService(domain, service, {
-        ...action.data,
-        ...action.target,
-      });
+      await this.hass.callService(domain, service, data);
     } finally {
       const pending = new Set(this._pending);
       pending.delete(index);

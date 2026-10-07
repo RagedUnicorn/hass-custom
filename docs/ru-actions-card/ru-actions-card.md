@@ -45,6 +45,7 @@ Each action:
 | `data`     | map    | —            | Extra action data, e.g. `brightness_pct: 30`                              |
 | `tone`     | string | `accent`     | Tile tint: `accent` (blue), `amber`, `green` or `red`                     |
 | `subtitle` | string | derived      | Fixed status line instead of the derived one                              |
+| `stop_when_moving` | boolean | `true` | Cover open/close/position actions: a tap while the covers move stops them |
 
 ## Behavior
 
@@ -59,6 +60,12 @@ Each action:
   entities whose device carries it; an `area_id` matches entities in the area
   and entities without an area of their own whose device is in it.
 - A tile ignores taps while its action is still running.
+- Like a physical shutter switch, a cover action (`cover.open_cover`,
+  `cover.close_cover`, `cover.set_cover_position`) becomes the stop button
+  while any of its covers is opening or closing — however the movement
+  started. The tile turns red with a stop icon and reads `Tap to stop`; a
+  tap calls `cover.stop_cover` on the same target. Turn it off per
+  action with `stop_when_moving: false`.
 - The accent tone keeps the status line grey; the other tones tint it too.
 
 ## Theming

@@ -92,3 +92,30 @@ export function statusText(
   if (on === 0) return "All off";
   return `${on} light${on === 1 ? "" : "s"} on`;
 }
+
+/** Cover services a second tap should cancel while the covers travel. */
+const MOVING_SERVICES = ["open_cover", "close_cover", "set_cover_position"];
+
+/**
+ * Whether a tap should stop instead of run: a cover open/close/position
+ * action whose targets are travelling right now — the way a physical
+ * shutter switch stops a moving shutter. Movement started anywhere counts
+ * (another tile, a wall switch, an automation).
+ */
+export function stopsWhenMoving(
+  hass: HomeAssistant,
+  action: string,
+  entities: string[],
+  enabled = true
+): boolean {
+  const [domain, service] = action.split(".");
+  return (
+    enabled &&
+    domain === "cover" &&
+    MOVING_SERVICES.includes(service) &&
+    entities.some((entity) => {
+      const state = hass.states[entity]?.state;
+      return state === "opening" || state === "closing";
+    })
+  );
+}

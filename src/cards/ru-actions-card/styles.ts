@@ -114,6 +114,13 @@ export const cardStyles = css`
     --tone-bg: var(--ru-actions-red-bg);
   }
 
+  /* Covers travelling: the tile is their stop button now, in the shutter
+     card's stop red. */
+  .tile.stopping {
+    --tone: var(--ru-actions-red);
+    --tone-bg: var(--ru-actions-red-bg);
+  }
+
   .tile.pending {
     animation: pulse 1s ease-in-out infinite alternate;
   }

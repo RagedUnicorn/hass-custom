@@ -24,25 +24,25 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
 .dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
 .dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
 .dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
-.qa-card{--bg:#F5F6FA;--panel:#fff;--text:#3B3B3B;--muted:#9AA0AE;--accent:#3D5AFE;--accentbg:rgba(61,90,254,.15);--amber:#B26A00;--amberbg:rgba(255,167,35,.18);background:var(--bg);padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif}
-.qa-card.qa-dark{--bg:#1A1B1E;--panel:#242529;--text:#E8E9ED;--muted:#8B8F9B;--accent:#7C90FF;--accentbg:rgba(61,90,254,.28);--amber:#FFC65C;--amberbg:rgba(255,167,35,.22)}
+.qa-card{--bg:#F5F6FA;--panel:#fff;--text:#3B3B3B;--muted:#9AA0AE;--accent:#3D5AFE;--accentbg:rgba(61,90,254,.15);--amber:#B26A00;--amberbg:rgba(255,167,35,.18);--red:#E0362A;--redbg:rgba(245,68,54,.16);background:var(--bg);padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif}
+.qa-card.qa-dark{--bg:#1A1B1E;--panel:#242529;--text:#E8E9ED;--muted:#8B8F9B;--accent:#7C90FF;--accentbg:rgba(61,90,254,.28);--amber:#FFC65C;--amberbg:rgba(255,167,35,.22);--red:#FF6B5E;--redbg:rgba(245,68,54,.24)}
 .qa-title{padding:0 4px;font-size:17px;font-weight:700;color:var(--text)}
 .qa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
 .qa-tile{background:var(--panel);border-radius:20px;padding:14px 12px;min-height:112px;display:flex;flex-direction:column;justify-content:space-between;align-items:stretch;gap:12px}
 .qa-icon{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px}
 .qa-icon.qa-accent{background:var(--accentbg);color:var(--accent)}
 .qa-icon.qa-amber{background:var(--amberbg);color:var(--amber)}
+.qa-icon.qa-red{background:var(--redbg);color:var(--red)}
 .qa-name{font-size:15px;font-weight:700;line-height:1.2;color:var(--text)}
 .qa-meta{font-size:11.5px;font-weight:500;color:var(--muted);margin-top:3px}
 .qa-meta.qa-amber{color:var(--amber)}
-.qa-tile.qa-pending{animation:qapulse 1s ease-in-out infinite alternate}
-@keyframes qapulse{from{opacity:1}to{opacity:.45}}
+.qa-meta.qa-red{color:var(--red)}
 </style>
 </helmet>
 
 <section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
   <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — quick actions card, exploration 1</div>
-  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:760px">Big one-tap tiles for whole-home actions on a dashboard's main view: a tinted icon circle, the action's name, and a live status line about what it targets (“All 7 closed”, “4 lights on”). Tiles flow three across on a phone and wider when there is room. A tap runs the action; the tile pulses until Home Assistant answers.</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:760px">Big one-tap tiles for whole-home actions on a dashboard's main view: a tinted icon circle, the action's name, and a live status line about what it targets (“All 7 closed”, “4 lights on”). Tiles flow three across on a phone and wider when there is room. A tap runs the action; the tile pulses until Home Assistant answers. While shutters move, their tiles turn into the stop button (red, stop icon), like a physical shutter switch.</div>
 </section>
 
 <section class="dv-turn" id="t1">
@@ -55,7 +55,7 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
     <div class="{{ v.cls }}">
       <div class="qa-title">Quick actions</div>
       <div class="qa-grid">
-        <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="3">
+        <sc-for list="{{ v.tiles }}" as="t" hint-placeholder-count="3">
           <div class="{{ t.cls }}"><div class="{{ t.icls }}"><i class="{{ t.icon }}"></i></div><div><div class="qa-name">{{ t.name }}</div><div class="{{ t.mcls }}">{{ t.meta }}</div></div></div>
         </sc-for>
       </div>
@@ -70,23 +70,29 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
 <script type="text/x-dc" data-dc-script data-props='{}'>
 class Component extends DCLogic {
   renderVals() {
-    const tiles = [
-      ['Shutters up', 'mdi-window-shutter-open', 'accent', 'All 7 closed', false],
-      ['Shutters down', 'mdi-window-shutter', 'accent', 'All 7 closed', true],
-      ['All lights off', 'mdi-lightbulb-group-off-outline', 'amber', '4 lights on', false]
-    ].map(([name, icon, tone, meta, pending]) => ({
+    const make = (rows) => rows.map(([name, icon, tone, meta]) => ({
       name, meta, icon: 'mdi ' + icon,
-      cls: pending ? 'qa-tile qa-pending' : 'qa-tile',
+      cls: 'qa-tile',
       icls: 'qa-icon qa-' + tone,
-      mcls: tone === 'amber' ? 'qa-meta qa-amber' : 'qa-meta'
+      mcls: tone === 'accent' ? 'qa-meta' : 'qa-meta qa-' + tone
     }));
+    const lights = ['All lights off', 'mdi-lightbulb-group-off-outline', 'amber', '4 lights on'];
+    const idle = make([
+      ['Shutters up', 'mdi-window-shutter-open', 'accent', 'All 7 closed'],
+      ['Shutters down', 'mdi-window-shutter', 'accent', 'All 7 closed'],
+      lights
+    ]);
+    const moving = make([
+      ['Shutters up', 'mdi-stop', 'red', 'Tap to stop'],
+      ['Shutters down', 'mdi-stop', 'red', 'Tap to stop'],
+      lights
+    ]);
     return {
-      tiles,
       variants: [
-        { id: '1a', href: '#1a', label: 'Phone — Shutters down pending', cls: 'qa-card', width: { width: '390px' } },
-        { id: '1b', href: '#1b', label: 'Dark variant of 1a', cls: 'qa-card qa-dark', width: { width: '390px' } },
-        { id: '1c', href: '#1c', label: 'Wide section (two view columns)', cls: 'qa-card', width: { width: '640px' } },
-        { id: '1d', href: '#1d', label: 'Dark variant of 1c', cls: 'qa-card qa-dark', width: { width: '640px' } }
+        { id: '1a', href: '#1a', label: 'Phone — shutters moving: their tiles are the stop button', cls: 'qa-card', width: { width: '390px' }, tiles: moving },
+        { id: '1b', href: '#1b', label: 'Dark variant of 1a', cls: 'qa-card qa-dark', width: { width: '390px' }, tiles: moving },
+        { id: '1c', href: '#1c', label: 'Wide section (two view columns), idle', cls: 'qa-card', width: { width: '640px' }, tiles: idle },
+        { id: '1d', href: '#1d', label: 'Dark variant of 1c', cls: 'qa-card qa-dark', width: { width: '640px' }, tiles: idle }
       ]
     };
   }

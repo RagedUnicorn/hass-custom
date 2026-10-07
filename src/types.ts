@@ -390,6 +390,9 @@ export interface ActionConfig {
   data?: Record<string, unknown>;
   /** Fixed status line; by default it is derived from the target. */
   subtitle?: string;
+  /** Cover open/close/position actions: while any target cover travels, a
+   * tap stops them instead. Default true. */
+  stop_when_moving?: boolean;
 }
 
 export interface ActionsCardConfig {

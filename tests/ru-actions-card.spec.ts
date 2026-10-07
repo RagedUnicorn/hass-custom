@@ -126,3 +126,64 @@ test("light and cover groups are left out of the count", async ({ page }) => {
   });
   expect(text).toBe("2 lights on");
 });
+
+test.describe("stop while moving", () => {
+  test.beforeEach(async ({ page }) => {
+    // Slow travel keeps the covers moving for the whole test; the shutters
+    // card's All down chip starts the three open labelled covers closing.
+    await page.evaluate(() => window.__harness.setTravelMs(60_000));
+    await page
+      .locator("#card ru-shutters-card .chip", { hasText: "All down" })
+      .click();
+  });
+
+  test("a moving target turns the tile into its stop button", async ({
+    page,
+  }) => {
+    const down = tile(page, "Shutters down");
+    await expect(down).toHaveClass(/\bstopping\b/);
+    await expect(down.locator(".status")).toHaveText("Tap to stop");
+    // The office covers were already closed: that tile stays a normal one.
+    await expect(tile(page, "Office closed")).not.toHaveClass(/\bstopping\b/);
+  });
+
+  test("tapping it again stops the covers instead of closing them", async ({
+    page,
+  }) => {
+    await page.evaluate(() => (window.__harness.calls.length = 0));
+    await tile(page, "Shutters down").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__harness.calls))
+      .toEqual([
+        { domain: "cover", service: "stop_cover", data: { label_id: "t_shutter" } },
+      ]);
+  });
+
+  test("stop_when_moving: false keeps running the action", async ({ page }) => {
+    await page.evaluate(() => {
+      const card = document.querySelector("#card-actions ru-actions-card") as
+        | (HTMLElement & { setConfig(c: unknown): void })
+        | null;
+      card!.setConfig({
+        type: "custom:ru-actions-card",
+        actions: [
+          {
+            name: "Shutters down",
+            icon: "mdi:window-shutter",
+            action: "cover.close_cover",
+            target: { label_id: "t_shutter" },
+            stop_when_moving: false,
+          },
+        ],
+      });
+      window.__harness.calls.length = 0;
+    });
+    await expect(tile(page, "Shutters down")).not.toHaveClass(/\bstopping\b/);
+    await tile(page, "Shutters down").click();
+    await expect
+      .poll(() => page.evaluate(() => window.__harness.calls))
+      .toEqual([
+        { domain: "cover", service: "close_cover", data: { label_id: "t_shutter" } },
+      ]);
+  });
+});
