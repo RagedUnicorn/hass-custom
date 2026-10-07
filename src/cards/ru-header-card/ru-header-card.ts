@@ -1,6 +1,7 @@
 /**
- * ru-header-card — the title of a dashboard view, made for a sections view's
- * `header` slot: the view's name, a live date and time line, and a presence
+ * ru-header-card — the title of a dashboard view, made for a full-width
+ * section at the top of a sections view (HA caps its native header slot at
+ * 700px): the view's name, a live date and time line, and a presence
  * pill per person (green while home; the zone's name, Away or Unknown
  * otherwise). Tapping a pill opens the person's more-info dialog.
  *

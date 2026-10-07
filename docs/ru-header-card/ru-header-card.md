@@ -6,21 +6,25 @@ grey with the zone's name, `Away` or `Unknown` otherwise. Tapping a pill opens
 the person's more-info dialog. The [design mock](ru-header-card.html) sits
 beside this page.
 
-It is made for a sections view's `header` slot (above the sections), where
-the pills sit beside the title on wide screens and wrap under it on a phone:
+Put it in a full-width section at the top of a sections view. The pills sit
+at the right edge on wide screens and wrap under the title when there is no
+room. (A view's own `header` slot works too, but Home Assistant caps header
+cards at 700px, which leaves the pills mid-page on a wide screen.)
 
 ```yaml
 views:
   - title: Main
     path: main
     type: sections
-    header:
-      layout: start
-      card:
-        type: custom:ru-header-card
-        title: Home
-        people:
-          - person.me
+    max_columns: 4
+    sections:
+      - type: grid
+        column_span: 4
+        cards:
+          - type: custom:ru-header-card
+            title: Home
+            people:
+              - person.me
 ```
 
 ## Options
