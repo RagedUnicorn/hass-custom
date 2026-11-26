@@ -72,6 +72,12 @@ test("renders speakers, now playing, volume and the playlists tab", async ({
   await expect(page.locator(`${CARD} .track-artist`)).toHaveText(
     "Bring Me The Horizon · Post Human: Survival Horror"
   );
+  // The cover comes through HA's same-origin proxy, not MA's http URL
+  // (blocked as mixed content on an https dashboard).
+  await expect(page.locator(`${CARD} .art.cover img`)).toHaveAttribute(
+    "src",
+    `/api/media_player_proxy/${LIVING}?token=mock`
+  );
   await expect(page.locator(`${CARD} .time`).nth(1)).toHaveText("3:39");
   await expect(page.locator(`${CARD} .t-play`)).toHaveText("❘❘");
   await expect(page.locator(`${CARD} .vol-value`)).toHaveText("38%");

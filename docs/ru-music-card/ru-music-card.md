@@ -74,8 +74,12 @@ A player can also be given as a bare entity id:
   no tap or **×** action.
 - **Repeat** cycles off → all → one (`media_player.repeat_set`); there is no
   shuffle control.
-- **Artwork** that fails to load (for example an `http://` image proxy on an
-  `https://` dashboard) falls back to the striped placeholder.
+- **Artwork.** The now-playing cover loads through Home Assistant's own
+  media player proxy (`entity_picture_local`), so it also shows on an
+  `https://` dashboard. Library and queue thumbnails come straight from
+  Music Assistant's `http://` image proxy, which the browser blocks on an
+  `https://` dashboard; any image that fails to load falls back to the
+  striped placeholder.
 - **Wide layout.** From 640px of card width the library sits beside the
   player instead of below it, with a larger cover.
 - In a sections view the card spans the full section width.

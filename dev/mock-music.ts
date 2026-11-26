@@ -186,6 +186,9 @@ export class MockMusicAssistant {
               media_title: track.name,
               media_artist: track.artist,
               media_album_name: track.album,
+              // MA: an http image proxy URL, plus HA's same-origin proxy.
+              entity_picture: `http://ma.invalid:8095/imageproxy/${track.uri}`,
+              entity_picture_local: `/api/media_player_proxy/${entity}?token=mock`,
               media_duration: track.duration,
               media_position: source.position,
               media_position_updated_at: source.stamp,

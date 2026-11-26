@@ -256,7 +256,12 @@ function buildNowPlaying(entity: string, stateObj: HassEntity | undefined, nowMs
   ]
     .filter(Boolean)
     .join(" · ");
-  const picture = str(stateObj?.attributes.entity_picture);
+  // Prefer HA's own proxy of the cover (entity_picture_local, a same-origin
+  // /api/media_player_proxy/… path): Music Assistant's entity_picture is an
+  // http:// image proxy URL the browser blocks on an https dashboard.
+  const picture =
+    str(stateObj?.attributes.entity_picture_local) ||
+    str(stateObj?.attributes.entity_picture);
   return {
     entity,
     available,
