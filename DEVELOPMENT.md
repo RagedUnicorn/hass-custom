@@ -39,14 +39,28 @@ step in the loop.
 > `/src/main.ts`; open that URL to sanity-check the server (it returns the
 > transpiled source).
 
-1. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   (the Resources entry only appears with **Advanced mode** enabled in your
-   user profile).
-  - URL: `http://<your-pc>:5173/src/main.ts`
-  - Type: **JavaScript Module**
-2. Hard-refresh the browser (Ctrl+Shift+R). The purple `hass-custom` banner in
-   the browser console confirms the dev bundle loaded and lists the registered
-   icon sets and cards.
+1. Install the release bundle as usual (HACS) — it is the only resource the
+   dashboards need. Then, in the browser you develop with, open the developer
+   console on the Home Assistant page and turn on the **dev switch**:
+
+   ```js
+   localStorage.setItem("hass-custom-dev", "http://<your-pc>:5173")
+   ```
+
+   (`localStorage.removeItem("hass-custom-dev")` turns it off again.)
+2. Hard-refresh (Ctrl+Shift+R). On every load the release bundle checks that
+   dev server first: while `npm run dev` runs it hands over to the dev
+   server's `src/main.ts`, otherwise it registers its own bundled cards — so
+   stopping the dev server never breaks the dashboard, a refresh just falls
+   back to the release. Only browsers with the switch set ever try the dev
+   server; tablets and phones always run the release.
+
+   A badge in the bottom-right corner of switched browsers shows which build
+   is active — **DEV** (served by `npm run dev`) or **RELEASE** (dev server not
+   reachable) — with the version and commit, `+` marking uncommitted changes;
+   click it to hide it until the next reload. The purple `hass-custom` banner
+   in the console carries the same label and lists the registered icon sets
+   and cards.
 3. Add a card to a (development) dashboard via the manual card editor, e.g.:
 
    ```yaml
@@ -66,14 +80,12 @@ Notes:
 
 - If Home Assistant is accessed over **HTTPS**, the browser blocks the plain
   `http://…:5173` module as mixed content — the dev loop needs HA on `http://`.
-- The dev resource can coexist with an installed release of the bundle —
-  element registration is guarded, so nothing throws (expect two console
-  banners). But **whichever bundle loads first defines the card**: if the
-  installed release already ships the card you are working on, remove or
-  disable that resource while developing, or your changes may silently not
-  apply.
-- Remove the resource when done so dashboards don't try to load a dead dev
-  server later.
+- The dev server must be reachable from the browser, not from Home Assistant:
+  `http://<your-pc>:5173` has to answer `/src/main.ts` within 1.5 s or the
+  release takes over.
+- Older setups added `http://<your-pc>:5173/src/main.ts` as its own dashboard
+  resource. Remove it once the switch is in use — with both, whichever bundle
+  loads first defines the cards.
 
 ## Adding an icon
 

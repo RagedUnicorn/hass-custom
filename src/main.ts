@@ -9,6 +9,8 @@
  *   - custom Lovelace cards (e.g. `custom:ru-shutters-card`) — see cards/
  */
 
+import buildInfo from "virtual:build-info";
+
 import { iconSetNames, registerIconSets } from "./icons";
 import "./cards/ru-shutters-card/ru-shutters-card";
 import "./cards/ru-lights-card/ru-lights-card";
@@ -24,14 +26,19 @@ import "./cards/ru-music-card/ru-music-card";
 
 registerIconSets();
 
-// Guarded: in a release build Vite replaces __VERSION__ statically, but the
-// dev loop loads this module straight off the dev server into Home Assistant,
-// where Vite 7 only provides define values via /@vite/env — a module the HA
-// page never imports. Without the guard the banner throws ReferenceError.
-const version = typeof __VERSION__ === "undefined" ? "dev" : __VERSION__;
+/** "v0.5.1 · 1a2b3c4" — with "+" for uncommitted changes and a "dev"
+ * marker when served by the dev server. Shown in the console banner and the
+ * dev badge (see entry.ts). */
+export function buildLabel(info: typeof buildInfo = buildInfo): string {
+  return `v${info.version} · ${info.commit}${info.dirty ? "+" : ""}${
+    info.dev ? " · dev" : ""
+  }`;
+}
+
+export { buildInfo };
 
 console.info(
-  `%c hass-custom %c v${version} `,
+  `%c hass-custom %c ${buildLabel()} `,
   "color:white;background:#6f42c1;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;",
   "color:#6f42c1;background:#efe7ff;font-weight:700;border-radius:0 3px 3px 0;padding:2px 6px;",
   `— icon sets: ${iconSetNames()
