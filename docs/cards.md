@@ -14,6 +14,7 @@ Each card has its own documentation page with a full YAML example, every config 
 | [`ru-nav-card`](ru-nav-card/ru-nav-card.md)                | Floating dock of dashboard views for kiosk-mode dashboards, made for a sticky view footer |
 | [`ru-actions-card`](ru-actions-card/ru-actions-card.md)    | One-tap tiles for whole-home actions, each with a live status line about its target |
 | [`ru-header-card`](ru-header-card/ru-header-card.md)      | View title with a live date and time line and presence pills, for a view header |
+| [`ru-music-card`](ru-music-card/ru-music-card.md)          | Music Assistant player: speaker switcher with grouping, now playing, volume, library with search and queue |
 
 Common to all cards:
 

@@ -78,11 +78,18 @@ export interface HomeAssistant {
   entities?: Record<string, HassEntityRegistryEntry>;
   /** Device registry — an entity inherits its device's labels and area. */
   devices?: Record<string, HassDeviceRegistryEntry>;
+  /** HA's frontend signature: with `returnResponse` the promise resolves to
+   * `{ context, response }` carrying the service's response data. */
   callService(
     domain: string,
     service: string,
-    data?: Record<string, unknown>
+    data?: Record<string, unknown>,
+    target?: Record<string, unknown>,
+    notifyOnError?: boolean,
+    returnResponse?: boolean
   ): Promise<unknown>;
+  /** One-shot websocket command (e.g. config_entries/get). */
+  callWS?<T>(message: Record<string, unknown>): Promise<T>;
 }
 
 /** Implemented by every Lovelace card element. */
@@ -247,6 +254,30 @@ export interface TvCardConfig {
   skip_seconds?: [number, number];
   /** App launcher chips. */
   apps?: TvAppConfig[];
+}
+
+// --- ru-music-card config -------------------------------------------------------
+
+export interface MusicPlayerConfig {
+  /** A Music Assistant media_player.* entity. */
+  entity: string;
+  /** Speaker chip label; defaults to the entity's friendly_name. */
+  name?: string;
+}
+
+export interface MusicCardConfig {
+  type: string;
+  title?: string;
+  /** The speakers the card switches between, as Music Assistant players —
+   * plain entity ids or objects with a name. */
+  players: Array<string | MusicPlayerConfig>;
+  /** The Music Assistant config entry the library and search queries go to.
+   * Found automatically when omitted (needs only one MA instance). */
+  config_entry_id?: string;
+  /** Items fetched per library tab. 1–500, default 100. */
+  library_limit?: number;
+  /** Results per media type in a search. 1–50, default 5. */
+  search_limit?: number;
 }
 
 // --- ru-washer-card config ---------------------------------------------------

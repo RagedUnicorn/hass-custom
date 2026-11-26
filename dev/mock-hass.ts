@@ -28,6 +28,7 @@
  */
 
 import type { HassEntity, HomeAssistant } from "../src/types";
+import type { MockMusicAssistant } from "./mock-music";
 
 const FEATURE_OPEN = 1;
 const FEATURE_CLOSE = 2;
@@ -333,6 +334,9 @@ export class MockHass {
 
   private timestamps = new Map<string, TimestampState>();
 
+  /** Music Assistant speakers + actions (see mock-music.ts), if attached. */
+  private music?: MockMusicAssistant;
+
   private darkMode = false;
 
   /** hass.user.is_admin — gates admin_only nav routes. */
@@ -501,8 +505,17 @@ export class MockHass {
     this.publish();
   }
 
+  /** Adds Music Assistant: its speakers join hass.states, its media_player
+   * and music_assistant.* calls are routed to it. */
+  attachMusic(music: MockMusicAssistant): void {
+    this.music = music;
+    music.bind(() => this.publish());
+    this.publish();
+  }
+
   reset(): void {
     this.calls.length = 0;
+    this.music?.reset();
     this.reactionMs = 0;
     this.admin = true;
     this.resetCovers();
@@ -719,7 +732,20 @@ export class MockHass {
     service: string,
     data?: Record<string, unknown>
   ): Promise<unknown> => {
+    // Music Assistant's read-only actions (library, search, queue) go to
+    // their own log: ru-music-card issues them on its own schedule, and the
+    // other cards' specs expect `calls` to hold only what they triggered.
+    if (this.music?.isRead(domain, service)) {
+      return this.music.read(service, data);
+    }
     this.calls.push({ domain, service, data });
+    if (
+      this.music &&
+      (domain === "music_assistant" ||
+        (domain === "media_player" && this.music.owns(String(data?.entity_id))))
+    ) {
+      return this.music.call(domain, service, data);
+    }
     const raw = data?.entity_id;
     const entities = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
     if (domain === "button" && service === "press") {
@@ -1172,6 +1198,7 @@ export class MockHass {
         },
       };
     }
+    if (this.music) Object.assign(states, this.music.entities());
     return {
       states,
       themes: { darkMode: this.darkMode },
@@ -1181,6 +1208,12 @@ export class MockHass {
       entities: this.registryEntities,
       devices: this.registryDevices,
       callService: this.callService,
+      ...(this.music
+        ? {
+            callWS: <T>(message: Record<string, unknown>) =>
+              this.music!.callWS(message) as Promise<T>,
+          }
+        : {}),
     };
   }
 

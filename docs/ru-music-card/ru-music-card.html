@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="../common/common.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#2a78d6}a:hover{color:#1b5fae}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mc{background:#F5F6FA;padding:20px 16px 24px;font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;gap:14px}
+.dk.mc{background:#1A1B1E}
+.panel{background:#fff;border-radius:20px;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+.dk .panel{background:#242529}
+.ink{color:#3B3B3B}
+.dk .ink{color:#E8E9ED}
+.sub{color:#9AA0AE}
+.dk .sub{color:#8B8F9B}
+.acc{color:#3D5AFE}
+.dk .acc{color:#7C90FF}
+.btn{background:#F1F2F6;color:#8A90A0;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;flex:none}
+.dk .btn{background:rgba(255,255,255,.07);color:#8B8F9B}
+.btn.on{background:rgba(61,90,254,.15);color:#3D5AFE}
+.dk .btn.on{background:rgba(61,90,254,.28);color:#7C90FF}
+.btn:active{background:#3D5AFE;color:#fff}
+.dk .btn:active{background:#7C90FF;color:#1A1B1E}
+.chip{flex:1;min-width:0;justify-content:flex-start;gap:9px;padding:9px 11px;border-radius:14px}
+.chip .cname{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip .csub{font-size:10.5px;font-weight:500;opacity:.8;margin-top:1px}
+.dot{width:8px;height:8px;border-radius:4px;flex:none;background:#C3C8D4}
+.dot.on{background:#3D5AFE;box-shadow:0 0 8px rgba(61,90,254,.6)}
+.dk .dot{background:#4A4E59}
+.dk .dot.on{background:#7C90FF;box-shadow:0 0 8px rgba(124,144,255,.6)}
+.track{position:relative;background:#F1F2F6;touch-action:none;cursor:ew-resize}
+.dk .track{background:rgba(255,255,255,.07)}
+.fill{position:absolute;top:0;bottom:0;left:0;background:#3D5AFE}
+.dk .fill{background:#7C90FF}
+.vfill{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,#7C90FF,#3D5AFE)}
+.art{background:repeating-linear-gradient(135deg,#E9EBF1 0 6px,#F1F2F6 6px 12px);display:flex;align-items:center;justify-content:center;font:500 9px ui-monospace,Menlo,monospace;color:#9AA0AE;flex:none;text-align:center}
+.dk .art{background:repeating-linear-gradient(135deg,#2C2D32 0 6px,#303136 6px 12px);color:#6B6F7B}
+.tabs{display:flex;gap:5px}
+.tab{padding:7px 8px;border-radius:9px;font-size:12px;font-weight:600;flex:1 1 auto;white-space:nowrap}
+.search{height:36px;border-radius:11px;background:#F1F2F6;border:0;padding:0 12px;font:inherit;font-size:12.5px;color:#3B3B3B;outline:none;width:100%;box-sizing:border-box}
+.search::placeholder{color:#9AA0AE}
+.dk .search{background:rgba(255,255,255,.07);color:#E8E9ED}
+.list{display:flex;flex-direction:column;gap:2px;max-height:262px;overflow-y:auto;margin:0 -6px;scrollbar-width:thin;scrollbar-color:#E3E5EC transparent}
+.dk .list{scrollbar-color:rgba(255,255,255,.12) transparent}
+.row{display:flex;align-items:center;gap:10px;padding:6px;border-radius:12px;cursor:pointer}
+.row:hover{background:#F5F6FA}
+.dk .row:hover{background:rgba(255,255,255,.04)}
+.rname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmeta{font-size:11px;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:22px 0;text-align:center;font-size:12px;font-weight:500}
+</style>
+</helmet>
+
+<section style="padding:28px 44px 22px;border-bottom:1px solid rgba(0,0,0,.08)">
+  <div style="font:600 15px/1.3 system-ui,sans-serif;color:#1a1a1a">Home Assistant — Music card (Music Assistant), exploration 2</div>
+  <div style="margin-top:6px;font:400 12px/1.6 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:720px">Same minimalist style as the TV card, blue accent. One card for both Sonos speakers (Living Room Beam, Workshop Roam 2) via Music Assistant: speaker switcher with a group toggle, now playing with seek, transport, repeat (off / all / one) and absolute volume (per room while grouped), and the Spotify library — playlists, liked songs, albums, artists — with search, plus a Queue tab. Tap a row to play it on the selected speaker, + to add it to the queue. In the Queue tab, tap a track to jump to it, × to remove it. Playback ticks in simulation and advances through the queue.</div>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Narrow layout — now playing on top, library and queue below, light + dark</span></div>
+<div class="dv-opts">
+
+<!-- ============ 1a LIGHT ============ -->
+<div class="dv-opt" id="1a" data-screen-label="1a Music light">
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Light — shuffle dropped; repeat cycles off → all → one. The Queue tab shows what is up next on the selected speaker.</div>
+  <div class="dv-card" style="width:390px">
+    <div class="mc">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div class="ink" style="font-size:22px;font-weight:700">Music</div>
+        <div class="sub" style="font-size:12.5px;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;gap:6px;align-items:stretch">
+          <sc-for list="{{ speakers }}" as="sp" hint-placeholder-count="2">
+            <div onClick="{{ sp.select }}" class="{{ sp.cls }}">
+              <div class="{{ sp.dotCls }}"></div>
+              <div style="min-width:0">
+                <div class="cname">{{ sp.name }}</div>
+                <div class="csub">{{ sp.status }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div onClick="{{ toggleGroup }}" class="{{ groupCls }}" style="width:46px;border-radius:14px" title="Group both rooms">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="12" r="5"></circle><circle cx="15" cy="12" r="5"></circle></svg>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="art" style="width:56px;height:56px;border-radius:12px">cover</div>
+            <div style="min-width:0;flex:1">
+              <div class="ink" style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+              <div class="sub" style="font-size:11.5px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ artist }}</div>
+            </div>
+          </div>
+          <div onPointerDown="{{ seekDown }}" class="track" style="height:8px;border-radius:4px;margin-top:4px">
+            <div class="fill" style="width:{{ progW }};border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <div class="sub" style="font-size:10.5px;font-weight:500">{{ posText }}</div>
+            <div class="sub" style="font-size:10.5px;font-weight:500">{{ durText }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+            <div style="width:42px;height:42px;flex:none"></div>
+            <div onClick="{{ prev }}" class="btn" style="width:42px;height:42px;border-radius:14px;font-size:10px">&#9664;&#9664;</div>
+            <div onClick="{{ togglePlay }}" class="btn on" style="width:52px;height:52px;border-radius:17px;font-size:15px">{{ playGlyph }}</div>
+            <div onClick="{{ next }}" class="btn" style="width:42px;height:42px;border-radius:14px;font-size:10px">&#9654;&#9654;</div>
+            <div onClick="{{ toggleRepeat }}" class="{{ repeatCls }}" title="{{ repeatTitle }}" style="width:42px;height:42px;border-radius:14px;font-size:15px;font-weight:700;gap:1px">&#8635;<span style="font-size:9px">{{ repeatBadge }}</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ volRows }}" as="v" hint-placeholder-count="1">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div onClick="{{ v.toggleMute }}" class="btn" style="width:34px;height:26px;border-radius:9px;background:transparent;color:{{ v.muteCol }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ v.waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ v.xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+              </div>
+              <sc-if value="{{ v.showName }}" hint-placeholder-val="{{ false }}">
+                <div class="sub" style="font-size:11px;font-weight:600;width:72px;flex:none">{{ v.name }}</div>
+              </sc-if>
+              <div onPointerDown="{{ v.slide }}" class="track" style="flex:1;height:26px;border-radius:9px;overflow:hidden">
+                <div class="vfill" style="width:{{ v.w }};opacity:{{ v.op }}"></div>
+              </div>
+              <div class="ink" style="font-size:11.5px;font-weight:600;width:40px;flex:none;text-align:center">{{ v.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+          <div class="ink" style="font-size:13px;font-weight:700;white-space:nowrap">{{ libTitle }}</div>
+          <div class="acc" style="font-size:12px;font-weight:600;min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ feedback }}</div>
+        </div>
+        <input class="search" placeholder="Search Spotify" value="{{ query }}" onChange="{{ onQuery }}">
+        <div class="tabs">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+            <div onClick="{{ t.select }}" class="{{ t.cls }}">{{ t.label }}</div>
+          </sc-for>
+        </div>
+        <div class="list">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+            <div onClick="{{ r.play }}" class="row" style="opacity:{{ r.rowOp }}">
+              <div class="art" style="width:40px;height:40px;border-radius:{{ r.artR }}">{{ r.artLabel }}</div>
+              <div style="flex:1;min-width:0">
+                <div class="{{ r.nameCls }}">{{ r.name }}</div>
+                <div class="rmeta sub">{{ r.meta }}</div>
+              </div>
+              <sc-if value="{{ r.showAct }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ r.act }}" class="btn" title="{{ r.actTitle }}" style="width:30px;height:30px;border-radius:10px;font-size:15px;font-weight:700">{{ r.actGlyph }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}">
+            <div class="empty sub">{{ emptyText }}</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1b DARK ============ -->
+<div class="dv-opt" id="1b" data-screen-label="1b Music dark">
+  <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Dark variant of <a class="dv-oid" href="#1a">1a</a> — same layout and shared state</div>
+  <div class="dv-card" style="width:390px">
+    <div class="mc dk">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+        <div class="ink" style="font-size:22px;font-weight:700">Music</div>
+        <div class="sub" style="font-size:12.5px;font-weight:500">{{ summaryText }}</div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;gap:6px;align-items:stretch">
+          <sc-for list="{{ speakers }}" as="sp" hint-placeholder-count="2">
+            <div onClick="{{ sp.select }}" class="{{ sp.cls }}">
+              <div class="{{ sp.dotCls }}"></div>
+              <div style="min-width:0">
+                <div class="cname">{{ sp.name }}</div>
+                <div class="csub">{{ sp.status }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div onClick="{{ toggleGroup }}" class="{{ groupCls }}" style="width:46px;border-radius:14px" title="Group both rooms">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="12" r="5"></circle><circle cx="15" cy="12" r="5"></circle></svg>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;opacity:{{ ctrlOp }}">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="art" style="width:56px;height:56px;border-radius:12px">cover</div>
+            <div style="min-width:0;flex:1">
+              <div class="ink" style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ title }}</div>
+              <div class="sub" style="font-size:11.5px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ artist }}</div>
+            </div>
+          </div>
+          <div onPointerDown="{{ seekDown }}" class="track" style="height:8px;border-radius:4px;margin-top:4px">
+            <div class="fill" style="width:{{ progW }};border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <div class="sub" style="font-size:10.5px;font-weight:500">{{ posText }}</div>
+            <div class="sub" style="font-size:10.5px;font-weight:500">{{ durText }}</div>
+          </div>
+          <div style="display:flex;justify-content:center;align-items:center;gap:10px">
+            <div style="width:42px;height:42px;flex:none"></div>
+            <div onClick="{{ prev }}" class="btn" style="width:42px;height:42px;border-radius:14px;font-size:10px">&#9664;&#9664;</div>
+            <div onClick="{{ togglePlay }}" class="btn on" style="width:52px;height:52px;border-radius:17px;font-size:15px">{{ playGlyph }}</div>
+            <div onClick="{{ next }}" class="btn" style="width:42px;height:42px;border-radius:14px;font-size:10px">&#9654;&#9654;</div>
+            <div onClick="{{ toggleRepeat }}" class="{{ repeatCls }}" title="{{ repeatTitle }}" style="width:42px;height:42px;border-radius:14px;font-size:15px;font-weight:700;gap:1px">&#8635;<span style="font-size:9px">{{ repeatBadge }}</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ volRows }}" as="v" hint-placeholder-count="1">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div onClick="{{ v.toggleMute }}" class="btn" style="width:34px;height:26px;border-radius:9px;background:transparent;color:{{ v.muteColD }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 L6 9 H3 V15 H6 L11 19 Z"></path><g style="opacity:{{ v.waveOp }}"><path d="M15 9 a4 4 0 0 1 0 6"></path><path d="M17.5 6.5 a7.5 7.5 0 0 1 0 11"></path></g><g style="opacity:{{ v.xOp }}"><path d="M16 9 L22 15"></path><path d="M22 9 L16 15"></path></g></svg>
+              </div>
+              <sc-if value="{{ v.showName }}" hint-placeholder-val="{{ false }}">
+                <div class="sub" style="font-size:11px;font-weight:600;width:72px;flex:none">{{ v.name }}</div>
+              </sc-if>
+              <div onPointerDown="{{ v.slide }}" class="track" style="flex:1;height:26px;border-radius:9px;overflow:hidden">
+                <div class="vfill" style="width:{{ v.w }};opacity:{{ v.op }}"></div>
+              </div>
+              <div class="ink" style="font-size:11.5px;font-weight:600;width:40px;flex:none;text-align:center">{{ v.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+          <div class="ink" style="font-size:13px;font-weight:700;white-space:nowrap">{{ libTitle }}</div>
+          <div class="acc" style="font-size:12px;font-weight:600;min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ feedback }}</div>
+        </div>
+        <input class="search" placeholder="Search Spotify" value="{{ query }}" onChange="{{ onQuery }}">
+        <div class="tabs">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+            <div onClick="{{ t.select }}" class="{{ t.cls }}">{{ t.label }}</div>
+          </sc-for>
+        </div>
+        <div class="list">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="5">
+            <div onClick="{{ r.play }}" class="row" style="opacity:{{ r.rowOp }}">
+              <div class="art" style="width:40px;height:40px;border-radius:{{ r.artR }}">{{ r.artLabel }}</div>
+              <div style="flex:1;min-width:0">
+                <div class="{{ r.nameCls }}">{{ r.name }}</div>
+                <div class="rmeta sub">{{ r.meta }}</div>
+              </div>
+              <sc-if value="{{ r.showAct }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ r.act }}" class="btn" title="{{ r.actTitle }}" style="width:30px;height:30px;border-radius:10px;font-size:15px;font-weight:700">{{ r.actGlyph }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noRows }}" hint-placeholder-val="{{ false }}">
+            <div class="empty sub">{{ emptyText }}</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "drag to reorder the queue" · "compact one-row now-playing for the Main view" · "play next as a long-press option on +"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900}}'>
+class Component extends DCLogic {
+  SPEAKERS = [
+    { id: 'lr', name: 'Living Room' },
+    { id: 'ws', name: 'Workshop' }
+  ];
+
+  LIB = {
+    playlists: [
+      { n: 'Discover Weekly', m: 'Playlist · Spotify' },
+      { n: 'chill', m: 'Playlist · you' },
+      { n: 'workout', m: 'Playlist · you' },
+      { n: 'favorites', m: 'Playlist · you' },
+      { n: 'wow_classic', m: 'Playlist · you' },
+      { n: 'All Things Metalcore', m: 'Playlist · Spotify' },
+      { n: 'Ultimate Vanilla WoW', m: 'Playlist' },
+      { n: 'Today’s Top Hits', m: 'Playlist · Spotify' }
+    ],
+    liked: [
+      { n: 'Kingslayer', m: 'Bring Me The Horizon', dur: 219 },
+      { n: 'Animals', m: 'Architects', dur: 244 },
+      { n: 'Just Pretend', m: 'Bad Omens', dur: 205 },
+      { n: 'Doomed', m: 'Bring Me The Horizon', dur: 274 },
+      { n: 'Like Before', m: 'Bad Omens', dur: 228 }
+    ],
+    albums: [
+      { n: 'Post Human: Survival Horror', m: 'Bring Me The Horizon' },
+      { n: 'For Those That Wish to Exist', m: 'Architects' },
+      { n: 'The Death of Peace of Mind', m: 'Bad Omens' }
+    ],
+    artists: [
+      { n: 'Bring Me The Horizon', m: 'Artist' },
+      { n: 'Architects', m: 'Artist' },
+      { n: 'Bad Omens', m: 'Artist' }
+    ]
+  };
+
+  TABS = [
+    { id: 'playlists', label: 'Playlists' },
+    { id: 'liked', label: 'Liked' },
+    { id: 'albums', label: 'Albums' },
+    { id: 'artists', label: 'Artists' },
+    { id: 'queue', label: 'Queue' }
+  ];
+
+  LIBTABS = ['playlists', 'liked', 'albums', 'artists'];
+
+  state = {
+    sel: 'lr', grouped: false, tab: 'playlists', query: '', feedback: '', repeat: 'off',
+    sp: {
+      lr: {
+        queue: [
+          { n: 'Kingslayer', m: 'Bring Me The Horizon', dur: 219, from: 'Liked Songs' },
+          { n: 'Animals', m: 'Architects', dur: 244, from: 'Liked Songs' },
+          { n: 'Just Pretend', m: 'Bad Omens', dur: 205, from: 'Liked Songs' },
+          { n: 'Doomed', m: 'Bring Me The Horizon', dur: 274, from: 'Liked Songs' }
+        ],
+        idx: 0, pos: 64, playing: true, vol: 38, muted: false
+      },
+      ws: { queue: [], idx: 0, pos: 0, playing: false, vol: 45, muted: false }
+    }
+  };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      const sp = {};
+      let changed = false;
+      for (const id of ['lr', 'ws']) {
+        const p = this.state.sp[id];
+        const t = p.queue[p.idx];
+        if (p.playing && t) {
+          changed = true;
+          sp[id] = p.pos + 1 >= t.dur ? this.advance(p, true) : { ...p, pos: p.pos + 1 };
+        } else sp[id] = p;
+      }
+      if (changed) this.setState({ sp });
+    }, 1000);
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.fbTimer); }
+
+  // Next track: repeat one restarts (only when a track ends by itself),
+  // repeat all wraps to the start, otherwise playback stops at the end.
+  advance(p, auto) {
+    const r = this.state.repeat;
+    if (auto && r === 'one') return { ...p, pos: 0 };
+    if (p.idx + 1 < p.queue.length) return { ...p, idx: p.idx + 1, pos: 0, playing: true };
+    if (r === 'all' && p.queue.length) return { ...p, idx: 0, pos: 0, playing: true };
+    return { ...p, pos: auto ? p.queue[p.idx].dur : p.pos, playing: false };
+  }
+
+  tracksFor(it, kind) {
+    const liked = this.LIB.liked;
+    if (kind === 'liked') return [{ n: it.n, m: it.m, dur: it.dur, from: 'Liked Songs' }];
+    let src = [];
+    if (kind === 'albums') src = liked.filter((t) => t.m === it.m);
+    if (kind === 'artists') src = liked.filter((t) => t.m === it.n);
+    if (!src.length) { const k = it.n.length % liked.length; src = liked.slice(k).concat(liked.slice(0, k)); }
+    return src.map((t) => ({ n: t.n, m: t.m, dur: t.dur, from: it.n }));
+  }
+
+  flash(text) {
+    clearTimeout(this.fbTimer);
+    this.setState({ feedback: text });
+    this.fbTimer = setTimeout(() => this.setState({ feedback: '' }), 1600);
+  }
+
+  targets() { return this.state.grouped ? ['lr', 'ws'] : [this.state.sel]; }
+
+  patch(ids, fn) {
+    const sp = { ...this.state.sp };
+    for (const id of ids) sp[id] = { ...sp[id], ...fn(sp[id]) };
+    this.setState({ sp });
+  }
+
+  where() {
+    return this.state.grouped ? 'both rooms' : this.SPEAKERS.find((x) => x.id === this.state.sel).name;
+  }
+
+  hSlide(cb) {
+    return (e) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const go = (x) => cb(Math.max(0, Math.min(1, (x - rect.left) / rect.width)));
+      go(e.clientX);
+      const mv = (ev) => go(ev.clientX);
+      const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+    };
+  }
+
+  fmt(sec) {
+    sec = Math.round(sec);
+    const m = Math.floor(sec / 60), s2 = String(sec % 60).padStart(2, '0');
+    return m + ':' + s2;
+  }
+
+  statusOf(p) {
+    if (!p.queue[p.idx]) return 'Idle';
+    return p.playing ? 'Playing' : 'Paused';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const cur = s.sp[s.sel];
+    const track = cur.queue[cur.idx];
+    const has = !!track;
+    const q = s.query.trim().toLowerCase();
+    const onQueue = !q && s.tab === 'queue';
+    const pool = q
+      ? [].concat(...this.LIBTABS.map((id) => this.LIB[id].map((it) => ({ ...it, kind: id }))))
+      : onQueue ? [] : this.LIB[s.tab].map((it) => ({ ...it, kind: s.tab }));
+    const hits = q ? pool.filter((it) => (it.n + ' ' + it.m).toLowerCase().includes(q)) : pool;
+    const playingAnywhere = ['lr', 'ws'].filter((id) => s.sp[id].playing);
+    const summary = s.grouped
+      ? (cur.playing ? 'Playing · both rooms' : 'Grouped')
+      : (playingAnywhere.length ? 'Playing · ' + playingAnywhere.map((id) => this.SPEAKERS.find((x) => x.id === id).name).join(', ') : 'Idle');
+    const upNext = Math.max(0, cur.queue.length - cur.idx - 1);
+
+    const queueRows = cur.queue.map((t, i) => ({
+      name: t.n,
+      meta: t.m + ' · ' + (i === cur.idx ? (cur.playing ? 'Now playing' : 'Paused') : t.from),
+      artR: '8px', artLabel: 'cover',
+      nameCls: 'rname ' + (i === cur.idx ? 'acc' : 'ink'),
+      rowOp: i < cur.idx ? '.45' : '1',
+      play: () => this.patch(this.targets(), () => ({ idx: i, pos: 0, playing: true })),
+      showAct: i !== cur.idx,
+      actGlyph: '×', actTitle: 'Remove from queue',
+      act: (e) => {
+        e.stopPropagation();
+        this.patch(this.targets(), (p) => ({ queue: p.queue.filter((_, j) => j !== i), idx: i < p.idx ? p.idx - 1 : p.idx }));
+        this.flash('Removed from queue');
+      }
+    }));
+
+    const libRows = hits.map((it) => {
+      const isNow = has && (track.n === it.n || track.from === it.n);
+      const tracks = () => this.tracksFor(it, it.kind);
+      return {
+        name: it.n,
+        meta: q ? it.m + ' · ' + this.TABS.find((t) => t.id === it.kind).label : it.m,
+        artR: it.kind === 'artists' ? '20px' : '8px',
+        artLabel: it.kind === 'artists' ? 'artist' : 'cover',
+        nameCls: 'rname ' + (isNow ? 'acc' : 'ink'),
+        rowOp: '1',
+        play: () => {
+          this.patch(this.targets(), () => ({ queue: tracks(), idx: 0, pos: 0, playing: true }));
+          this.flash('Playing on ' + this.where());
+        },
+        showAct: true,
+        actGlyph: '+', actTitle: 'Add to queue',
+        act: (e) => {
+          e.stopPropagation();
+          this.patch(this.targets(), (p) => p.queue[p.idx]
+            ? { queue: p.queue.concat(tracks()) }
+            : { queue: p.queue.concat(tracks()), idx: p.queue.length, pos: 0, playing: true });
+          this.flash('Queued on ' + this.where());
+        }
+      };
+    });
+
+    const rows = onQueue ? queueRows : libRows;
+
+    return {
+      summaryText: summary,
+      speakers: this.SPEAKERS.map((x) => {
+        const p = s.sp[x.id];
+        const active = s.grouped || s.sel === x.id;
+        return {
+          name: x.name,
+          status: s.grouped ? 'Grouped · ' + this.statusOf(p) : this.statusOf(p),
+          cls: 'btn chip' + (active ? ' on' : ''),
+          dotCls: 'dot' + (p.playing ? ' on' : ''),
+          select: () => this.setState({ sel: x.id })
+        };
+      }),
+      groupCls: 'btn' + (s.grouped ? ' on' : ''),
+      toggleGroup: () => {
+        if (s.grouped) { this.setState({ grouped: false }); this.flash('Ungrouped'); return; }
+        const lead = s.sp[s.sel];
+        const other = s.sel === 'lr' ? 'ws' : 'lr';
+        this.setState({ grouped: true, sp: { ...s.sp, [other]: { ...s.sp[other], queue: lead.queue, idx: lead.idx, pos: lead.pos, playing: lead.playing } } });
+        this.flash('Grouped both rooms');
+      },
+      ctrlOp: has ? '1' : '.4',
+      title: has ? track.n : 'Nothing playing',
+      artist: has ? track.m + ' · ' + track.from : 'Pick something from the library',
+      progW: has ? Math.round(cur.pos / track.dur * 100) + '%' : '0%',
+      posText: has ? this.fmt(cur.pos) : '0:00',
+      durText: has ? this.fmt(track.dur) : '0:00',
+      seekDown: this.hSlide((f) => { if (has) this.patch(this.targets(), (p) => ({ pos: f * p.queue[p.idx].dur })); }),
+      playGlyph: cur.playing ? '❘❘' : '▶',
+      togglePlay: () => { if (has) this.patch(this.targets(), () => ({ playing: !cur.playing })); },
+      prev: () => { if (has) this.patch(this.targets(), (p) => (p.pos > 3 ? { pos: 0 } : { idx: Math.max(0, p.idx - 1), pos: 0 })); },
+      next: () => { if (has) this.patch(this.targets(), (p) => this.advance(p, false)); },
+      repeatCls: 'btn' + (s.repeat !== 'off' ? ' on' : ''),
+      repeatBadge: s.repeat === 'one' ? '1' : '',
+      repeatTitle: 'Repeat: ' + s.repeat,
+      toggleRepeat: () => {
+        const nextMode = { off: 'all', all: 'one', one: 'off' }[s.repeat];
+        this.setState({ repeat: nextMode });
+        this.flash({ off: 'Repeat off', all: 'Repeat queue', one: 'Repeat track' }[nextMode]);
+      },
+      volRows: this.targets().map((id) => {
+        const p = s.sp[id];
+        return {
+          name: this.SPEAKERS.find((x) => x.id === id).name,
+          showName: s.grouped,
+          w: p.vol + '%',
+          op: p.muted ? '.3' : '1',
+          text: p.muted ? '—' : p.vol + '%',
+          muteCol: p.muted ? '#F54436' : '#8A90A0',
+          muteColD: p.muted ? '#FF6B5E' : '#8B8F9B',
+          waveOp: p.muted ? '0' : '1',
+          xOp: p.muted ? '1' : '0',
+          toggleMute: () => this.patch([id], (pp) => ({ muted: !pp.muted })),
+          slide: this.hSlide((f) => this.patch([id], () => ({ vol: Math.round(f * 100), muted: false })))
+        };
+      }),
+      libTitle: onQueue ? 'Queue · ' + this.where() : 'Library',
+      feedback: s.feedback,
+      query: s.query,
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      tabs: this.TABS.map((t) => ({
+        label: t.id === 'queue' && upNext ? 'Queue · ' + upNext : t.label,
+        cls: 'btn tab' + (!q && s.tab === t.id ? ' on' : ''),
+        select: () => this.setState({ tab: t.id, query: '' })
+      })),
+      rows,
+      noRows: rows.length === 0,
+      emptyText: onQueue ? 'Queue is empty — tap + on anything in the library' : 'No matches for “' + s.query + '”'
+    };
+  }
+}
+</script>
+</body>
+</html>

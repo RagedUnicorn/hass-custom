@@ -7,7 +7,10 @@
  * only the androidtv entity still renders a sensible card.
  */
 
+import { formatTime, livePosition } from "../../media";
 import type { HassEntity, HomeAssistant, TvCardConfig } from "../../types";
+
+export { formatTime };
 
 // MediaPlayerEntityFeature bits (HA convention).
 const FEATURE_PAUSE = 1;
@@ -108,32 +111,6 @@ export function isTvOn(stateObj: HassEntity | undefined): boolean {
  * while URLs (`/local/…`, `https://…`, `data:image/…`) always contain one. */
 export function isIconRef(icon: string): boolean {
   return icon.includes(":") && !icon.includes("/");
-}
-
-/** m:ss below an hour, h:mm:ss above — mirrors the design mock. */
-export function formatTime(totalSeconds: number): string {
-  const seconds = Math.max(0, Math.round(totalSeconds));
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const mm = h ? String(m).padStart(2, "0") : String(m);
-  const ss = String(s).padStart(2, "0");
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-
-/** Position extrapolated to `nowMs` while playing (HA only re-reports it on
- * state changes), clamped to the track length. */
-export function livePosition(
-  stateObj: HassEntity,
-  playing: boolean,
-  nowMs: number
-): number {
-  const position = stateObj.attributes.media_position ?? 0;
-  const duration = stateObj.attributes.media_duration ?? 0;
-  const updatedAt = stateObj.attributes.media_position_updated_at;
-  const elapsed =
-    playing && updatedAt ? (nowMs - Date.parse(updatedAt)) / 1000 : 0;
-  return Math.min(duration, Math.max(0, position + Math.max(0, elapsed)));
 }
 
 function buildMediaView(

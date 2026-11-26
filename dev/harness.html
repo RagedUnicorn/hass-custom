@@ -96,6 +96,16 @@
         width: 100%;
         max-width: 1040px;
       }
+      /* ru-music-card: a phone-width mount and a 900px one, where its own
+         container query (640px) puts the library beside the player. */
+      #card-music {
+        width: 100%;
+        max-width: 400px;
+      }
+      #card-music-wide {
+        width: 100%;
+        max-width: 900px;
+      }
     </style>
   </head>
   <body>
@@ -123,6 +133,8 @@
     <div id="card-shutters-compact"></div>
     <div id="card-actions"></div>
     <div id="card-header"></div>
+    <div id="card-music"></div>
+    <div id="card-music-wide"></div>
     <script type="module" src="./harness.ts"></script>
   </body>
 </html>

@@ -20,6 +20,7 @@ import "./cards/ru-last-seen-card/ru-last-seen-card";
 import "./cards/ru-nav-card/ru-nav-card";
 import "./cards/ru-actions-card/ru-actions-card";
 import "./cards/ru-header-card/ru-header-card";
+import "./cards/ru-music-card/ru-music-card";
 
 registerIconSets();
 
@@ -35,5 +36,5 @@ console.info(
   "color:#6f42c1;background:#efe7ff;font-weight:700;border-radius:0 3px 3px 0;padding:2px 6px;",
   `— icon sets: ${iconSetNames()
     .map((s) => `${s}:*`)
-    .join(", ")} — cards: ru-shutters-card, ru-lights-card, ru-purifier-card, ru-tv-card, ru-washer-card, ru-doors-card, ru-last-seen-card, ru-nav-card, ru-actions-card, ru-header-card`
+    .join(", ")} — cards: ru-shutters-card, ru-lights-card, ru-purifier-card, ru-tv-card, ru-washer-card, ru-doors-card, ru-last-seen-card, ru-nav-card, ru-actions-card, ru-header-card, ru-music-card`
 );

@@ -14,6 +14,7 @@ import {
   type MockWasherStatus,
   type ServiceCall,
 } from "./mock-hass";
+import { MockMusicAssistant } from "./mock-music";
 
 // Outside HA <ha-icon> is undefined and renders empty; a small dot keeps the
 // layout realistic without pulling in an icon library.
@@ -677,8 +678,66 @@ tvNarrowCard.setConfig({
   apps: TV_APPS,
 });
 
+// Music Assistant: two Sonos speakers, a small library and search corpus.
+// The living room plays a four-track queue; the workshop is idle.
+const music = new MockMusicAssistant({
+  entryId: "mock-ma-entry",
+  players: [
+    {
+      entity: "media_player.sonos_livingroom_ma",
+      name: "Living Room Sonos MA",
+      volume: 0.38,
+      queue: ["track:kingslayer", "track:animals", "track:just-pretend", "track:doomed"],
+      position: 64,
+    },
+    { entity: "media_player.sonos_workshop_ma", name: "Workshop Sonos MA", volume: 0.45 },
+  ],
+  tracks: [
+    { uri: "track:kingslayer", name: "Kingslayer", artist: "Bring Me The Horizon", album: "Post Human: Survival Horror", duration: 219 },
+    { uri: "track:animals", name: "Animals", artist: "Architects", album: "For Those That Wish to Exist", duration: 244 },
+    { uri: "track:just-pretend", name: "Just Pretend", artist: "Bad Omens", album: "The Death of Peace of Mind", duration: 205 },
+    { uri: "track:doomed", name: "Doomed", artist: "Bring Me The Horizon", album: "That's the Spirit", duration: 274 },
+    { uri: "track:like-before", name: "Like Before", artist: "Bad Omens", album: "The Death of Peace of Mind", duration: 228 },
+  ],
+  playlists: [
+    { uri: "playlist:discover-weekly", name: "Discover Weekly", tracks: ["track:animals", "track:like-before"] },
+    { uri: "playlist:chill", name: "chill", tracks: ["track:like-before", "track:just-pretend"] },
+    { uri: "playlist:workout", name: "workout", tracks: ["track:doomed", "track:kingslayer"] },
+    { uri: "playlist:metalcore", name: "All Things Metalcore", tracks: ["track:kingslayer", "track:animals", "track:doomed"] },
+  ],
+  albums: [
+    { uri: "album:post-human", name: "Post Human: Survival Horror", artist: "Bring Me The Horizon" },
+    { uri: "album:ftwte", name: "For Those That Wish to Exist", artist: "Architects" },
+  ],
+  artists: [
+    { uri: "artist:bmth", name: "Bring Me The Horizon" },
+    { uri: "artist:architects", name: "Architects" },
+    { uri: "artist:bad-omens", name: "Bad Omens" },
+  ],
+  liked: ["track:like-before", "track:kingslayer", "track:animals"],
+});
+mock.attachMusic(music);
+
+const MUSIC_CONFIG = {
+  type: "custom:ru-music-card",
+  players: [
+    { entity: "media_player.sonos_livingroom_ma", name: "Living Room" },
+    { entity: "media_player.sonos_workshop_ma", name: "Workshop" },
+  ],
+};
+
+const musicCard = document.createElement("ru-music-card") as LovelaceCard;
+musicCard.setConfig({ ...MUSIC_CONFIG, title: "Music" });
+
+// Identical config in a 900px slot — the card's own container query puts
+// the library beside the player there.
+const musicWideCard = document.createElement("ru-music-card") as LovelaceCard;
+musicWideCard.setConfig({ ...MUSIC_CONFIG, title: "Music (wide)" });
+
 mock.onChange((hass) => {
   card.hass = hass;
+  musicCard.hass = hass;
+  musicWideCard.hass = hass;
   lightsCard.hass = hass;
   purifierCard.hass = hass;
   tvCard.hass = hass;
@@ -727,6 +786,8 @@ document
   .appendChild(shuttersCompactCard);
 document.getElementById("card-actions")!.appendChild(actionsCard);
 document.getElementById("card-header")!.appendChild(headerCard);
+document.getElementById("card-music")!.appendChild(musicCard);
+document.getElementById("card-music-wide")!.appendChild(musicWideCard);
 
 // --- page chrome --------------------------------------------------------------
 
@@ -790,6 +851,15 @@ export interface Harness {
   setTimestamp(entity: string, iso: string | null): void;
   setTravelMs(ms: number): void;
   setReactionMs(ms: number): void;
+  /** Music Assistant's read-only actions (get_library/search/get_queue),
+   * kept out of `calls`. */
+  musicReads: Array<{ service: string; data?: Record<string, unknown> }>;
+  /** Music Assistant: get_queue accepts `limit` (newer HA) or not. */
+  setQueueItems(supported: boolean): void;
+  setMusicPlayer(
+    entity: string,
+    patch: { state?: "idle" | "playing" | "paused"; available?: boolean }
+  ): void;
   reset(): void;
 }
 
@@ -818,5 +888,8 @@ window.__harness = {
   setTimestamp: (entity, iso) => mock.setTimestamp(entity, iso),
   setTravelMs: (ms) => mock.setTravelMs(ms),
   setReactionMs: (ms) => mock.setReactionMs(ms),
+  musicReads: music.reads,
+  setQueueItems: (supported) => music.setQueueItems(supported),
+  setMusicPlayer: (entity, patch) => music.setPlayer(entity, patch),
   reset: () => mock.reset(),
 };
