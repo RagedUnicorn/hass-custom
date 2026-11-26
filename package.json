@@ -1,6 +1,6 @@
 {
   "name": "hass-custom",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "RagedUnicorn custom frontend resources for Home Assistant — icon sets and Lovelace cards",
   "private": true,
   "type": "module",
