@@ -7,15 +7,19 @@ slider with mute — one per room while speakers are grouped — and the music
 library: Playlists, Liked songs, Albums and Artists tabs, a search field and
 a Queue tab.
 
-Tap a library or search row to play it on the selected speaker (replacing
-what is queued there); tap its **+** to add it to the end of the queue. While
-speakers are grouped, everything plays on the whole group.
+Tap a playlist, album or artist to open it: **▶ Play** in its header plays
+all of it, a song plays the playlist or album from that song on, and an
+artist lists its albums. A song (Liked or a search result) plays on tap,
+replacing what is queued on the selected speaker. **+** on any row adds it to
+the end of the queue. While speakers are grouped, everything plays on the
+whole group.
 
 Playback, volume and grouping go through the speakers' `media_player`
 entities; the library, search and queue are read with the
 `music_assistant.get_library`, `music_assistant.search` and
-`music_assistant.get_queue` actions, and rows play through
-`music_assistant.play_media`. It needs the
+`music_assistant.get_queue` actions, an opened item's contents with Home
+Assistant's media browser (`media_player/browse_media`), and rows play
+through `music_assistant.play_media`. It needs the
 [Music Assistant integration](https://www.home-assistant.io/integrations/music_assistant/)
 with a music provider (e.g. Spotify) and the speakers added as players.
 
@@ -66,6 +70,14 @@ A player can also be given as a bare entity id:
 - **Search** runs a moment after you stop typing and lists songs, playlists,
   albums and artists from all of Music Assistant's providers; clearing it
   returns to the tab.
+- **Opening a playlist, album or artist.** The header's **‹** steps back one
+  level (artist → album → songs). Picking a tab or typing a search closes the
+  opened item; opening a search result ends the search and lands on that
+  item's tab. A song tap calls `play_media` for the playlist or album with
+  `start_item` set to the song, so the rest of the list keeps playing after
+  it. Home Assistant's media browser returns only the first page of a
+  playlist, so a very long playlist is listed (and countable) only up to
+  that page — **▶ Play** still plays all of it.
 - **Queue** is read-only: it shows the current and the next track of the
   selected speaker's queue and how many more follow — or the whole queue
   (up to 50 tracks) on Home Assistant releases whose `get_queue` lists the

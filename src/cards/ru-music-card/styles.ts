@@ -393,7 +393,9 @@ export const cardStyles = css`
   .speaker:active,
   .group:not(:disabled):active,
   .tab:active,
-  .row-act:active {
+  .row-act:active,
+  .drill-back:active,
+  .drill-play:active {
     background: var(--ru-music-accent);
     color: var(--ru-music-accent-contrast);
   }
@@ -544,6 +546,60 @@ export const cardStyles = css`
   .tab.on {
     background: var(--ru-music-accent-bg);
     color: var(--ru-music-accent);
+  }
+
+  /* An opened playlist/album/artist: back, name + count, play all. */
+  .drill-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .drill-back,
+  .drill-play {
+    height: 30px;
+    flex: none;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+
+  .drill-back {
+    width: 30px;
+    font-size: 17px;
+    background: var(--ru-music-control-bg);
+    color: var(--ru-music-label);
+  }
+
+  .drill-play {
+    padding: 0 12px;
+    font-size: 12px;
+    background: var(--ru-music-accent-bg);
+    color: var(--ru-music-accent);
+  }
+
+  .drill-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .drill-title,
+  .drill-meta {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .drill-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ru-music-text);
+  }
+
+  .drill-meta {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 1px;
+    color: var(--ru-music-text-muted);
   }
 
   .list {

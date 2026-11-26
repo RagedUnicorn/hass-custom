@@ -2,12 +2,16 @@
  * ru-music-card — Music Assistant player card: a speaker switcher with a
  * group toggle, now playing (cover, seek, transport, repeat), absolute
  * volume per speaker, and the music library — playlists, liked songs,
- * albums, artists — with search and a read-only queue view.
+ * albums, artists — with search and a read-only queue view. A playlist,
+ * album or artist opens to its songs (an artist: its albums), and a song
+ * plays its playlist/album from that song on.
  *
  * Playback, volume and grouping go through the speakers' media_player
  * entities; the library, search and queue are read through the
  * music_assistant.get_library / search / get_queue actions (response data),
- * and a tapped row plays through music_assistant.play_media.
+ * a drilled-into item's contents come from the media_player/browse_media
+ * websocket command, and a tapped row plays through
+ * music_assistant.play_media (start_item for a song inside a list).
  *
  * YAML-only configuration; see docs/ru-music-card/ru-music-card.md.
  */
@@ -27,10 +31,14 @@ import {
   REPEAT_NEXT,
   buildMusicView,
   buildQueueView,
+  drillMeta,
+  drillRows,
+  isDrillable,
   libraryRow,
   searchRows,
   type LibraryKind,
   type LibraryRowView,
+  type MaBrowseNode,
   type MaMediaItem,
   type MaQueueDetails,
   type MusicView,
@@ -102,6 +110,8 @@ export class RuMusicCard extends LitElement {
     _lib: { state: true },
     _search: { state: true },
     _queue: { state: true },
+    _drill: { state: true },
+    _browse: { state: true },
     _feedback: { state: true },
     _drag: { state: true },
     _pendingSeek: { state: true },
@@ -123,6 +133,16 @@ export class RuMusicCard extends LitElement {
   private _search?: { query: string; load: Load<LibraryRowView[]> };
 
   private _queue?: QueueState;
+
+  /** Opened playlists/albums/artists, outermost first; the last one is
+   * listed. Empty = the tab's own list. */
+  private _drill: LibraryRowView[] = [];
+
+  /** Browsed contents per uri. */
+  private _browse: Record<string, Load<LibraryRowView[]>> = {};
+
+  /** Which list was last rendered — a different one scrolls back to top. */
+  private _listKey = "";
 
   /** Whether get_queue takes `limit` (and lists the queue's items). Unknown
    * until the first answer; older HA releases reject the field. */
@@ -194,6 +214,8 @@ export class RuMusicCard extends LitElement {
     this._lib = {};
     this._search = undefined;
     this._queue = undefined;
+    this._drill = [];
+    this._browse = {};
     this._drag = {};
     this._pendingSeek = undefined;
     this._entryId = undefined;
@@ -244,6 +266,18 @@ export class RuMusicCard extends LitElement {
     if (!this._config || !this.hass || !this._view) return;
     if (this._tab !== "queue" && !this._lib[this._tab]) {
       void this._loadLibrary(this._tab);
+    }
+    const top = this._drillTop();
+    if (top && !this._browse[top.uri]) {
+      void this._loadBrowse(top, this._view.now.entity);
+    }
+    const listKey = this._query.trim()
+      ? "search"
+      : `${this._tab}|${this._drill.map((row) => row.uri).join(">")}`;
+    if (listKey !== this._listKey) {
+      this._listKey = listKey;
+      const list = this.renderRoot.querySelector(".list");
+      if (list) list.scrollTop = 0;
     }
     const entity = this._view.now.entity;
     const key = this._queueKey(entity);
@@ -518,6 +552,7 @@ export class RuMusicCard extends LitElement {
     const onQueue = !searching && this._tab === "queue";
     const queue = this._queueView(view);
     const upNext = queue?.upNext ?? 0;
+    const top = this._drillTop();
     return html`
       <div class="panel library">
         <div class="lib-head">
@@ -545,12 +580,15 @@ export class RuMusicCard extends LitElement {
             searching
           )}
         </div>
+        ${top ? this._renderDrillHead(top) : nothing}
         <div class="list">
           ${searching
             ? this._renderSearch()
             : onQueue
               ? this._renderQueue(view, queue)
-              : this._renderLibraryTab(this._tab as LibraryKind)}
+              : top
+                ? this._renderDrill(top)
+                : this._renderLibraryTab(this._tab as LibraryKind)}
         </div>
       </div>
     `;
@@ -567,6 +605,7 @@ export class RuMusicCard extends LitElement {
           this._tab = tab;
           this._query = "";
           this._search = undefined;
+          this._drill = [];
         }}
       >
         ${label}
@@ -596,18 +635,76 @@ export class RuMusicCard extends LitElement {
     return html`${search.load.value.map((row) => this._renderRow(row))}`;
   }
 
-  private _renderRow(row: LibraryRowView): TemplateResult {
+  /** The opened item being listed, if the library tab is drilled into. */
+  private _drillTop(): LibraryRowView | undefined {
+    if (this._query.trim() || this._tab === "queue") return undefined;
+    return this._drill[this._drill.length - 1];
+  }
+
+  private _renderDrillHead(top: LibraryRowView): TemplateResult {
+    const load = this._browse[top.uri];
+    const rows = load?.status === "ready" ? load.value : null;
+    return html`
+      <div class="drill-head">
+        <button
+          class="drill-back"
+          aria-label="Back"
+          title="Back"
+          @click=${() => {
+            this._drill = this._drill.slice(0, -1);
+          }}
+        >
+          ‹
+        </button>
+        <div class="drill-text">
+          <div class="drill-title">${top.name}</div>
+          <div class="drill-meta">${drillMeta(top, rows)}</div>
+        </div>
+        <button
+          class="drill-play"
+          aria-label="Play ${top.name}"
+          @click=${() => this._play(top, "replace")}
+        >
+          ▶ Play
+        </button>
+      </div>
+    `;
+  }
+
+  private _renderDrill(top: LibraryRowView): TemplateResult {
+    const load = this._browse[top.uri];
+    if (!load || load.status === "loading") return this._empty("Loading…");
+    if (load.status === "error") return this._empty(load.message);
+    if (!load.value.length) return this._empty("Nothing in here");
+    return html`${load.value.map((row) => this._renderRow(row, top))}`;
+  }
+
+  /** A row tap: a playlist/album/artist opens; a song inside an opened
+   * playlist/album plays that list from the song; anything else plays. */
+  private _tapRow(row: LibraryRowView, parent?: LibraryRowView): void {
+    if (isDrillable(row.mediaType)) {
+      this._openDrill(row);
+    } else if (parent && parent.mediaType !== "artist") {
+      this._playFrom(parent, row);
+    } else {
+      this._play(row, "replace");
+    }
+  }
+
+  private _renderRow(row: LibraryRowView, parent?: LibraryRowView): TemplateResult {
     const nowTitle = this._view?.now.hasTrack ? this._view.now.title : "";
+    const opens = isDrillable(row.mediaType);
     return html`
       <div
         class="row"
         role="button"
         tabindex="0"
-        @click=${() => this._play(row, "replace")}
+        aria-label=${opens ? `Open ${row.name}` : `Play ${row.name}`}
+        @click=${() => this._tapRow(row, parent)}
         @keydown=${(e: KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            this._play(row, "replace");
+            this._tapRow(row, parent);
           }
         }}
       >
@@ -828,6 +925,40 @@ export class RuMusicCard extends LitElement {
     }
   }
 
+  /** Opens a playlist/album/artist — from a tab, from search (which then
+   * ends, landing on the item's own tab), or from an artist's albums. */
+  private _openDrill(row: LibraryRowView): void {
+    if (this._query.trim()) {
+      clearTimeout(this._searchTimer);
+      this._query = "";
+      this._search = undefined;
+      this._drill = [];
+      this._tab = row.mediaType as LibraryKind;
+    }
+    // A failed read is retried on the next visit instead of sticking.
+    if (this._browse[row.uri]?.status === "error") {
+      const { [row.uri]: _failed, ...rest } = this._browse;
+      this._browse = rest;
+    }
+    this._drill = [...this._drill, row];
+  }
+
+  /** Plays a playlist/album starting at one of its songs. */
+  private _playFrom(parent: LibraryRowView, song: LibraryRowView): void {
+    const view = this._view;
+    if (!view || !this.hass) return;
+    void this.hass
+      .callService("music_assistant", "play_media", {
+        entity_id: view.now.entity,
+        media_id: parent.uri,
+        media_type: parent.mediaType,
+        enqueue: "replace",
+        start_item: song.uri,
+      })
+      .catch(() => this._flash("Couldn't play that"));
+    this._flash(`Playing on ${view.targetName}`);
+  }
+
   private _flash(text: string): void {
     clearTimeout(this._fbTimer);
     this._feedback = text;
@@ -908,6 +1039,7 @@ export class RuMusicCard extends LitElement {
 
   private _onQuery(value: string): void {
     this._query = value;
+    this._drill = [];
     clearTimeout(this._searchTimer);
     const query = value.trim();
     if (!query) {
@@ -935,6 +1067,26 @@ export class RuMusicCard extends LitElement {
     }
     // Drop answers to a query the user has since typed past.
     if (this._query.trim() === query) this._search = { query, load };
+  }
+
+  /** Lists an opened item through HA's media browser for the player. HA
+   * returns a playlist's first page only — long playlists are cut there. */
+  private async _loadBrowse(item: LibraryRowView, entity: string): Promise<void> {
+    this._browse = { ...this._browse, [item.uri]: { status: "loading" } };
+    let load: Load<LibraryRowView[]>;
+    try {
+      if (!this.hass?.callWS) throw new Error("Browsing needs a websocket connection");
+      const node = await this.hass.callWS<MaBrowseNode>({
+        type: "media_player/browse_media",
+        entity_id: entity,
+        media_content_id: item.uri,
+        media_content_type: item.mediaType,
+      });
+      load = { status: "ready", value: drillRows(node) };
+    } catch (error) {
+      load = { status: "error", message: errorText(error) };
+    }
+    this._browse = { ...this._browse, [item.uri]: load };
   }
 
   /** Reads the player's queue. Asks for its items first (`limit`); an HA

@@ -2,8 +2,10 @@
  * Music Assistant simulation for the harness: speakers as MA media players
  * plus the music_assistant.* actions ru-music-card reads (get_library,
  * search, get_queue — answered with response data shaped like HA's) and
- * play_media. Plugs into MockHass via attachMusic(); MockHass routes these
- * service calls and the config_entries/get websocket command here.
+ * play_media (with start_item), plus the media_player/browse_media
+ * websocket command the card lists an opened playlist/album/artist with.
+ * Plugs into MockHass via attachMusic(); MockHass routes these service calls
+ * and the config_entries/get + browse_media websocket commands here.
  *
  * Playback model: every speaker owns a queue of track uris and an index; a
  * grouped member mirrors its leader (group_members[0]) and forwards
@@ -131,7 +133,8 @@ export class MockMusicAssistant {
     return this.players.has(entity);
   }
 
-  /** The read-only actions, logged in `reads` instead of the call log. */
+  /** The read-only actions (and browse_media, as service "browse_media"),
+   * logged in `reads` instead of the call log. */
   readonly reads: Array<{ service: string; data?: Record<string, unknown> }> = [];
 
   isRead(domain: string, service: string): boolean {
@@ -228,7 +231,75 @@ export class MockMusicAssistant {
         },
       ]);
     }
+    if (message.type === "media_player/browse_media") {
+      this.reads.push({ service: "browse_media", data: { ...message } });
+      return this.browse(message);
+    }
     return Promise.reject(new Error(`Unknown command ${String(message.type)}`));
+  }
+
+  /** HA's browse answer for an MA player: a playlist/album lists its
+   * tracks, an artist its albums; child titles read "Artist - Name". */
+  private browse(message: Record<string, unknown>): Promise<unknown> {
+    const player = this.players.get(String(message.entity_id));
+    if (!player || !player.available) {
+      return Promise.reject(new Error("Entity not found"));
+    }
+    const uri = String(message.media_content_id);
+    const trackNode = (track: MockMaTrack) => ({
+      title: `${track.artist} - ${track.name}`,
+      media_class: "track",
+      media_content_type: "track",
+      media_content_id: track.uri,
+      can_play: true,
+      can_expand: false,
+      thumbnail: null,
+    });
+    const node = (
+      title: string,
+      mediaClass: string,
+      children: unknown[]
+    ) => ({
+      title,
+      media_class: mediaClass,
+      media_content_type: mediaClass,
+      media_content_id: uri,
+      can_play: true,
+      can_expand: true,
+      thumbnail: null,
+      children,
+    });
+    const tracksOf = (uris: string[]) =>
+      uris
+        .map((u) => this.track(u))
+        .filter((t): t is MockMaTrack => !!t)
+        .map(trackNode);
+    const playlist = this.spec.playlists.find((p) => p.uri === uri);
+    if (playlist) {
+      return Promise.resolve(node(playlist.name, "playlist", tracksOf(playlist.tracks)));
+    }
+    const album = this.spec.albums.find((a) => a.uri === uri);
+    if (album) {
+      return Promise.resolve(
+        node(`${album.artist} - ${album.name}`, "album", tracksOf(this.resolve(uri)))
+      );
+    }
+    const artist = this.spec.artists.find((a) => a.uri === uri);
+    if (artist) {
+      const albums = this.spec.albums
+        .filter((a) => a.artist === artist.name)
+        .map((a) => ({
+          title: `${a.artist} - ${a.name}`,
+          media_class: "album",
+          media_content_type: "album",
+          media_content_id: a.uri,
+          can_play: true,
+          can_expand: true,
+          thumbnail: null,
+        }));
+      return Promise.resolve(node(artist.name, "artist", albums));
+    }
+    return Promise.reject(new Error("Media not found"));
   }
 
   private mediaService(
@@ -383,8 +454,11 @@ export class MockMusicAssistant {
         } else if (enqueue === "next" && leader.queue.length) {
           leader.queue.splice(leader.index + 1, 0, ...tracks);
         } else {
+          // start_item: play the list from that track on (MA keeps the
+          // whole list queued, so the earlier tracks count as played).
+          const start = tracks.indexOf(String(data.start_item ?? ""));
           leader.queue = [...tracks];
-          leader.index = 0;
+          leader.index = Math.max(0, start);
           leader.position = 0;
           leader.state = "playing";
           leader.stamp = new Date().toISOString();

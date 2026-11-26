@@ -129,9 +129,20 @@ test("the Liked tab lists library tracks, newest likes first", async ({
   await expect(page.locator(`${CARD} .art.round`)).toHaveCount(3);
 });
 
-test("tapping a row plays it, + adds it to the queue", async ({ page }) => {
+test("a playlist opens; Play plays it, + adds it to the queue", async ({
+  page,
+}) => {
   await clearCalls(page);
   await page.locator(`${CARD} .row`, { hasText: "workout" }).click();
+  // Opening reads the contents — it plays nothing.
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText("workout");
+  await expect(page.locator(`${CARD} .row-name`)).toHaveText([
+    "Doomed",
+    "Kingslayer",
+  ]);
+  expect(await actions(page)).toEqual([]);
+
+  await page.locator(`${CARD} .drill-play`).click();
   await expect.poll(() => actions(page)).toEqual([
     {
       domain: "music_assistant",
@@ -149,6 +160,8 @@ test("tapping a row plays it, + adds it to the queue", async ({ page }) => {
   );
   await expect(page.locator(`${CARD} .track-title`)).toHaveText("Doomed");
 
+  await page.locator(`${CARD} .drill-back`).click();
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
   await clearCalls(page);
   await page
     .locator(`${CARD} .row`, { hasText: "chill" })
@@ -359,6 +372,7 @@ test("the group button joins and unjoins the speakers", async ({ page }) => {
   await page.locator(`${CARD} .speaker`, { hasText: "Workshop" }).click();
   await clearCalls(page);
   await page.locator(`${CARD} .row`, { hasText: "chill" }).click();
+  await page.locator(`${CARD} .drill-play`).click();
   await expect.poll(() => actions(page)).toEqual([
     {
       domain: "music_assistant",
@@ -454,6 +468,164 @@ test("dark mode flips the palette", async ({ page }) => {
   const dark = await surface.evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(dark).toBe("rgb(26, 27, 30)");
   expect(light).toBe("rgb(245, 246, 250)");
+});
+
+test("a song in a playlist plays the playlist from that song", async ({
+  page,
+}) => {
+  await page.locator(`${CARD} .row`, { hasText: "All Things Metalcore" }).click();
+  await expect(page.locator(`${CARD} .drill-meta`)).toHaveText(
+    "Playlist · 3 songs"
+  );
+  await expect(page.locator(`${CARD} .row-name`)).toHaveText([
+    "Kingslayer",
+    "Animals",
+    "Doomed",
+  ]);
+  await expect(page.locator(`${CARD} .row-meta`)).toHaveText([
+    "Bring Me The Horizon",
+    "Architects",
+    "Bring Me The Horizon",
+  ]);
+  // The now-playing song is highlighted in the list.
+  await expect(page.locator(`${CARD} .row-name.now`)).toHaveText("Kingslayer");
+  const browse = (await page.evaluate(() => window.__harness.musicReads)).filter(
+    (read) => read.service === "browse_media"
+  );
+  expect(browse.map((read) => read.data)).toEqual([
+    {
+      type: "media_player/browse_media",
+      entity_id: LIVING,
+      media_content_id: "playlist:metalcore",
+      media_content_type: "playlist",
+    },
+  ]);
+
+  await clearCalls(page);
+  await page.locator(`${CARD} .row`, { hasText: "Animals" }).click();
+  await expect.poll(() => actions(page)).toEqual([
+    {
+      domain: "music_assistant",
+      service: "play_media",
+      data: {
+        entity_id: LIVING,
+        media_id: "playlist:metalcore",
+        media_type: "playlist",
+        enqueue: "replace",
+        start_item: "track:animals",
+      },
+    },
+  ]);
+  await expect(page.locator(`${CARD} .track-title`)).toHaveText("Animals");
+  // The playlist's remaining song is up next.
+  await expect(page.locator(`${CARD} .tab`).last()).toHaveText("Queue · 1");
+
+  // + on a song adds just that song.
+  await clearCalls(page);
+  await page
+    .locator(`${CARD} .row`, { hasText: "Doomed" })
+    .locator(".row-act")
+    .click();
+  await expect.poll(() => actions(page)).toEqual([
+    {
+      domain: "music_assistant",
+      service: "play_media",
+      data: {
+        entity_id: LIVING,
+        media_id: "track:doomed",
+        media_type: "track",
+        enqueue: "add",
+      },
+    },
+  ]);
+  await expect(page.locator(`${CARD} .tab`).last()).toHaveText("Queue · 2");
+});
+
+test("an artist opens its albums, an album its songs, back steps out", async ({
+  page,
+}) => {
+  await page.locator(`${CARD} .tab`, { hasText: "Artists" }).click();
+  await page.locator(`${CARD} .row`, { hasText: "Bring Me The Horizon" }).click();
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText(
+    "Bring Me The Horizon"
+  );
+  await expect(page.locator(`${CARD} .drill-meta`)).toHaveText("Artist · 1 album");
+  await expect(page.locator(`${CARD} .row-name`)).toHaveText([
+    "Post Human: Survival Horror",
+  ]);
+  await expect(page.locator(`${CARD} .row-meta`)).toHaveText(["Album"]);
+
+  await page.locator(`${CARD} .row`, { hasText: "Post Human" }).click();
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText(
+    "Post Human: Survival Horror"
+  );
+  await expect(page.locator(`${CARD} .drill-meta`)).toHaveText(
+    "Album · Bring Me The Horizon · 1 song"
+  );
+  await clearCalls(page);
+  await page.locator(`${CARD} .row`, { hasText: "Kingslayer" }).click();
+  await expect.poll(() => actions(page)).toEqual([
+    {
+      domain: "music_assistant",
+      service: "play_media",
+      data: {
+        entity_id: LIVING,
+        media_id: "album:post-human",
+        media_type: "album",
+        enqueue: "replace",
+        start_item: "track:kingslayer",
+      },
+    },
+  ]);
+
+  await page.locator(`${CARD} .drill-back`).click();
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText(
+    "Bring Me The Horizon"
+  );
+  await page.locator(`${CARD} .drill-back`).click();
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
+  await expect(page.locator(`${CARD} .tab.on`)).toHaveText("Artists");
+  await expect(page.locator(`${CARD} .row-name`)).toHaveCount(3);
+});
+
+test("search results open too; a tab or a new search leaves the drill", async ({
+  page,
+}) => {
+  await page.locator(`${CARD} .search`).fill("metalcore");
+  await page.locator(`${CARD} .row`, { hasText: "All Things Metalcore" }).click();
+  // The search ends and the item opens on its own tab.
+  await expect(page.locator(`${CARD} .search`)).toHaveValue("");
+  await expect(page.locator(`${CARD} .tab.on`)).toHaveText("Playlists");
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText(
+    "All Things Metalcore"
+  );
+
+  await page.locator(`${CARD} .tab`, { hasText: "Albums" }).click();
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
+  await page.locator(`${CARD} .tab`, { hasText: "Playlists" }).click();
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
+  await expect(page.locator(`${CARD} .row-name`)).toHaveCount(4);
+
+  await page.locator(`${CARD} .row`, { hasText: "chill" }).click();
+  await expect(page.locator(`${CARD} .drill-title`)).toHaveText("chill");
+  await page.locator(`${CARD} .search`).fill("animals");
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
+  await page.locator(`${CARD} .search`).fill("");
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
+  await expect(page.locator(`${CARD} .row-name`)).toHaveCount(4);
+});
+
+test("the drill header sits in the library column of the wide mount", async ({
+  page,
+}) => {
+  await page.locator(`${WIDE} .row`, { hasText: "workout" }).click();
+  const head = page.locator(`${WIDE} .panel.library .drill-head`);
+  await expect(head.locator(".drill-title")).toHaveText("workout");
+  const box = (await head.boundingBox())!;
+  const list = (await page.locator(`${WIDE} .list`).boundingBox())!;
+  expect(list.y).toBeGreaterThan(box.y + box.height - 1);
+  // Mounts keep their own drill state.
+  await expect(page.locator(`${CARD} .drill-head`)).toHaveCount(0);
 });
 
 test("the wide mount puts the library beside the player", async ({

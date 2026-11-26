@@ -80,7 +80,7 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
 
 <!-- ============ 1a WIDE LIGHT ============ -->
 <div class="dv-opt" id="1a" data-screen-label="1a Music wide light">
-  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Light — library and queue sit beside the player, so browsing never pushes the controls off-screen.</div>
+  <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Light — library and queue sit beside the player, so browsing never pushes the controls off-screen. Shown drilled into a playlist — ‹ goes back.</div>
   <div class="dv-card" style="width:760px">
     <div class="mc">
       <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
@@ -154,7 +154,17 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
               <div onClick="{{ t.select }}" class="{{ t.cls }}">{{ t.label }}</div>
             </sc-for>
           </div>
-          <div class="list">
+          <sc-if value="{{ drilling }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div onClick="{{ drillBack }}" class="btn" title="Back" style="width:30px;height:30px;border-radius:10px;font-size:17px;font-weight:700">&#8249;</div>
+            <div style="flex:1;min-width:0">
+              <div class="ink" style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ drillTitle }}</div>
+              <div class="sub" style="font-size:11px;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ drillMeta }}</div>
+            </div>
+            <div onClick="{{ drillPlay }}" class="btn on" style="height:30px;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;gap:5px">&#9654; Play</div>
+          </div>
+        </sc-if>
+        <div class="list">
             <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
               <div onClick="{{ r.play }}" class="row" style="opacity:{{ r.rowOp }}">
                 <div class="art" style="width:40px;height:40px;border-radius:{{ r.artR }}">{{ r.artLabel }}</div>
@@ -253,7 +263,17 @@ a{color:#2a78d6}a:hover{color:#1b5fae}
               <div onClick="{{ t.select }}" class="{{ t.cls }}">{{ t.label }}</div>
             </sc-for>
           </div>
-          <div class="list">
+          <sc-if value="{{ drilling }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div onClick="{{ drillBack }}" class="btn" title="Back" style="width:30px;height:30px;border-radius:10px;font-size:17px;font-weight:700">&#8249;</div>
+            <div style="flex:1;min-width:0">
+              <div class="ink" style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ drillTitle }}</div>
+              <div class="sub" style="font-size:11px;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ drillMeta }}</div>
+            </div>
+            <div onClick="{{ drillPlay }}" class="btn on" style="height:30px;border-radius:10px;padding:0 12px;font-size:12px;font-weight:700;gap:5px">&#9654; Play</div>
+          </div>
+        </sc-if>
+        <div class="list">
             <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
               <div onClick="{{ r.play }}" class="row" style="opacity:{{ r.rowOp }}">
                 <div class="art" style="width:40px;height:40px;border-radius:{{ r.artR }}">{{ r.artLabel }}</div>
@@ -329,6 +349,8 @@ class Component extends DCLogic {
 
   state = {
     sel: 'lr', grouped: false, tab: 'playlists', query: '', feedback: '', repeat: 'off',
+    // Drill-down stack: [{ kind, it }] — playlist/album → songs, artist → albums.
+    drill: [{ kind: 'playlists', it: { n: 'All Things Metalcore', m: 'Playlist · Spotify' } }],
     sp: {
       lr: {
         queue: [
@@ -369,6 +391,14 @@ class Component extends DCLogic {
     if (p.idx + 1 < p.queue.length) return { ...p, idx: p.idx + 1, pos: 0, playing: true };
     if (r === 'all' && p.queue.length) return { ...p, idx: 0, pos: 0, playing: true };
     return { ...p, pos: auto ? p.queue[p.idx].dur : p.pos, playing: false };
+  }
+
+  // + on anything: append to the queue (start playing if the queue is empty).
+  enqueue(tracks) {
+    this.patch(this.targets(), (p) => p.queue[p.idx]
+      ? { queue: p.queue.concat(tracks) }
+      : { queue: p.queue.concat(tracks), idx: p.queue.length, pos: 0, playing: true });
+    this.flash('Queued on ' + this.where());
   }
 
   tracksFor(it, kind) {
@@ -466,6 +496,7 @@ class Component extends DCLogic {
         nameCls: 'rname ' + (isNow ? 'acc' : 'ink'),
         rowOp: '1',
         play: () => {
+          if (it.kind !== 'liked') { this.setState({ drill: [{ kind: it.kind, it }], query: '' }); return; }
           this.patch(this.targets(), () => ({ queue: tracks(), idx: 0, pos: 0, playing: true }));
           this.flash('Playing on ' + this.where());
         },
@@ -481,7 +512,38 @@ class Component extends DCLogic {
       };
     });
 
-    const rows = onQueue ? queueRows : libRows;
+    const top = !q && !onQueue && s.drill.length ? s.drill[s.drill.length - 1] : null;
+    let drillRows = [];
+    let drillMeta = '';
+    let drillAll = [];
+    if (top && top.kind === 'artists') {
+      const albums = this.LIB.albums.filter((al) => al.m === top.it.n);
+      drillMeta = 'Artist · ' + albums.length + (albums.length === 1 ? ' album' : ' albums');
+      drillAll = this.tracksFor(top.it, 'artists');
+      drillRows = albums.map((al) => ({
+        name: al.n, meta: 'Album', artR: '8px', artLabel: 'cover',
+        nameCls: 'rname ' + (has && track.from === al.n ? 'acc' : 'ink'), rowOp: '1',
+        play: () => this.setState({ drill: s.drill.concat([{ kind: 'albums', it: al }]) }),
+        showAct: true, actGlyph: '+', actTitle: 'Add album to queue',
+        act: (e) => { e.stopPropagation(); this.enqueue(this.tracksFor(al, 'albums')); }
+      }));
+    } else if (top) {
+      drillAll = this.tracksFor(top.it, top.kind);
+      drillMeta = (top.kind === 'albums' ? 'Album · ' + top.it.m : 'Playlist') + ' · ' + drillAll.length + ' songs';
+      drillRows = drillAll.map((t, i) => ({
+        name: t.n, meta: t.m, artR: '8px', artLabel: 'cover',
+        nameCls: 'rname ' + (has && track.n === t.n && track.from === t.from ? 'acc' : 'ink'), rowOp: '1',
+        // A song plays the playlist / album from that song on.
+        play: () => {
+          this.patch(this.targets(), () => ({ queue: drillAll, idx: i, pos: 0, playing: true }));
+          this.flash('Playing on ' + this.where());
+        },
+        showAct: true, actGlyph: '+', actTitle: 'Add song to queue',
+        act: (e) => { e.stopPropagation(); this.enqueue([t]); }
+      }));
+    }
+
+    const rows = onQueue ? queueRows : top ? drillRows : libRows;
 
     return {
       summaryText: summary,
@@ -540,17 +602,25 @@ class Component extends DCLogic {
         };
       }),
       libTitle: onQueue ? 'Queue · ' + this.where() : 'Library',
+      drilling: !!top,
+      drillTitle: top ? top.it.n : '',
+      drillMeta,
+      drillBack: () => this.setState({ drill: s.drill.slice(0, -1) }),
+      drillPlay: () => {
+        this.patch(this.targets(), () => ({ queue: drillAll, idx: 0, pos: 0, playing: true }));
+        this.flash('Playing on ' + this.where());
+      },
       feedback: s.feedback,
       query: s.query,
-      onQuery: (e) => this.setState({ query: e.target.value }),
+      onQuery: (e) => this.setState({ query: e.target.value, drill: [] }),
       tabs: this.TABS.map((t) => ({
         label: t.id === 'queue' && upNext ? 'Queue · ' + upNext : t.label,
         cls: 'btn tab' + (!q && s.tab === t.id ? ' on' : ''),
-        select: () => this.setState({ tab: t.id, query: '' })
+        select: () => this.setState({ tab: t.id, query: '', drill: [] })
       })),
       rows,
       noRows: rows.length === 0,
-      emptyText: onQueue ? 'Queue is empty — tap + on anything in the library' : 'No matches for “' + s.query + '”'
+      emptyText: top ? 'Nothing in here' : onQueue ? 'Queue is empty — tap + on anything in the library' : 'No matches for “' + s.query + '”'
     };
   }
 }

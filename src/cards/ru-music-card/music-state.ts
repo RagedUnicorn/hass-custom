@@ -56,6 +56,19 @@ export interface MaMediaItem {
   album?: MaMediaItem | null;
 }
 
+/** A node of HA's media_player/browse_media answer for a Music Assistant
+ * player — a playlist or album (children: tracks) or an artist (children:
+ * albums). Child titles read "Artist - Name" when the item has artists. */
+export interface MaBrowseNode {
+  title: string;
+  media_class?: string;
+  media_content_type?: string;
+  media_content_id: string;
+  can_expand?: boolean;
+  thumbnail?: string | null;
+  children?: MaBrowseNode[];
+}
+
 export interface MaQueueItem {
   queue_item_id: string;
   name: string;
@@ -141,6 +154,13 @@ export interface LibraryRowView {
   image: string | null;
   /** Artists get a round thumbnail. */
   round: boolean;
+  /** The item's artists ("" if none) — the drill header of an album. */
+  artists: string;
+}
+
+/** Kinds a row tap opens instead of playing. */
+export function isDrillable(mediaType: string): boolean {
+  return mediaType === "playlist" || mediaType === "album" || mediaType === "artist";
 }
 
 export interface QueueRowView {
@@ -389,6 +409,7 @@ export function libraryRow(item: MaMediaItem, withKind = false): LibraryRowView 
     meta,
     image: item.image ?? null,
     round: item.media_type === "artist",
+    artists,
   };
 }
 
@@ -402,6 +423,44 @@ export function searchRows(response: Record<string, unknown>): LibraryRowView[] 
       ? (items as MaMediaItem[]).map((item) => libraryRow(item, true))
       : [];
   });
+}
+
+/** "Artist - Name" → ["Artist", "Name"]; a title without the separator is
+ * all name. Only the first " - " splits: song titles keep theirs
+ * ("Doomed - Live"), artist names rarely have one. */
+function splitTitle(title: string): [string, string] {
+  const at = title.indexOf(" - ");
+  return at > 0 ? [title.slice(0, at), title.slice(at + 3)] : ["", title];
+}
+
+/** The children of a browsed playlist/album (songs) or artist (albums). */
+export function drillRows(node: MaBrowseNode): LibraryRowView[] {
+  return (node.children ?? []).map((child) => {
+    const mediaType = child.media_content_type || child.media_class || "track";
+    const [artists, name] = splitTitle(child.title);
+    return {
+      uri: child.media_content_id,
+      mediaType,
+      name,
+      meta: mediaType === "album" ? "Album" : artists,
+      image: child.thumbnail ?? null,
+      round: false,
+      artists,
+    };
+  });
+}
+
+/** The drill header's second line: "Playlist · 12 songs",
+ * "Album · Architects · 11 songs", "Artist · 3 albums". */
+export function drillMeta(parent: LibraryRowView, rows: LibraryRowView[] | null): string {
+  const kind = SEARCH_KIND_LABELS[parent.mediaType] ?? parent.mediaType;
+  const parts = [kind];
+  if (parent.mediaType === "album" && parent.artists) parts.push(parent.artists);
+  if (rows) {
+    const noun = parent.mediaType === "artist" ? "album" : "song";
+    parts.push(`${rows.length} ${noun}${rows.length === 1 ? "" : "s"}`);
+  }
+  return parts.join(" · ");
 }
 
 function queueRow(
