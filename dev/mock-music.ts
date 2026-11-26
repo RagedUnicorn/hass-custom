@@ -114,6 +114,17 @@ export class MockMusicAssistant {
     this.queueItems = supported;
   }
 
+  /** Test hook: replace a speaker's queue (track uris) and its position. */
+  setQueue(entity: string, tracks: string[], index = 0): void {
+    const player = this.players.get(entity);
+    if (!player) return;
+    player.queue = [...tracks];
+    player.index = index;
+    player.position = 0;
+    player.stamp = new Date().toISOString();
+    this.onChange();
+  }
+
   /** Test hook: patch a speaker directly. */
   setPlayer(
     entity: string,
@@ -400,8 +411,12 @@ export class MockMusicAssistant {
         });
       }
       case "get_queue": {
-        if ("limit" in data && !this.queueItems) {
+        if (("limit" in data || "offset" in data) && !this.queueItems) {
           return fail("extra keys not allowed @ data['limit']");
+        }
+        // HA 2026.12: an offset needs a limit.
+        if (Number(data.offset ?? 0) && !Number(data.limit ?? 0)) {
+          return fail("offset_needs_limit");
         }
         const player = this.players.get(String(data.entity_id));
         if (!player || !player.available) return fail("Entity not found");
@@ -432,11 +447,12 @@ export class MockMusicAssistant {
             leader.index + 1 < leader.queue.length
               ? item(leader.index + 1)
               : null,
-          ...("limit" in data
+          ...(Number(data.limit ?? 0)
             ? {
                 queue_items: leader.queue
+                  .slice(Number(data.offset ?? 0))
                   .slice(0, Number(data.limit))
-                  .map((_, i) => item(i)),
+                  .map((_, i) => item(Number(data.offset ?? 0) + i)),
               }
             : {}),
         });

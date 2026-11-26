@@ -55,8 +55,16 @@ type Tab = LibraryKind | "queue";
 const DEFAULT_LIBRARY_LIMIT = 100;
 const DEFAULT_SEARCH_LIMIT = 5;
 
-/** Queue items asked for where the get_queue action supports `limit`. */
+/** Queue items asked for (per "Show more") where the get_queue action
+ * supports `limit`. */
 const QUEUE_LIMIT = 50;
+
+/** get_queue's `limit` maximum. */
+const QUEUE_MAX = 500;
+
+/** Holding a row's + this long adds to the end of the queue instead of
+ * playing next. */
+const HOLD_MS = 500;
 
 /** Pause after the last keystroke before a search goes out. */
 const SEARCH_DEBOUNCE_MS = 350;
@@ -67,7 +75,7 @@ const FEEDBACK_MS = 1800;
 /** How long a seeked position holds without HA confirming it. */
 const SEEK_PENDING_MS = 10000;
 
-/** Re-read the queue this long after enqueueing — "add" changes nothing in
+/** Re-read the queue this long after enqueueing — "next"/"add" change nothing in
  * the player's state, so no state change would trigger the refresh. */
 const QUEUE_REFRESH_MS = 1000;
 
@@ -150,6 +158,13 @@ export class RuMusicCard extends LitElement {
 
   private _queueToken = 0;
 
+  /** How many QUEUE_LIMIT pages the queue list shows ("Show more"). */
+  private _queuePages = 1;
+
+  /** A held + — its timer, and whether it fired (the click then skips). */
+  private _hold?: ReturnType<typeof setTimeout>;
+  private _held = false;
+
   private _feedback = "";
 
   /** Live values (drag key → 0..100) of seek/volume drags in progress. */
@@ -214,6 +229,7 @@ export class RuMusicCard extends LitElement {
     this._lib = {};
     this._search = undefined;
     this._queue = undefined;
+    this._queuePages = 1;
     this._drill = [];
     this._browse = {};
     this._drag = {};
@@ -254,6 +270,7 @@ export class RuMusicCard extends LitElement {
     clearInterval(this._clock);
     clearTimeout(this._fbTimer);
     clearTimeout(this._searchTimer);
+    clearTimeout(this._hold);
     super.disconnectedCallback();
   }
 
@@ -717,11 +734,20 @@ export class RuMusicCard extends LitElement {
         </div>
         <button
           class="row-act"
-          aria-label="Add ${row.name} to queue"
-          title="Add to queue"
-          @click=${(e: Event) => {
+          aria-label="Play ${row.name} next"
+          title="Play next — hold to add to the end of the queue"
+          @pointerdown=${() => this._holdStart(row)}
+          @pointerup=${this._holdEnd}
+          @pointerleave=${this._holdEnd}
+          @pointercancel=${this._holdEnd}
+          @contextmenu=${(e: Event) => e.preventDefault()}
+          @click=${(e: MouseEvent) => {
             e.stopPropagation();
-            this._play(row, "add");
+            if (this._held) {
+              this._held = false;
+              return;
+            }
+            this._play(row, e.shiftKey ? "add" : "next");
           }}
         >
           +
@@ -729,6 +755,22 @@ export class RuMusicCard extends LitElement {
       </div>
     `;
   }
+
+  /** A + press starts the hold timer; firing it adds to the end. */
+  private _holdStart(row: LibraryRowView): void {
+    clearTimeout(this._hold);
+    this._held = false;
+    this._hold = setTimeout(() => {
+      this._hold = undefined;
+      this._held = true;
+      this._play(row, "add");
+    }, HOLD_MS);
+  }
+
+  private _holdEnd = (): void => {
+    clearTimeout(this._hold);
+    this._hold = undefined;
+  };
 
   private _queueView(view: MusicView) {
     const queue = this._queue;
@@ -751,10 +793,21 @@ export class RuMusicCard extends LitElement {
     return html`
       ${queueView.rows.map((row) => this._renderQueueRow(row))}
       ${queueView.more
-        ? html`<div class="more">+ ${queueView.more} more in the queue</div>`
+        ? this._queueItemsSupported &&
+          QUEUE_LIMIT * this._queuePages < QUEUE_MAX
+          ? html`<button class="more show-more" @click=${this._showMore}>
+              Show more · ${queueView.more} left in the queue
+            </button>`
+          : html`<div class="more">+ ${queueView.more} more in the queue</div>`
         : nothing}
     `;
   }
+
+  /** The next QUEUE_LIMIT tracks: a re-read with a larger limit. */
+  private _showMore = (): void => {
+    this._queuePages += 1;
+    if (this._queue) this._queue = { ...this._queue, key: "" };
+  };
 
   private _renderQueueRow(row: QueueRowView): TemplateResult {
     return html`
@@ -903,8 +956,9 @@ export class RuMusicCard extends LitElement {
   }
 
   /** Plays a library/search row on the selected speaker (its group leader
-   * while grouped): "replace" swaps the queue, "add" appends to it. */
-  private _play(row: LibraryRowView, enqueue: "replace" | "add"): void {
+   * while grouped): "replace" swaps the queue, "next" puts it right after
+   * the current track, "add" appends it to the end. */
+  private _play(row: LibraryRowView, enqueue: "replace" | "next" | "add"): void {
     const view = this._view;
     if (!view || !this.hass) return;
     void this.hass
@@ -916,9 +970,13 @@ export class RuMusicCard extends LitElement {
       })
       .catch(() => this._flash("Couldn't play that"));
     this._flash(
-      `${enqueue === "add" ? "Queued" : "Playing"} on ${view.targetName}`
+      enqueue === "next"
+        ? `Playing next on ${view.targetName}`
+        : enqueue === "add"
+          ? `Added to the end on ${view.targetName}`
+          : `Playing on ${view.targetName}`
     );
-    if (enqueue === "add") {
+    if (enqueue !== "replace") {
       setTimeout(() => {
         if (this._queue) this._queue = { ...this._queue, key: "" };
       }, QUEUE_REFRESH_MS);
@@ -1089,34 +1147,36 @@ export class RuMusicCard extends LitElement {
     this._browse = { ...this._browse, [item.uri]: load };
   }
 
-  /** Reads the player's queue. Asks for its items first (`limit`); an HA
-   * release without that field rejects the call, and the plain read then
-   * gives at least the current and next item. No active queue → null. */
+  /** Reads the player's queue: the plain read (current, next, size), then
+   * — where get_queue takes `limit` — its items from the current track on,
+   * QUEUE_LIMIT per "Show more" page. An HA release without `limit`
+   * rejects that second call, and the card stays with the plain read from
+   * then on. No active queue → null. */
   private async _loadQueue(entity: string, key: string): Promise<void> {
     const token = ++this._queueToken;
-    const keep =
-      this._queue?.entity === entity ? this._queue.load : undefined;
+    const same = this._queue?.entity === entity;
+    if (!same) this._queuePages = 1;
+    const keep = same ? this._queue?.load : undefined;
     this._queue = { entity, key, load: keep ?? { status: "loading" } };
     let details: MaQueueDetails | null = null;
     try {
-      if (this._queueItemsSupported !== false) {
+      details = await this._ask<MaQueueDetails>("get_queue", {
+        entity_id: entity,
+      });
+      if (details && this._queueItemsSupported !== false) {
+        const offset = details.current_index ?? 0;
         try {
-          details = await this._ask<MaQueueDetails>("get_queue", {
+          const listed = await this._ask<MaQueueDetails>("get_queue", {
             entity_id: entity,
-            limit: QUEUE_LIMIT,
+            limit: Math.min(QUEUE_MAX, QUEUE_LIMIT * this._queuePages),
+            offset,
           });
+          details = { ...listed, queue_offset: offset };
           this._queueItemsSupported = true;
         } catch (error) {
           if (this._queueItemsSupported === true) throw error;
-          details = await this._ask<MaQueueDetails>("get_queue", {
-            entity_id: entity,
-          });
           this._queueItemsSupported = false;
         }
-      } else {
-        details = await this._ask<MaQueueDetails>("get_queue", {
-          entity_id: entity,
-        });
       }
     } catch {
       details = null;

@@ -10,9 +10,10 @@ a Queue tab.
 Tap a playlist, album or artist to open it: **▶ Play** in its header plays
 all of it, a song plays the playlist or album from that song on, and an
 artist lists its albums. A song (Liked or a search result) plays on tap,
-replacing what is queued on the selected speaker. **+** on any row adds it to
-the end of the queue. While speakers are grouped, everything plays on the
-whole group.
+replacing what is queued on the selected speaker. **+** on any row plays it
+next, right after the current song; hold **+** (or Shift-click it) to add it
+to the end of the queue instead. While speakers are grouped, everything
+plays on the whole group.
 
 Playback, volume and grouping go through the speakers' `media_player`
 entities; the library, search and queue are read with the
@@ -78,12 +79,14 @@ A player can also be given as a bare entity id:
   it. Home Assistant's media browser returns only the first page of a
   playlist, so a very long playlist is listed (and countable) only up to
   that page — **▶ Play** still plays all of it.
-- **Queue** is read-only: it shows the current and the next track of the
-  selected speaker's queue and how many more follow — or the whole queue
-  (up to 50 tracks) on Home Assistant releases whose `get_queue` lists the
-  queue's items, which the card detects by itself. Home Assistant has no
-  action to jump to or remove a queue item, so unlike the mock the rows have
-  no tap or **×** action.
+- **Queue** is read-only. On Home Assistant 2026.12 and later, whose
+  `get_queue` lists the queue's items, it lists the selected speaker's
+  queue from the current track on, 50 tracks at a time — **Show more**
+  loads the next 50 (up to 500). Older releases only report the current
+  and the next track, so the tab shows those two and how many more follow;
+  the card detects which by itself. Home Assistant has no action to jump to
+  or remove a queue item, so unlike the mock the rows have no tap or **×**
+  action.
 - **Repeat** cycles off → all → one (`media_player.repeat_set`); there is no
   shuffle control.
 - **Artwork.** The now-playing cover loads through Home Assistant's own

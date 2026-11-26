@@ -388,6 +388,10 @@ export const cardStyles = css`
     color: var(--ru-music-accent);
   }
 
+  .show-more:active {
+    opacity: 0.6;
+  }
+
   .t-btn:not(:disabled):active,
   .t-play:not(:disabled):active,
   .speaker:active,
@@ -677,6 +681,11 @@ export const cardStyles = css`
     font-weight: 700;
     background: var(--ru-music-control-bg);
     color: var(--ru-music-label);
+    /* Held to add to the end: no text selection or callout on touch. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
   }
 
   .empty,
@@ -690,6 +699,12 @@ export const cardStyles = css`
 
   .more {
     padding: 10px 0 4px;
+  }
+
+  .show-more {
+    display: block;
+    width: 100%;
+    color: var(--ru-music-accent);
   }
 
   /* --- wide layout -------------------------------------------------------- */

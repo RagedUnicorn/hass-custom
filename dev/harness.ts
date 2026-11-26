@@ -856,6 +856,8 @@ export interface Harness {
   musicReads: Array<{ service: string; data?: Record<string, unknown> }>;
   /** Music Assistant: get_queue accepts `limit` (newer HA) or not. */
   setQueueItems(supported: boolean): void;
+  /** Music Assistant: replace a speaker's queue (track uris) and index. */
+  setMusicQueue(entity: string, tracks: string[], index?: number): void;
   setMusicPlayer(
     entity: string,
     patch: { state?: "idle" | "playing" | "paused"; available?: boolean }
@@ -890,6 +892,7 @@ window.__harness = {
   setReactionMs: (ms) => mock.setReactionMs(ms),
   musicReads: music.reads,
   setQueueItems: (supported) => music.setQueueItems(supported),
+  setMusicQueue: (entity, tracks, index) => music.setQueue(entity, tracks, index),
   setMusicPlayer: (entity, patch) => music.setPlayer(entity, patch),
   reset: () => mock.reset(),
 };

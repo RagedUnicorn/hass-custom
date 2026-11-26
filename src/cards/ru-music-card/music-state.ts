@@ -83,6 +83,9 @@ export interface MaQueueDetails {
   next_item: MaQueueItem | null;
   /** Only returned when the action supports and was asked for `limit`. */
   queue_items?: MaQueueItem[];
+  /** Card-side: the queue position queue_items starts at (the `offset`
+   * the card asked for). Not part of HA's answer. */
+  queue_offset?: number;
 }
 
 // --- views -------------------------------------------------------------------------
@@ -482,9 +485,10 @@ function queueRow(
   };
 }
 
-/** The queue as rows. With queue_items (newer HA) the full window is
- * listed; otherwise only the current and next item are known, and the rest
- * becomes a "+N more" count. */
+/** The queue as rows. With queue_items (newer HA) the window the card
+ * asked for is listed — it starts at queue_offset, normally the current
+ * track; otherwise only the current and next item are known. Either way the
+ * tracks after the listed ones become the "more" count. */
 export function buildQueueView(
   queue: MaQueueDetails,
   playing: boolean
@@ -492,10 +496,15 @@ export function buildQueueView(
   const index = queue.current_index ?? 0;
   const upNext = Math.max(0, queue.items - index - 1);
   if (queue.queue_items) {
+    const offset = queue.queue_offset ?? 0;
     const rows = queue.queue_items.map((item, i) =>
-      queueRow(item, i === queue.current_index, i < index, playing)
+      queueRow(item, offset + i === queue.current_index, offset + i < index, playing)
     );
-    return { rows, more: Math.max(0, queue.items - rows.length), upNext };
+    return {
+      rows,
+      more: Math.max(0, queue.items - offset - rows.length),
+      upNext,
+    };
   }
   const rows: QueueRowView[] = [];
   if (queue.current_item) {

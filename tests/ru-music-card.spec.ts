@@ -41,6 +41,32 @@ async function actions(page: Page) {
   );
 }
 
+/** Mounts a fresh card on the harness state and returns its selector.
+ * The first get_queue answer decides whether a card asks for items, and
+ * the harness card already learned "no". */
+async function mountFresh(page: Page): Promise<string> {
+  await page.evaluate(() => {
+    const old = document.querySelector("#card-music ru-music-card") as
+      | (HTMLElement & { hass: unknown })
+      | null;
+    const fresh = document.createElement("ru-music-card") as HTMLElement & {
+      setConfig(config: unknown): void;
+      hass: unknown;
+    };
+    fresh.setConfig({
+      type: "custom:ru-music-card",
+      players: [
+        { entity: "media_player.sonos_livingroom_ma", name: "Living Room" },
+        { entity: "media_player.sonos_workshop_ma", name: "Workshop" },
+      ],
+    });
+    fresh.hass = old!.hass;
+    fresh.id = "fresh-music";
+    document.getElementById("card-music")!.appendChild(fresh);
+  });
+  return "#fresh-music";
+}
+
 async function clearCalls(page: Page): Promise<void> {
   await page.evaluate(() => {
     window.__harness.calls.length = 0;
@@ -129,7 +155,7 @@ test("the Liked tab lists library tracks, newest likes first", async ({
   await expect(page.locator(`${CARD} .art.round`)).toHaveCount(3);
 });
 
-test("a playlist opens; Play plays it, + adds it to the queue", async ({
+test("a playlist opens; Play plays it, + plays it next", async ({
   page,
 }) => {
   await clearCalls(page);
@@ -175,12 +201,12 @@ test("a playlist opens; Play plays it, + adds it to the queue", async ({
         entity_id: LIVING,
         media_id: "playlist:chill",
         media_type: "playlist",
-        enqueue: "add",
+        enqueue: "next",
       },
     },
   ]);
   await expect(page.locator(`${CARD} .feedback`)).toHaveText(
-    "Queued on Living Room"
+    "Playing next on Living Room"
   );
   // Still playing the same track; the queue re-read picks up the additions
   // (workout's 2 tracks + chill's 2 → 3 after the current one).
@@ -267,29 +293,8 @@ test("the queue tab shows current, next and the rest as a count", async ({
 test("with get_queue item support the whole queue is listed", async ({
   page,
 }) => {
-  // A fresh card instance: the first get_queue answer decides whether the
-  // card asks for items, and the harness card already learned "no".
-  await page.evaluate(() => {
-    window.__harness.setQueueItems(true);
-    const old = document.querySelector("#card-music ru-music-card") as
-      | (HTMLElement & { hass: unknown })
-      | null;
-    const fresh = document.createElement("ru-music-card") as HTMLElement & {
-      setConfig(config: unknown): void;
-      hass: unknown;
-    };
-    fresh.setConfig({
-      type: "custom:ru-music-card",
-      players: [
-        { entity: "media_player.sonos_livingroom_ma", name: "Living Room" },
-        { entity: "media_player.sonos_workshop_ma", name: "Workshop" },
-      ],
-    });
-    fresh.hass = old!.hass;
-    fresh.id = "fresh-music";
-    document.getElementById("card-music")!.appendChild(fresh);
-  });
-  const fresh = "#fresh-music";
+  await page.evaluate(() => window.__harness.setQueueItems(true));
+  const fresh = await mountFresh(page);
   await page.locator(`${fresh} .tab`, { hasText: "Queue" }).click();
   await expect(page.locator(`${fresh} .row-name`)).toHaveText([
     "Kingslayer",
@@ -302,8 +307,122 @@ test("with get_queue item support the whole queue is listed", async ({
     (call) =>
       call.service === "get_queue" && call.data?.entity_id === LIVING
   );
-  expect(queueCalls.some((call) => call.data?.limit === 50)).toBe(true);
+  // Listed from the current track on.
+  expect(
+    queueCalls.some(
+      (call) => call.data?.limit === 50 && call.data?.offset === 0
+    )
+  ).toBe(true);
   await page.evaluate(() => window.__harness.setQueueItems(false));
+});
+
+test("a long queue lists from the current track, Show more pages on", async ({
+  page,
+}) => {
+  const uris = [
+    "track:kingslayer",
+    "track:animals",
+    "track:just-pretend",
+    "track:doomed",
+  ];
+  await page.evaluate(
+    ({ uris, living }) => {
+      window.__harness.setQueueItems(true);
+      window.__harness.setMusicQueue(
+        living,
+        Array.from({ length: 120 }, (_, i) => uris[i % uris.length]),
+        30
+      );
+    },
+    { uris, living: LIVING }
+  );
+  const fresh = await mountFresh(page);
+  await page.locator(`${fresh} .tab`, { hasText: "Queue" }).click();
+  // Index 30 is Just Pretend (30 % 4 = 2): listed first and highlighted,
+  // nothing before it, 50 rows, 40 of the 120 still to come.
+  await expect(page.locator(`${fresh} .row`)).toHaveCount(50);
+  await expect(page.locator(`${fresh} .row-name`).first()).toHaveText(
+    "Just Pretend"
+  );
+  await expect(page.locator(`${fresh} .row-name.now`)).toHaveCount(1);
+  await expect(page.locator(`${fresh} .row.played`)).toHaveCount(0);
+  await expect(page.locator(`${fresh} .tab`).last()).toHaveText("Queue · 89");
+  await expect(page.locator(`${fresh} .show-more`)).toHaveText(
+    "Show more · 40 left in the queue"
+  );
+
+  await page.locator(`${fresh} .show-more`).click();
+  await expect(page.locator(`${fresh} .row`)).toHaveCount(90);
+  await expect(page.locator(`${fresh} .show-more`)).toHaveCount(0);
+  await expect(page.locator(`${fresh} .more`)).toHaveCount(0);
+  const reads = (await page.evaluate(() => window.__harness.musicReads)).filter(
+    (call) => call.service === "get_queue" && call.data?.limit
+  );
+  expect(reads.at(-1)?.data).toMatchObject({ limit: 100, offset: 30 });
+  await page.evaluate(() => window.__harness.setQueueItems(false));
+});
+
+test("+ plays a song next; holding + adds it to the end", async ({ page }) => {
+  await page.locator(`${CARD} .tab`, { hasText: "Liked" }).click();
+  const plus = page
+    .locator(`${CARD} .row`, { hasText: "Like Before" })
+    .locator(".row-act");
+  await expect(plus).toHaveAttribute("aria-label", "Play Like Before next");
+
+  await clearCalls(page);
+  await plus.click();
+  await expect.poll(() => actions(page)).toEqual([
+    {
+      domain: "music_assistant",
+      service: "play_media",
+      data: {
+        entity_id: LIVING,
+        media_id: "track:like-before",
+        media_type: "track",
+        enqueue: "next",
+      },
+    },
+  ]);
+  await expect(page.locator(`${CARD} .feedback`)).toHaveText(
+    "Playing next on Living Room"
+  );
+  // Right after the current track, so the queue shows it as next.
+  await page.locator(`${CARD} .tab`, { hasText: "Queue" }).click();
+  await expect(page.locator(`${CARD} .row-name`)).toHaveText([
+    "Kingslayer",
+    "Like Before",
+  ]);
+  await expect(page.locator(`${CARD} .more`)).toHaveText(
+    "+ 3 more in the queue"
+  );
+
+  // Held: appended at the end, and the release does not also play it next.
+  await page.locator(`${CARD} .tab`, { hasText: "Liked" }).click();
+  await clearCalls(page);
+  await plus.hover();
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await expect(page.locator(`${CARD} .feedback`)).toHaveText(
+    "Added to the end on Living Room"
+  );
+  await page.waitForTimeout(300);
+  expect(await actions(page)).toEqual([
+    {
+      domain: "music_assistant",
+      service: "play_media",
+      data: {
+        entity_id: LIVING,
+        media_id: "track:like-before",
+        media_type: "track",
+        enqueue: "add",
+      },
+    },
+  ]);
+  await page.locator(`${CARD} .tab`, { hasText: "Queue" }).click();
+  await expect(page.locator(`${CARD} .more`)).toHaveText(
+    "+ 4 more in the queue"
+  );
 });
 
 test("switching speakers retargets now playing, queue and play", async ({
@@ -520,7 +639,7 @@ test("a song in a playlist plays the playlist from that song", async ({
   // The playlist's remaining song is up next.
   await expect(page.locator(`${CARD} .tab`).last()).toHaveText("Queue · 1");
 
-  // + on a song adds just that song.
+  // + on a song plays just that song next.
   await clearCalls(page);
   await page
     .locator(`${CARD} .row`, { hasText: "Doomed" })
@@ -534,7 +653,7 @@ test("a song in a playlist plays the playlist from that song", async ({
         entity_id: LIVING,
         media_id: "track:doomed",
         media_type: "track",
-        enqueue: "add",
+        enqueue: "next",
       },
     },
   ]);
