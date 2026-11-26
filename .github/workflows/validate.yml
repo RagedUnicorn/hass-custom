@@ -62,7 +62,24 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # HACS validates against the release's hass-custom.js. A release
+      # commit is pushed before its GitHub release exists, so for it the
+      # check is left to the Release workflow, which runs it once the file
+      # is attached.
+      - name: Check for a pending release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' 2>/dev/null | grep -qx hass-custom.js; then
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::v$version has no release with hass-custom.js yet; HACS validation runs in the Release workflow once it is attached."
+            echo "pending=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: HACS validation
+        if: steps.release.outputs.pending != 'true'
         uses: hacs/action@main
         with:
           category: plugin

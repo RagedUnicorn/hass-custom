@@ -28,3 +28,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: generated/dist/hass-custom.js
+  hacs:
+    name: HACS
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: plugin
